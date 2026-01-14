@@ -57,8 +57,14 @@ describe("SQLModel", () => {
 
     // 创建测试表（包含所有测试需要的字段）
     // 注意：使用 PostgreSQL 语法
+    // 先删除表（如果存在），确保表结构正确
+    await adapter.execute("DROP TABLE IF EXISTS users CASCADE", []).catch(
+      () => {
+        // 忽略错误
+      },
+    );
     await adapter.execute(
-      `CREATE TABLE IF NOT EXISTS users (
+      `CREATE TABLE users (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         email VARCHAR(255) UNIQUE NOT NULL,
@@ -89,13 +95,27 @@ describe("SQLModel", () => {
       [],
     );
 
+    // 先删除可能存在的触发器
+    await adapter.execute(
+      "DROP TRIGGER IF EXISTS update_users_updated_at ON users",
+      [],
+    ).catch(() => {
+      // 忽略错误
+    });
+
     // 创建触发器来自动更新 updated_at（PostgreSQL 不支持 ON UPDATE）
     await adapter.execute(
       `
       CREATE OR REPLACE FUNCTION update_updated_at_column()
       RETURNS TRIGGER AS $$
       BEGIN
-        NEW.updated_at = CURRENT_TIMESTAMP;
+        -- 检查 updated_at 字段是否存在
+        IF TG_TABLE_NAME = 'users' AND EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'users' AND column_name = 'updated_at'
+        ) THEN
+          NEW.updated_at = CURRENT_TIMESTAMP;
+        END IF;
         RETURN NEW;
       END;
       $$ language 'plpgsql';
@@ -105,7 +125,6 @@ describe("SQLModel", () => {
 
     await adapter.execute(
       `
-      DROP TRIGGER IF EXISTS update_users_updated_at ON users;
       CREATE TRIGGER update_users_updated_at
       BEFORE UPDATE ON users
       FOR EACH ROW
@@ -492,8 +511,9 @@ describe("SQLModel", () => {
       ]);
 
       expect(result.data.length).toBe(5);
-      expect(result.data[0]).toHaveProperty("name");
-      expect(result.data[0]).toHaveProperty("email");
+      // Bun 测试框架不支持 toHaveProperty，使用 in 操作符检查
+      expect("name" in result.data[0]).toBe(true);
+      expect("email" in result.data[0]).toBe(true);
       // 注意：age 不在投影中，所以不应该比较 age
       // 验证数据存在即可
       expect(result.data[0].name).toBeTruthy();

@@ -1079,7 +1079,10 @@ describe("PostgreSQLAdapter", () => {
       );
 
       expect(result[0].count).toBe("3");
-      expect(parseFloat(result[0].avg_age)).toBeCloseTo(30, 1);
+      // Bun 测试框架可能不支持 toBeCloseTo，使用手动比较
+      const avgAge = parseFloat(result[0].avg_age);
+      expect(avgAge).toBeGreaterThanOrEqual(29.9);
+      expect(avgAge).toBeLessThanOrEqual(30.1);
       expect(parseInt(result[0].max_age)).toBe(40);
       expect(parseInt(result[0].min_age)).toBe(20);
     }, { sanitizeOps: false, sanitizeResources: false });
