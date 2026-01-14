@@ -4,7 +4,14 @@
 
 import { createTransactionError, DatabaseErrorCode } from "../errors.ts";
 import type { QueryLogger } from "../logger/query-logger.ts";
-import type { DatabaseAdapter, DatabaseConfig } from "../types.ts";
+import type {
+  DatabaseAdapter,
+  DatabaseConfig,
+  MongoConfig,
+  MySQLConfig,
+  PostgreSQLConfig,
+  SQLiteConfig,
+} from "../types.ts";
 
 /**
  * 连接池状态
@@ -180,12 +187,17 @@ export abstract class BaseAdapter implements DatabaseAdapter {
 
     if (config.type === "sqlite") {
       // SQLite 需要 filename
-      if (!config.connection.filename) {
+      const sqliteConfig = config as SQLiteConfig;
+      if (!sqliteConfig.connection.filename) {
         throw new Error("SQLite database filename is required");
       }
     } else {
       // 其他数据库需要 host 和 database
-      if (!config.connection.host || !config.connection.database) {
+      const dbConfig = config as
+        | PostgreSQLConfig
+        | MySQLConfig
+        | MongoConfig;
+      if (!dbConfig.connection.host || !dbConfig.connection.database) {
         throw new Error("Database host and database name are required");
       }
     }

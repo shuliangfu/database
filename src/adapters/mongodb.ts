@@ -12,7 +12,7 @@ import {
   createTransactionError,
   DatabaseErrorCode,
 } from "../errors.ts";
-import type { DatabaseAdapter, DatabaseConfig } from "../types.ts";
+import type { DatabaseAdapter, DatabaseConfig, MongoConfig } from "../types.ts";
 import {
   BaseAdapter,
   type HealthCheckResult,
@@ -29,11 +29,21 @@ export class MongoDBAdapter extends BaseAdapter {
 
   /**
    * 连接 MongoDB 数据库
+   * @param config MongoDB 数据库配置
    * @param retryCount 重试次数（内部使用）
    */
-  async connect(config: DatabaseConfig, retryCount: number = 0): Promise<void> {
-    const mongoOptions = config.mongoOptions as
-      | (typeof config.mongoOptions & {
+  async connect(
+    config: MongoConfig | DatabaseConfig,
+    retryCount: number = 0,
+  ): Promise<void> {
+    // 类型守卫：确保是 MongoDB 配置
+    if (config.type !== "mongodb") {
+      throw new Error("Invalid config type for MongoDB adapter");
+    }
+
+    const mongoConfig = config as MongoConfig;
+    const mongoOptions = mongoConfig.mongoOptions as
+      | (typeof mongoConfig.mongoOptions & {
         maxRetries?: number;
         retryDelay?: number;
         directConnection?: boolean;
@@ -47,7 +57,7 @@ export class MongoDBAdapter extends BaseAdapter {
       this.config = config;
 
       const { host, port, database, username, password, authSource } =
-        config.connection;
+        mongoConfig.connection;
 
       // 构建连接 URL
       let url: string;
@@ -104,9 +114,30 @@ export class MongoDBAdapter extends BaseAdapter {
 
       this.client = new MongoClient(url, clientOptions);
 
-      await this.client.connect();
-      this.db = this.client.db(database);
-      this.connected = true;
+      // 使用 Promise.race 确保连接不会无限等待
+      // 如果 serverSelectionTimeoutMS 没有生效，我们添加额外的超时保护
+      const connectPromise = this.client.connect();
+      const connectTimeout = new Promise<never>((_, reject) => {
+        setTimeout(
+          () => reject(new Error("MongoDB connection timeout")),
+          (mongoOptions?.timeoutMS || 30000) + 5000, // 比 serverSelectionTimeoutMS 多 5 秒
+        );
+      });
+
+      try {
+        await Promise.race([connectPromise, connectTimeout]);
+        this.db = this.client.db(database);
+        this.connected = true;
+      } catch (connectError) {
+        // 如果连接失败，清理客户端
+        try {
+          await this.client.close();
+        } catch {
+          // 忽略关闭错误
+        }
+        this.client = null;
+        throw connectError;
+      }
     } catch (error) {
       // 自动重连机制
       if (retryCount < maxRetries) {
@@ -166,7 +197,7 @@ export class MongoDBAdapter extends BaseAdapter {
    * 执行查询（MongoDB 使用集合和查询对象）
    * @param collection 集合名称
    * @param filter 查询过滤器（可选）
-   * @param options 查询选项（可选）
+   * @param options 查询选项（可选，如果包含 pipeline 则使用聚合管道）
    */
   async query(
     collection: string,
@@ -181,13 +212,26 @@ export class MongoDBAdapter extends BaseAdapter {
     }
 
     const startTime = Date.now();
-    const sql = `db.${collection}.find(${JSON.stringify(filter)}, ${
-      JSON.stringify(options)
-    })`;
+    let sql: string = `db.${collection}.query`;
+    let result: any[];
 
     try {
-      const result = await this.db.collection(collection).find(filter, options)
-        .toArray();
+      // 如果 options 包含 pipeline，使用聚合管道
+      if (options.pipeline && Array.isArray(options.pipeline)) {
+        sql = `db.${collection}.aggregate(${JSON.stringify(options.pipeline)})`;
+        const cursor = this.db.collection(collection).aggregate(
+          options.pipeline,
+        );
+        result = await cursor.toArray();
+      } else {
+        // 普通查询
+        sql = `db.${collection}.find(${JSON.stringify(filter)}, ${
+          JSON.stringify(options)
+        })`;
+        result = await this.db.collection(collection).find(filter, options)
+          .toArray();
+      }
+
       const duration = Date.now() - startTime;
 
       // 记录查询日志
@@ -276,10 +320,14 @@ export class MongoDBAdapter extends BaseAdapter {
           // 如果没有操作符，则包装为 $set
           const updateDoc = data.update && typeof data.update === "object" &&
               ("$set" in data.update || "$unset" in data.update ||
-                "$inc" in data.update)
+                "$inc" in data.update || "$push" in data.update ||
+                "$pull" in data.update || "$addToSet" in data.update ||
+                "$pop" in data.update || "$min" in data.update ||
+                "$max" in data.update || "$mul" in data.update)
             ? data.update
             : { $set: data.update };
-          result = await coll.updateOne(data.filter, updateDoc);
+          const options = data.options || {};
+          result = await coll.updateOne(data.filter, updateDoc, options);
           break;
         }
         case "updateMany": {
@@ -288,10 +336,39 @@ export class MongoDBAdapter extends BaseAdapter {
           const updateManyDoc =
             data.update && typeof data.update === "object" &&
               ("$set" in data.update || "$unset" in data.update ||
-                "$inc" in data.update)
+                "$inc" in data.update || "$push" in data.update ||
+                "$pull" in data.update || "$addToSet" in data.update ||
+                "$pop" in data.update || "$min" in data.update ||
+                "$max" in data.update || "$mul" in data.update)
               ? data.update
               : { $set: data.update };
-          result = await coll.updateMany(data.filter, updateManyDoc);
+          const options = data.options || {};
+          result = await coll.updateMany(data.filter, updateManyDoc, options);
+          break;
+        }
+        case "findOneAndUpdate": {
+          const updateDoc = data.update && typeof data.update === "object" &&
+              ("$set" in data.update || "$unset" in data.update ||
+                "$inc" in data.update || "$push" in data.update ||
+                "$pull" in data.update || "$addToSet" in data.update)
+            ? data.update
+            : { $set: data.update };
+          const options = data.options || {};
+          result = await coll.findOneAndUpdate(data.filter, updateDoc, options);
+          break;
+        }
+        case "findOneAndDelete": {
+          const options = data.options || {};
+          result = await coll.findOneAndDelete(data.filter, options);
+          break;
+        }
+        case "findOneAndReplace": {
+          const options = data.options || {};
+          result = await coll.findOneAndReplace(
+            data.filter,
+            data.replacement,
+            options,
+          );
           break;
         }
         case "delete":
@@ -359,7 +436,8 @@ export class MongoDBAdapter extends BaseAdapter {
     // 检查是否是副本集或分片集群
     // 如果连接配置中指定了 replicaSet，直接使用事务（假设已配置为副本集）
     // 否则检查是否是副本集或分片集群（添加超时保护）
-    if (!this.config?.mongoOptions?.replicaSet) {
+    const mongoConfig = this.config as MongoConfig | null;
+    if (!mongoConfig?.mongoOptions?.replicaSet) {
       const admin = this.client.db().admin();
       // 检查是否是副本集或分片集群（添加超时保护）
       try {

@@ -7,7 +7,15 @@ import { MongoDBAdapter } from "./adapters/mongodb.ts";
 import { MySQLAdapter } from "./adapters/mysql.ts";
 import { PostgreSQLAdapter } from "./adapters/postgresql.ts";
 import { SQLiteAdapter } from "./adapters/sqlite.ts";
-import type { DatabaseAdapter, DatabaseConfig, DatabaseType } from "./types.ts";
+import type {
+  DatabaseAdapter,
+  DatabaseConfig,
+  DatabaseType,
+  MongoConfig,
+  MySQLConfig,
+  PostgreSQLConfig,
+  SQLiteConfig,
+} from "./types.ts";
 
 /**
  * 连接状态信息
@@ -63,14 +71,35 @@ export class DatabaseManager {
     await adapter.connect(config);
     this.adapters.set(name, adapter);
 
-    // 返回连接状态
+    // 返回连接状态（根据配置类型提取相应字段）
+    let host: string | undefined;
+    let database: string | undefined;
+    let filename: string | undefined;
+
+    if (config.type === "postgresql") {
+      const pgConfig = config as PostgreSQLConfig;
+      host = pgConfig.connection.host;
+      database = pgConfig.connection.database;
+    } else if (config.type === "mysql") {
+      const mysqlConfig = config as MySQLConfig;
+      host = mysqlConfig.connection.host;
+      database = mysqlConfig.connection.database;
+    } else if (config.type === "mongodb") {
+      const mongoConfig = config as MongoConfig;
+      host = mongoConfig.connection.host;
+      database = mongoConfig.connection.database;
+    } else if (config.type === "sqlite") {
+      const sqliteConfig = config as SQLiteConfig;
+      filename = sqliteConfig.connection.filename;
+    }
+
     return {
       name,
       type: config.type,
       connected: adapter.isConnected(),
-      host: config.connection.host,
-      database: config.connection.database,
-      filename: config.connection.filename,
+      host,
+      database,
+      filename,
     };
   }
 

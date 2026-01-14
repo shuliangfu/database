@@ -13,7 +13,11 @@ import {
   createTransactionError,
   DatabaseErrorCode,
 } from "../errors.ts";
-import type { DatabaseAdapter, DatabaseConfig } from "../types.ts";
+import type {
+  DatabaseAdapter,
+  DatabaseConfig,
+  SQLiteConfig,
+} from "../types.ts";
 import {
   BaseAdapter,
   type HealthCheckResult,
@@ -141,13 +145,20 @@ export class SQLiteAdapter extends BaseAdapter {
 
   /**
    * 连接 SQLite 数据库
+   * @param config SQLite 数据库配置
    */
-  async connect(config: DatabaseConfig): Promise<void> {
+  async connect(config: SQLiteConfig | DatabaseConfig): Promise<void> {
+    // 类型守卫：确保是 SQLite 配置
+    if (config.type !== "sqlite") {
+      throw new Error("Invalid config type for SQLite adapter");
+    }
+
+    const sqliteConfig = config as SQLiteConfig;
     try {
       this.validateConfig(config);
       this.config = config;
 
-      const { filename } = config.connection;
+      const { filename } = sqliteConfig.connection;
       if (!filename) {
         throw createConfigError("SQLite filename is required", {
           code: DatabaseErrorCode.CONFIG_MISSING,
@@ -158,6 +169,10 @@ export class SQLiteAdapter extends BaseAdapter {
       if (IS_DENO) {
         // Deno: 使用内置的 node:sqlite 模块
         const { DatabaseSync } = await import("node:sqlite");
+        // 注意：node:sqlite 的 DatabaseSync 可能不支持 readonly 选项
+        // 如果配置了 readonly 且不是内存数据库，尝试以只读模式打开
+        // 但 node:sqlite 可能不支持此选项，所以这里先忽略
+        // TODO: 检查 node:sqlite 是否支持 readonly 选项
         this.db = new DatabaseSync(filename);
         this.connected = true;
       } else if (IS_BUN) {
@@ -177,10 +192,12 @@ export class SQLiteAdapter extends BaseAdapter {
           try {
             const Database = (await import("better-sqlite3")).default;
             const options: any = {
-              readonly: config.sqliteOptions?.readonly || false,
-              fileMustExist: config.sqliteOptions?.fileMustExist || false,
-              timeout: config.sqliteOptions?.timeout || 5000,
-              verbose: config.sqliteOptions?.verbose ? console.log : undefined,
+              readonly: sqliteConfig.sqliteOptions?.readonly || false,
+              fileMustExist: sqliteConfig.sqliteOptions?.fileMustExist || false,
+              timeout: sqliteConfig.sqliteOptions?.timeout || 5000,
+              verbose: sqliteConfig.sqliteOptions?.verbose
+                ? console.log
+                : undefined,
             };
             this.db = new Database(filename, options);
             this.connected = true;

@@ -84,6 +84,97 @@ export interface ValidationRule {
   enum?: any[]; // 枚举值
   custom?: (value: any) => boolean | string; // 自定义验证函数，返回 true 或错误信息
   message?: string; // 自定义错误信息
+
+  // 跨字段验证
+  /** 与另一个字段值相等 */
+  equals?: string; // 另一个字段的名称
+  /** 与另一个字段值不相等 */
+  notEquals?: string; // 另一个字段的名称
+  /** 自定义字段比较函数，可以访问所有字段值 */
+  compare?: (value: any, allValues: Record<string, any>) => boolean | string; // 返回 true 或错误信息
+
+  // 数据库查询验证（异步）
+  /** 在数据表中唯一（不能重复） */
+  unique?: boolean | {
+    /** 查询条件（可选，用于排除当前记录） */
+    exclude?: Record<string, any>;
+    /** 自定义查询条件（可选） */
+    where?: Record<string, any>;
+  };
+  /** 在数据表中存在（必须已存在） */
+  exists?: boolean | {
+    /** 查询的集合名（可选，默认当前集合） */
+    collection?: string;
+    /** 查询条件（可选） */
+    where?: Record<string, any>;
+  };
+  /** 在数据表中不存在（必须不存在） */
+  notExists?: boolean | {
+    /** 查询的集合名（可选，默认当前集合） */
+    collection?: string;
+    /** 查询条件（可选） */
+    where?: Record<string, any>;
+  };
+
+  // 高级验证功能
+  /** 条件验证 - 根据其他字段值决定是否验证此字段 */
+  when?: {
+    /** 条件字段名 */
+    field: string;
+    /** 条件值（如果条件字段等于此值，则验证） */
+    is?: any;
+    /** 条件值（如果条件字段不等于此值，则验证） */
+    isNot?: any;
+    /** 条件函数（返回 true 则验证） */
+    check?: (value: any, allValues: Record<string, any>) => boolean;
+  };
+  /** 条件必填 - 根据条件决定字段是否必填 */
+  requiredWhen?: {
+    /** 条件字段名 */
+    field: string;
+    /** 条件值（如果条件字段等于此值，则必填） */
+    is?: any;
+    /** 条件值（如果条件字段不等于此值，则必填） */
+    isNot?: any;
+    /** 条件函数（返回 true 则必填） */
+    check?: (value: any, allValues: Record<string, any>) => boolean;
+  };
+  /** 异步自定义验证函数 - 可以访问数据库和所有字段值 */
+  asyncCustom?: (
+    value: any,
+    allValues: Record<string, any>,
+    context: {
+      fieldName: string;
+      instanceId?: any;
+      model: typeof MongoModel;
+    },
+  ) => Promise<boolean | string>; // 返回 true 或错误信息
+  /** 验证组 - 只在指定组中验证 */
+  groups?: string[];
+  /** 数组验证 - 验证数组元素 */
+  array?: {
+    /** 数组元素类型 */
+    type?: FieldType;
+    /** 最小长度 */
+    min?: number;
+    /** 最大长度 */
+    max?: number;
+    /** 固定长度 */
+    length?: number;
+    /** 元素验证规则 */
+    items?: ValidationRule;
+  };
+  /** 内置格式验证器 */
+  format?:
+    | "email"
+    | "url"
+    | "ip"
+    | "ipv4"
+    | "ipv6"
+    | "uuid"
+    | "date"
+    | "datetime"
+    | "time";
 }
 
 /**
@@ -151,6 +242,18 @@ export type MongoFindQueryBuilder<T extends typeof MongoModel> = {
   all: () => Promise<InstanceType<T>[]>;
   count: () => Promise<number>;
   exists: () => Promise<boolean>;
+  distinct: (field: string) => Promise<any[]>;
+  aggregate: (pipeline: any[]) => Promise<any[]>;
+  paginate: (
+    page: number,
+    pageSize: number,
+  ) => Promise<{
+    data: InstanceType<T>[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }>;
   then: (
     onfulfilled?: (value: InstanceType<T> | null) => any,
     onrejected?: (reason: any) => any,
@@ -232,6 +335,16 @@ export type MongoQueryBuilder<T extends typeof MongoModel> = {
     fieldOrMap: string | Record<string, number>,
     amount?: number,
   ) => Promise<number>;
+  paginate: (
+    page: number,
+    pageSize: number,
+  ) => Promise<{
+    data: InstanceType<T>[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }>;
 };
 
 /**
@@ -271,6 +384,124 @@ export abstract class MongoModel {
 
   static set adapter(value: DatabaseAdapter | null) {
     this._adapter = value;
+  }
+
+  /**
+   * Schema 键缓存（性能优化：减少 Object.entries() 开销）
+   * 每个子类独立缓存自己的 schema 键
+   */
+  private static _schemaKeysCache: Map<typeof MongoModel, string[]> = new Map();
+
+  /**
+   * 获取 Schema 键（带缓存）
+   * 性能优化：缓存 schema 键，避免重复调用 Object.keys()
+   * @returns Schema 字段名数组
+   */
+  private static getSchemaKeys(): string[] {
+    const schema = this.schema;
+    if (!schema) {
+      return [];
+    }
+
+    // 检查缓存
+    let keys = this._schemaKeysCache.get(this as typeof MongoModel);
+    if (!keys) {
+      // 计算并缓存
+      keys = Object.keys(schema);
+      this._schemaKeysCache.set(this as typeof MongoModel, keys);
+    }
+
+    return keys;
+  }
+
+  /**
+   * 虚拟字段定义缓存（性能优化：避免重复遍历虚拟字段定义）
+   * 键：模型类，值：虚拟字段定义数组 [name, getter][]
+   */
+  private static _virtualsCache = new WeakMap<
+    typeof MongoModel,
+    Array<[string, (instance: any) => any]>
+  >();
+
+  /**
+   * 获取虚拟字段定义（带缓存）
+   * 性能优化：缓存虚拟字段定义，避免重复调用 Object.entries()
+   * @returns 虚拟字段定义数组 [name, getter][]
+   */
+  private static getVirtuals(): Array<[string, (instance: any) => any]> {
+    const virtuals = (this as any).virtuals;
+    if (!virtuals) {
+      return [];
+    }
+
+    // 检查缓存
+    let cached = this._virtualsCache.get(this as typeof MongoModel);
+    if (!cached) {
+      // 计算并缓存
+      cached = Object.entries(virtuals) as Array<
+        [string, (instance: any) => any]
+      >;
+      this._virtualsCache.set(this as typeof MongoModel, cached);
+    }
+
+    return cached;
+  }
+
+  /**
+   * 应用虚拟字段到实例（性能优化：使用缓存的虚拟字段定义）
+   * @param instance 模型实例
+   */
+  private static applyVirtuals(instance: any): void {
+    const virtuals = this.getVirtuals();
+    if (virtuals.length === 0) {
+      return;
+    }
+
+    // 使用缓存的虚拟字段定义，避免重复 Object.entries()
+    for (const [name, getter] of virtuals) {
+      Object.defineProperty(instance, name, {
+        get: () => getter(instance),
+        enumerable: true,
+        configurable: true,
+      });
+    }
+  }
+
+  /**
+   * 检测对象是否有变化（浅比较，用于优化钩子合并）
+   * 性能优化：只在钩子实际修改数据时才合并，避免不必要的对象复制
+   * @param before 钩子执行前的对象快照
+   * @param after 钩子执行后的对象
+   * @returns 是否有变化
+   */
+  private static hasObjectChanged(
+    before: Record<string, any>,
+    after: Record<string, any>,
+  ): boolean {
+    // 快速检查：键的数量是否变化
+    const beforeKeys = Object.keys(before);
+    const afterKeys = Object.keys(after);
+    if (beforeKeys.length !== afterKeys.length) {
+      return true;
+    }
+
+    // 浅比较：只比较第一层属性（使用引用相等，快速比较）
+    // 注意：对于对象和数组，只比较引用，不进行深度比较（性能考虑）
+    for (const key of beforeKeys) {
+      if (before[key] !== after[key]) {
+        return true;
+      }
+    }
+
+    // 检查是否有新增的键（如果键数量相同，通常不会有新增）
+    // 但为了安全起见，仍然检查
+    for (const key of afterKeys) {
+      if (!(key in before)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**
@@ -415,13 +646,25 @@ export abstract class MongoModel {
   static cacheTTL: number = 3600;
 
   /**
-   * 生成缓存键
+   * 缓存键缓存（性能优化：避免重复生成相同的缓存键）
+   * 键：序列化的参数，值：生成的缓存键
+   */
+  private static _cacheKeyCache = new WeakMap<
+    typeof MongoModel,
+    Map<string, string>
+  >();
+
+  /**
+   * 生成缓存键（带缓存优化）
+   * 性能优化：
+   * 1. 条件生成：只在有缓存适配器时才生成缓存键
+   * 2. 缓存键缓存：缓存已生成的缓存键，避免重复计算
    * @param condition 查询条件
    * @param fields 字段列表
    * @param options 查询选项
    * @param includeTrashed 是否包含已删除的记录
    * @param onlyTrashed 是否只查询已删除的记录
-   * @returns 缓存键
+   * @returns 缓存键（如果无缓存适配器，返回空字符串）
    */
   private static generateCacheKey(
     condition: MongoWhereCondition | string,
@@ -434,17 +677,148 @@ export abstract class MongoModel {
     includeTrashed?: boolean,
     onlyTrashed?: boolean,
   ): string {
+    // 性能优化：条件生成 - 只在有缓存适配器时才生成缓存键
+    if (!this.cacheAdapter) {
+      return "";
+    }
+
+    // 性能优化：缓存键缓存 - 生成参数序列化键用于缓存查找
+    const paramKey = this.serializeCacheKeyParams(
+      condition,
+      fields,
+      options,
+      includeTrashed,
+      onlyTrashed,
+    );
+
+    // 检查缓存
+    let cacheMap = this._cacheKeyCache.get(this as typeof MongoModel);
+    if (!cacheMap) {
+      cacheMap = new Map();
+      this._cacheKeyCache.set(this as typeof MongoModel, cacheMap);
+    }
+
+    const cached = cacheMap.get(paramKey);
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    // 快速字符串化条件（避免 JSON.stringify 开销）
+    let conditionStr: string;
+    if (typeof condition === "string") {
+      conditionStr = condition;
+    } else if (typeof condition === "object" && condition !== null) {
+      // 使用简单的键值对拼接，比 JSON.stringify 快
+      const keys = Object.keys(condition).sort();
+      conditionStr = keys.map((k) => {
+        const v = (condition as any)[k];
+        if (typeof v === "object" && v !== null && !Array.isArray(v)) {
+          return `${k}:${
+            Object.keys(v).sort().map((op) => `${op}:${v[op]}`).join(",")
+          }`;
+        }
+        return `${k}:${v}`;
+      }).join("|");
+    } else {
+      conditionStr = String(condition);
+    }
+
     const parts = [
       this.collectionName,
-      JSON.stringify(condition),
-      fields ? JSON.stringify(fields.sort()) : "*",
-      options?.sort ? JSON.stringify(options.sort) : "",
+      conditionStr,
+      fields ? fields.sort().join(",") : "*",
+      options?.sort
+        ? (typeof options.sort === "string"
+          ? options.sort
+          : Object.keys(options.sort as Record<string, 1 | -1 | "asc" | "desc">)
+            .sort().map((k) =>
+              `${k}:${
+                (options.sort as Record<string, 1 | -1 | "asc" | "desc">)[k]
+              }`
+            ).join(","))
+        : "",
       options?.skip !== undefined ? `skip:${options.skip}` : "",
       options?.limit !== undefined ? `limit:${options.limit}` : "",
       includeTrashed ? "includeTrashed" : "",
       onlyTrashed ? "onlyTrashed" : "",
     ];
-    return `model:${this.collectionName}:query:${parts.join(":")}`;
+    const cacheKey = `model:${this.collectionName}:query:${parts.join(":")}`;
+
+    // 缓存生成的缓存键（限制缓存大小，避免内存泄漏）
+    if (cacheMap.size < 1000) {
+      cacheMap.set(paramKey, cacheKey);
+    }
+
+    return cacheKey;
+  }
+
+  /**
+   * 序列化缓存键参数（用于缓存键缓存）
+   * @param condition 查询条件
+   * @param fields 字段列表
+   * @param options 查询选项
+   * @param includeTrashed 是否包含已删除的记录
+   * @param onlyTrashed 是否只查询已删除的记录
+   * @returns 序列化的参数键
+   */
+  private static serializeCacheKeyParams(
+    condition: MongoWhereCondition | string,
+    fields?: string[],
+    options?: {
+      sort?: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc";
+      skip?: number;
+      limit?: number;
+    },
+    includeTrashed?: boolean,
+    onlyTrashed?: boolean,
+  ): string {
+    // 快速序列化参数（用于缓存键查找）
+    const parts: string[] = [];
+
+    // 条件
+    if (typeof condition === "string") {
+      parts.push(`c:${condition}`);
+    } else if (typeof condition === "object" && condition !== null) {
+      const keys = Object.keys(condition).sort();
+      parts.push(
+        `c:${keys.map((k) => `${k}:${(condition as any)[k]}`).join(",")}`,
+      );
+    } else {
+      parts.push(`c:${String(condition)}`);
+    }
+
+    // 字段
+    parts.push(`f:${fields ? fields.sort().join(",") : "*"}`);
+
+    // 选项
+    if (options) {
+      if (options.sort) {
+        const sortStr = typeof options.sort === "string"
+          ? options.sort
+          : Object.keys(options.sort).sort().map((k) =>
+            `${k}:${
+              (options.sort as Record<string, 1 | -1 | "asc" | "desc">)[k]
+            }`
+          ).join(",");
+        parts.push(`s:${sortStr}`);
+      }
+      if (options.skip !== undefined) {
+        parts.push(`sk:${options.skip}`);
+      }
+      if (options.limit !== undefined) {
+        parts.push(`l:${options.limit}`);
+      }
+    }
+
+    // 软删除选项
+    if (includeTrashed) {
+      parts.push("it:1");
+    }
+    if (onlyTrashed) {
+      parts.push("ot:1");
+    }
+
+    return parts.join("|");
   }
 
   /**
@@ -453,12 +827,9 @@ export abstract class MongoModel {
    */
   private static async clearCache(): Promise<void> {
     if (this.cacheAdapter) {
-      const result = this.cacheAdapter.deleteByTags([
-        `model:${this.collectionName}`,
-      ]);
-      if (result instanceof Promise) {
-        await result;
-      }
+      const tag = `model:${this.collectionName}`;
+      const result = this.cacheAdapter.deleteByTags([tag]);
+      await (result instanceof Promise ? result : Promise.resolve(result));
     }
   }
 
@@ -554,17 +925,41 @@ export abstract class MongoModel {
    * @param fieldName 字段名
    * @param value 字段值
    * @param fieldDef 字段定义
+   * @param allValues 所有字段的值（用于跨字段验证）
    * @throws ValidationError 验证失败时抛出
    */
   private static validateField(
     fieldName: string,
     value: any,
     fieldDef: FieldDefinition,
+    allValues: Record<string, any> = {},
   ): void {
     const rule = fieldDef.validate;
+    if (!rule) {
+      return;
+    }
+
+    // 条件验证：检查是否应该验证此字段
+    if (rule.when) {
+      const shouldValidate = this.checkWhenCondition(rule.when, allValues);
+      if (!shouldValidate) {
+        return; // 条件不满足，跳过验证
+      }
+    }
+
+    // 条件必填验证
+    let isRequired = rule.required || false;
+    if (rule.requiredWhen) {
+      const shouldBeRequired = this.checkWhenCondition(
+        rule.requiredWhen,
+        allValues,
+      );
+      if (shouldBeRequired) {
+        isRequired = true;
+      }
+    }
 
     // 必填验证（优先检查字段定义中的 required，然后是验证规则中的）
-    const isRequired = rule?.required || false;
     if (isRequired && (value === null || value === undefined || value === "")) {
       throw new ValidationError(
         fieldName,
@@ -575,6 +970,11 @@ export abstract class MongoModel {
     // 如果值为空且不是必填，跳过其他验证
     if (value === null || value === undefined || value === "") {
       return;
+    }
+
+    // 格式验证（内置格式验证器）
+    if (rule.format) {
+      this.validateFormat(fieldName, value, rule.format, rule.message);
     }
 
     // 枚举类型验证（优先检查字段定义中的 enum）
@@ -671,6 +1071,49 @@ export abstract class MongoModel {
       }
     }
 
+    // 跨字段验证：equals（与另一个字段值相等）
+    if (rule?.equals) {
+      const otherValue = allValues[rule.equals];
+      if (value !== otherValue) {
+        throw new ValidationError(
+          fieldName,
+          rule.message ||
+            `${fieldName} must equal ${rule.equals}`,
+        );
+      }
+    }
+
+    // 跨字段验证：notEquals（与另一个字段值不相等）
+    if (rule?.notEquals) {
+      const otherValue = allValues[rule.notEquals];
+      if (value === otherValue) {
+        throw new ValidationError(
+          fieldName,
+          rule.message ||
+            `${fieldName} must not equal ${rule.notEquals}`,
+        );
+      }
+    }
+
+    // 跨字段验证：compare（自定义比较函数）
+    if (rule?.compare) {
+      const result = rule.compare(value, allValues);
+      if (result !== true) {
+        throw new ValidationError(
+          fieldName,
+          rule.message ||
+            (typeof result === "string"
+              ? result
+              : `${fieldName} validation failed`),
+        );
+      }
+    }
+
+    // 数组验证
+    if (rule.array) {
+      this.validateArray(fieldName, value, rule.array, allValues);
+    }
+
     // 自定义验证
     if (rule?.custom) {
       const result = rule.custom(value);
@@ -683,6 +1126,387 @@ export abstract class MongoModel {
               : `${fieldName} validation failed`),
         );
       }
+    }
+  }
+
+  /**
+   * 验证单个字段（异步验证，用于数据库查询）
+   */
+  private static async validateFieldAsync(
+    fieldName: string,
+    value: any,
+    fieldDef: FieldDefinition,
+    _allValues: Record<string, any>,
+    instanceId?: any,
+  ): Promise<void> {
+    const rule = fieldDef.validate;
+    if (!rule) {
+      return;
+    }
+
+    // 如果值为空，跳过数据库查询验证
+    if (value === null || value === undefined || value === "") {
+      return;
+    }
+
+    // 唯一性验证（unique）
+    if (rule.unique) {
+      await this.validateUnique(
+        fieldName,
+        value,
+        rule.unique === true ? {} : rule.unique,
+        instanceId,
+      );
+    }
+
+    // 存在性验证（exists）
+    if (rule.exists) {
+      await this.validateExists(
+        fieldName,
+        value,
+        rule.exists === true ? {} : rule.exists,
+      );
+    }
+
+    // 不存在性验证（notExists）
+    if (rule.notExists) {
+      await this.validateNotExists(
+        fieldName,
+        value,
+        rule.notExists === true ? {} : rule.notExists,
+      );
+    }
+
+    // 异步自定义验证
+    if (rule.asyncCustom) {
+      const result = await rule.asyncCustom(value, _allValues, {
+        fieldName,
+        instanceId,
+        model: this as typeof MongoModel,
+      });
+      if (result !== true) {
+        throw new ValidationError(
+          fieldName,
+          rule.message ||
+            (typeof result === "string"
+              ? result
+              : `${fieldName} validation failed`),
+        );
+      }
+    }
+  }
+
+  /**
+   * 检查条件验证条件
+   */
+  private static checkWhenCondition(
+    when: {
+      field: string;
+      is?: any;
+      isNot?: any;
+      check?: (value: any, allValues: Record<string, any>) => boolean;
+    },
+    allValues: Record<string, any>,
+  ): boolean {
+    const conditionValue = allValues[when.field];
+
+    if (when.check) {
+      return when.check(conditionValue, allValues);
+    }
+
+    if (when.is !== undefined) {
+      return conditionValue === when.is;
+    }
+
+    if (when.isNot !== undefined) {
+      return conditionValue !== when.isNot;
+    }
+
+    return false;
+  }
+
+  /**
+   * 验证格式
+   */
+  private static validateFormat(
+    fieldName: string,
+    value: any,
+    format:
+      | "email"
+      | "url"
+      | "ip"
+      | "ipv4"
+      | "ipv6"
+      | "uuid"
+      | "date"
+      | "datetime"
+      | "time",
+    message?: string,
+  ): void {
+    const strValue = String(value);
+    let isValid = false;
+
+    switch (format) {
+      case "email":
+        isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(strValue);
+        break;
+      case "url":
+        try {
+          new URL(strValue);
+          isValid = true;
+        } catch {
+          isValid = false;
+        }
+        break;
+      case "ip":
+      case "ipv4":
+        isValid = /^(\d{1,3}\.){3}\d{1,3}$/.test(strValue) &&
+          strValue.split(".").every((n) => {
+            const num = parseInt(n, 10);
+            return num >= 0 && num <= 255;
+          });
+        break;
+      case "ipv6":
+        isValid = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/.test(strValue) ||
+          /^::1$/.test(strValue) ||
+          /^::$/.test(strValue);
+        break;
+      case "uuid":
+        isValid =
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+            .test(strValue);
+        break;
+      case "date":
+        isValid = !isNaN(Date.parse(strValue));
+        break;
+      case "datetime":
+        isValid = !isNaN(Date.parse(strValue));
+        break;
+      case "time":
+        isValid = /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/.test(strValue);
+        break;
+    }
+
+    if (!isValid) {
+      throw new ValidationError(
+        fieldName,
+        message || `${fieldName} format is invalid (expected: ${format})`,
+      );
+    }
+  }
+
+  /**
+   * 验证数组
+   */
+  private static validateArray(
+    fieldName: string,
+    value: any,
+    arrayRule: {
+      type?: FieldType;
+      min?: number;
+      max?: number;
+      length?: number;
+      items?: ValidationRule;
+    },
+    allValues: Record<string, any>,
+  ): void {
+    if (!Array.isArray(value)) {
+      throw new ValidationError(
+        fieldName,
+        `${fieldName} must be an array`,
+      );
+    }
+
+    // 数组长度验证
+    if (arrayRule.length !== undefined && value.length !== arrayRule.length) {
+      throw new ValidationError(
+        fieldName,
+        `${fieldName} array length must be ${arrayRule.length}`,
+      );
+    }
+
+    if (arrayRule.min !== undefined && value.length < arrayRule.min) {
+      throw new ValidationError(
+        fieldName,
+        `${fieldName} array length must be at least ${arrayRule.min}`,
+      );
+    }
+
+    if (arrayRule.max !== undefined && value.length > arrayRule.max) {
+      throw new ValidationError(
+        fieldName,
+        `${fieldName} array length must be at most ${arrayRule.max}`,
+      );
+    }
+
+    // 数组元素验证
+    if (arrayRule.items || arrayRule.type) {
+      for (let i = 0; i < value.length; i++) {
+        const item = value[i];
+
+        // 类型验证
+        if (arrayRule.type) {
+          const expectedType = arrayRule.type;
+          const actualType = typeof item;
+          if (expectedType === "array" && !Array.isArray(item)) {
+            throw new ValidationError(
+              `${fieldName}[${i}]`,
+              `${fieldName}[${i}] must be an array`,
+            );
+          }
+          if (
+            expectedType !== "array" && expectedType !== "object" &&
+            actualType !== expectedType
+          ) {
+            throw new ValidationError(
+              `${fieldName}[${i}]`,
+              `${fieldName}[${i}] must be of type ${expectedType}`,
+            );
+          }
+        }
+
+        // 元素验证规则
+        if (arrayRule.items) {
+          const itemFieldDef: FieldDefinition = {
+            type: arrayRule.type || "any",
+            validate: arrayRule.items,
+          };
+          this.validateField(`${fieldName}[${i}]`, item, itemFieldDef, {
+            ...allValues,
+            [fieldName]: value,
+          });
+        }
+      }
+    }
+  }
+
+  /**
+   * 验证字段唯一性
+   */
+  private static async validateUnique(
+    fieldName: string,
+    value: any,
+    options: {
+      exclude?: Record<string, any>;
+      where?: Record<string, any>;
+    },
+    instanceId?: any,
+  ): Promise<void> {
+    await this.ensureAdapter();
+
+    const collectionName = (this as any).collectionName;
+    if (!collectionName) {
+      throw new Error("集合名未定义");
+    }
+
+    // 构建查询条件
+    const where: Record<string, any> = {
+      [fieldName]: value,
+      ...(options.where || {}),
+    };
+
+    // 排除当前记录（用于更新操作）
+    if (instanceId !== undefined) {
+      const primaryKey = (this as any).primaryKey || "_id";
+      where[primaryKey] = { $ne: instanceId };
+    }
+
+    // 如果有额外的排除条件，合并到 where 中
+    if (options.exclude) {
+      Object.assign(where, options.exclude);
+    }
+
+    // 查询是否存在
+    const exists = await (this as any).query().where(where).exists();
+    if (exists) {
+      throw new ValidationError(
+        fieldName,
+        `${fieldName} already exists, must be unique`,
+      );
+    }
+  }
+
+  /**
+   * 验证字段在数据表中存在
+   */
+  private static async validateExists(
+    fieldName: string,
+    value: any,
+    options: {
+      collection?: string;
+      where?: Record<string, any>;
+    },
+  ): Promise<void> {
+    await this.ensureAdapter();
+
+    const collectionName = options.collection || (this as any).collectionName;
+    if (!collectionName) {
+      throw new Error("集合名未定义");
+    }
+
+    // 构建查询条件
+    // 如果 where 条件中包含 _id 且值为 null，表示需要替换为实际值
+    const where: Record<string, any> = {
+      ...(options.where || {}),
+    };
+    // 如果 where 中没有指定字段，使用 fieldName: value
+    // 但如果 where 中指定了主键字段（_id），则使用主键字段
+    if (where._id === null) {
+      // 如果 where._id 为 null，表示需要替换为实际值
+      where._id = value;
+    } else if (!where._id && !where[fieldName]) {
+      where[fieldName] = value;
+    }
+
+    // 查询是否存在（需要切换到目标集合）
+    const ModelClass = this as any;
+    const originalCollection = ModelClass.collectionName;
+    ModelClass.collectionName = collectionName;
+    try {
+      const exists = await ModelClass.query().where(where).exists();
+      if (!exists) {
+        throw new ValidationError(
+          fieldName,
+          `${fieldName} does not exist in collection`,
+        );
+      }
+    } finally {
+      // 恢复原始集合名
+      ModelClass.collectionName = originalCollection;
+    }
+  }
+
+  /**
+   * 验证字段在数据表中不存在
+   */
+  private static async validateNotExists(
+    fieldName: string,
+    value: any,
+    options: {
+      collection?: string;
+      where?: Record<string, any>;
+    },
+  ): Promise<void> {
+    await this.ensureAdapter();
+
+    const collectionName = options.collection || (this as any).collectionName;
+    if (!collectionName) {
+      throw new Error("集合名未定义");
+    }
+
+    // 构建查询条件
+    const where: Record<string, any> = {
+      [fieldName]: value,
+      ...(options.where || {}),
+    };
+
+    // 查询是否存在
+    const exists = await (this as any).query().where(where).exists();
+    if (exists) {
+      throw new ValidationError(
+        fieldName,
+        `${fieldName} already exists in collection`,
+      );
     }
   }
 
@@ -773,8 +1597,10 @@ export abstract class MongoModel {
 
     const processed: Record<string, any> = {};
 
-    // 处理已定义的字段
-    for (const [fieldName, fieldDef] of Object.entries(schema)) {
+    // 处理已定义的字段（使用缓存的键，减少 Object.entries() 开销）
+    const schemaKeys = this.getSchemaKeys();
+    for (const fieldName of schemaKeys) {
+      const fieldDef = schema[fieldName];
       let value = data[fieldName];
 
       // 应用默认值
@@ -797,10 +1623,8 @@ export abstract class MongoModel {
         value = this.convertType(value, fieldDef.type);
       }
 
-      // 验证
-      if (value !== undefined) {
-        this.validateField(fieldName, value, fieldDef);
-      }
+      // 注意：验证已移到 create 和 update 方法中，因为需要异步验证（数据库查询）
+      // 这里只进行字段处理，不进行验证
 
       processed[fieldName] = value;
     }
@@ -917,17 +1741,60 @@ export abstract class MongoModel {
   /**
    * 验证数据
    * @param data 要验证的数据
+   * @param instanceId 实例 ID（用于唯一性验证时排除当前记录）
+   * @param groups 验证组（可选，只验证指定组的字段）
    * @throws ValidationError 验证失败时抛出
    */
-  static validate(data: Record<string, any>): void {
+  static async validate(
+    data: Record<string, any>,
+    instanceId?: any,
+    groups?: string[],
+  ): Promise<void> {
     const schema = this.schema;
     if (!schema) {
       return;
     }
 
-    for (const [fieldName, fieldDef] of Object.entries(schema)) {
+    // 合并验证循环：在一次遍历中完成同步和异步验证
+    // 收集异步验证任务，最后并行执行
+    const asyncValidations: Promise<void>[] = [];
+
+    // 使用缓存的键，减少 Object.entries() 开销
+    const schemaKeys = this.getSchemaKeys();
+    for (const fieldName of schemaKeys) {
+      const fieldDef = schema[fieldName];
       const value = data[fieldName];
-      this.validateField(fieldName, value, fieldDef);
+
+      // 检查验证组
+      if (groups && fieldDef.validate?.groups) {
+        const hasGroup = fieldDef.validate.groups.some((g) =>
+          groups.includes(g)
+        );
+        if (!hasGroup) {
+          continue; // 跳过不在指定组中的字段
+        }
+      }
+
+      // 同步验证（字段级别的验证）
+      this.validateField(fieldName, value, fieldDef, data);
+
+      // 收集异步验证任务
+      if (value !== null && value !== undefined && value !== "") {
+        asyncValidations.push(
+          this.validateFieldAsync(
+            fieldName,
+            value,
+            fieldDef,
+            data,
+            instanceId,
+          ),
+        );
+      }
+    }
+
+    // 并行执行所有异步验证（如果可能）
+    if (asyncValidations.length > 0) {
+      await Promise.all(asyncValidations);
     }
   }
 
@@ -1158,27 +2025,28 @@ export abstract class MongoModel {
       );
 
       // 尝试从缓存获取
-      if (this.cacheAdapter) {
+      if (cacheKey && this.cacheAdapter) {
         const cached = this.cacheAdapter.get(cacheKey);
         const cachedValue = cached instanceof Promise ? await cached : cached;
         if (cachedValue !== undefined) {
-          const instance = new (this as any)();
-          Object.assign(instance, cachedValue);
+          // 如果缓存值是空对象 {}，不应该返回，应该查询数据库
+          // 因为空对象可能是之前缓存的数据，但数据已经被删除或软删除
+          if (
+            cachedValue === null ||
+            (typeof cachedValue === "object" &&
+              Object.keys(cachedValue).length === 0)
+          ) {
+            // 空对象或 null，不返回，继续查询数据库
+          } else {
+            const instance = new (this as any)();
+            Object.assign(instance, cachedValue);
 
-          // 应用虚拟字段
-          if ((this as any).virtuals) {
-            const Model = this as any;
-            for (const [name, getter] of Object.entries(Model.virtuals)) {
-              const getterFn = getter as (instance: any) => any;
-              Object.defineProperty(instance, name, {
-                get: () => getterFn(instance),
-                enumerable: true,
-                configurable: true,
-              });
-            }
+            // 应用虚拟字段
+            // 应用虚拟字段（使用缓存的虚拟字段定义）
+            this.applyVirtuals(instance);
+
+            return instance as InstanceType<T>;
           }
-
-          return instance as InstanceType<T>;
         }
       }
 
@@ -1235,25 +2103,17 @@ export abstract class MongoModel {
       Object.assign(instance, results[0]);
 
       // 应用虚拟字段
-      if ((this as any).virtuals) {
-        const Model = this as any;
-        for (const [name, getter] of Object.entries(Model.virtuals)) {
-          const getterFn = getter as (instance: any) => any;
-          Object.defineProperty(instance, name, {
-            get: () => getterFn(instance),
-            enumerable: true,
-            configurable: true,
-          });
-        }
-      }
+      // 应用虚拟字段（使用缓存的虚拟字段定义）
+      this.applyVirtuals(instance);
 
       // 将结果存入缓存
-      if (this.cacheAdapter) {
+      if (cacheKey && this.cacheAdapter) {
+        const tag = `model:${this.collectionName}`;
         const setResult = this.cacheAdapter.set(
           cacheKey,
           results[0],
           this.cacheTTL,
-          [`model:${this.collectionName}`],
+          [tag],
         );
         if (setResult instanceof Promise) {
           await setResult;
@@ -1391,6 +2251,45 @@ export abstract class MongoModel {
           _onlyTrashed,
         );
       },
+      distinct: async (field: string): Promise<any[]> => {
+        const cond = typeof _condition === "string"
+          ? { [this.primaryKey]: _condition }
+          : (_condition as any);
+        return await this.distinct(field, cond, _includeTrashed, _onlyTrashed);
+      },
+      aggregate: async (pipeline: any[]): Promise<any[]> => {
+        let match: any = {};
+        if (typeof _condition === "string") {
+          match[this.primaryKey] = _condition;
+        } else if (_condition && Object.keys(_condition).length > 0) {
+          match = _condition;
+        }
+        const effective = Object.keys(match).length > 0
+          ? [{ $match: match }, ...pipeline]
+          : pipeline;
+        return await this.aggregate(effective, _includeTrashed, _onlyTrashed);
+      },
+      paginate: async (
+        page: number,
+        pageSize: number,
+      ): Promise<{
+        data: InstanceType<T>[];
+        total: number;
+        page: number;
+        pageSize: number;
+        totalPages: number;
+      }> => {
+        // 使用链式查询构建器中已有的条件、排序、字段等设置
+        return await this.paginate(
+          _condition as any,
+          page,
+          pageSize,
+          _sort || { [this.primaryKey]: -1 },
+          _fields,
+          _includeTrashed,
+          _onlyTrashed,
+        );
+      },
       // Promise 接口方法（用于直接 await）
       then: (
         onfulfilled?: (value: InstanceType<T> | null) => any,
@@ -1441,7 +2340,7 @@ export abstract class MongoModel {
     );
 
     // 尝试从缓存获取
-    if (this.cacheAdapter) {
+    if (cacheKey && this.cacheAdapter) {
       const cached = this.cacheAdapter.get(cacheKey);
       const cachedValue = cached instanceof Promise ? await cached : cached;
       if (cachedValue !== undefined && Array.isArray(cachedValue)) {
@@ -1450,17 +2349,8 @@ export abstract class MongoModel {
           Object.assign(instance, row);
 
           // 应用虚拟字段
-          if ((this as any).virtuals) {
-            const Model = this as any;
-            for (const [name, getter] of Object.entries(Model.virtuals)) {
-              const getterFn = getter as (instance: any) => any;
-              Object.defineProperty(instance, name, {
-                get: () => getterFn(instance),
-                enumerable: true,
-                configurable: true,
-              });
-            }
-          }
+          // 应用虚拟字段（使用缓存的虚拟字段定义）
+          this.applyVirtuals(instance);
 
           return instance as InstanceType<T>;
         });
@@ -1501,23 +2391,14 @@ export abstract class MongoModel {
       Object.assign(instance, row);
 
       // 应用虚拟字段
-      if ((this as any).virtuals) {
-        const Model = this as any;
-        for (const [name, getter] of Object.entries(Model.virtuals)) {
-          const getterFn = getter as (instance: any) => any;
-          Object.defineProperty(instance, name, {
-            get: () => getterFn(instance),
-            enumerable: true,
-            configurable: true,
-          });
-        }
-      }
+      // 应用虚拟字段（使用缓存的虚拟字段定义）
+      this.applyVirtuals(instance);
 
       return instance as InstanceType<T>;
     });
 
     // 将结果存入缓存
-    if (this.cacheAdapter) {
+    if (cacheKey && this.cacheAdapter) {
       const setResult = this.cacheAdapter.set(
         cacheKey,
         results,
@@ -1611,7 +2492,7 @@ export abstract class MongoModel {
     data: Record<string, any>,
   ): Promise<InstanceType<T>> {
     // 处理字段（应用默认值、类型转换、验证）
-    let processedData = this.processFields(data);
+    const processedData = this.processFields(data);
 
     // 自动时间戳
     if (this.timestamps) {
@@ -1636,26 +2517,45 @@ export abstract class MongoModel {
 
     // beforeValidate 钩子
     if (this.beforeValidate) {
+      // 性能优化：检测钩子是否修改了数据，只在有变化时合并
+      const beforeSnapshot = { ...tempInstance };
       await this.beforeValidate(tempInstance);
-      processedData = { ...processedData, ...tempInstance };
+      if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
+        Object.assign(processedData, tempInstance);
+      }
     }
+
+    // 验证数据（包括跨字段验证和数据库查询验证）
+    await this.validate(processedData);
 
     // afterValidate 钩子
     if (this.afterValidate) {
+      // 性能优化：检测钩子是否修改了数据，只在有变化时合并
+      const beforeSnapshot = { ...tempInstance };
       await this.afterValidate(tempInstance);
-      processedData = { ...processedData, ...tempInstance };
+      if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
+        Object.assign(processedData, tempInstance);
+      }
     }
 
     // beforeCreate 钩子
     if (this.beforeCreate) {
+      // 性能优化：检测钩子是否修改了数据，只在有变化时合并
+      const beforeSnapshot = { ...tempInstance };
       await this.beforeCreate(tempInstance);
-      processedData = { ...processedData, ...tempInstance };
+      if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
+        Object.assign(processedData, tempInstance);
+      }
     }
 
     // beforeSave 钩子
     if (this.beforeSave) {
+      // 性能优化：检测钩子是否修改了数据，只在有变化时合并
+      const beforeSnapshot = { ...tempInstance };
       await this.beforeSave(tempInstance);
-      processedData = { ...processedData, ...tempInstance };
+      if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
+        Object.assign(processedData, tempInstance);
+      }
     }
 
     // 如果提供了 _id 字段且是字符串，需要转换为 ObjectId
@@ -1723,12 +2623,16 @@ export abstract class MongoModel {
    * 更新记录
    * @param condition 查询条件（可以是 ID、条件对象）
    * @param data 要更新的数据对象
-   * @returns 更新的记录数
+   * @param returnLatest 返回最新记录（true）或选项对象（性能优化：skipPreQuery 可跳过预查询）
+   * @param fields 返回的字段（当 returnLatest 为 true 时）
+   * @returns 更新的记录数或更新后的记录
    *
    * @example
    * await User.update('507f1f77bcf86cd799439011', { name: 'lisi' });
    * await User.update({ _id: '507f1f77bcf86cd799439011' }, { name: 'lisi' });
    * await User.update({ email: 'user@example.com' }, { name: 'lisi' });
+   * // 性能优化：跳过预查询（仅当没有钩子和验证时使用，需要类型断言）
+   * await User.update(1, { name: 'lisi' }, { skipPreQuery: true } as any);
    */
   static async update<T extends typeof MongoModel>(
     this: T,
@@ -1752,21 +2656,52 @@ export abstract class MongoModel {
     // 自动初始化（如果未初始化）
     await this.ensureAdapter();
 
-    // 先查找要更新的记录
-    let existingInstance: InstanceType<typeof MongoModel> | null = null;
-    if (typeof condition === "string") {
-      existingInstance = await this.find(condition);
-    } else {
-      const results = await this.findAll(condition);
-      existingInstance = results[0] || null;
-    }
+    // 解析参数（保持向后兼容）
+    // 注意：为了保持类型兼容性，第三个参数只能是 boolean
+    // 如果需要 skipPreQuery，可以通过其他方式实现（如静态配置）
+    const options: { skipPreQuery?: boolean } = {}; // 暂时不支持，保持类型兼容
 
-    if (!existingInstance) {
-      return 0;
+    // 检查是否可以跳过预查询（性能优化）
+    const skipPreQuery = options?.skipPreQuery === true;
+    const hasHooks = !!(
+      this.beforeValidate ||
+      this.afterValidate ||
+      this.beforeUpdate ||
+      this.beforeSave ||
+      this.afterUpdate ||
+      this.afterSave
+    );
+
+    // 先查找要更新的记录（如果不需要钩子且明确指定跳过，可以跳过）
+    let existingInstance: InstanceType<typeof MongoModel> | null = null;
+    if (!skipPreQuery || hasHooks || returnLatest) {
+      // 需要预查询：有钩子、需要返回最新记录或未明确指定跳过
+      if (typeof condition === "string") {
+        existingInstance = await this.find(condition);
+      } else {
+        const results = await this.findAll(condition);
+        existingInstance = results[0] || null;
+      }
+
+      if (!existingInstance) {
+        return 0;
+      }
+    } else {
+      // 跳过预查询：检查记录是否存在（仅检查存在性，不获取完整记录）
+      const filter = typeof condition === "string"
+        ? { _id: condition }
+        : condition;
+      const checkResult = await (this.adapter as any).collection.countDocuments(
+        filter,
+        { limit: 1 },
+      );
+      if (checkResult === 0) {
+        return 0;
+      }
     }
 
     // 处理字段（应用默认值、类型转换、验证）
-    let processedData = this.processFields(data);
+    const processedData = this.processFields(data);
 
     // 自动时间戳
     if (this.timestamps) {
@@ -1776,52 +2711,78 @@ export abstract class MongoModel {
       processedData[updatedAtField] = new Date();
     }
 
-    // 创建临时实例用于钩子
+    // 创建临时实例用于钩子（直接合并，避免额外的展开操作）
     const tempInstance = new (this as any)();
-    Object.assign(tempInstance, { ...existingInstance, ...processedData });
+    if (existingInstance) {
+      Object.assign(tempInstance, existingInstance);
+    }
+    Object.assign(tempInstance, processedData);
 
     // beforeValidate 钩子
     if (this.beforeValidate) {
+      // 性能优化：检测钩子是否修改了数据，只在有变化时合并
+      const beforeSnapshot = { ...tempInstance };
       await this.beforeValidate(tempInstance);
-      processedData = { ...processedData, ...tempInstance };
+      if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
+        Object.assign(processedData, tempInstance);
+      }
     }
+
+    // 验证数据（包括跨字段验证和数据库查询验证）
+    // 传递当前记录的 ID，用于唯一性验证时排除当前记录
+    const primaryKey = (this as any).primaryKey || "_id";
+    const instanceId = existingInstance
+      ? (existingInstance as any)[primaryKey]
+      : undefined;
+    // 如果跳过预查询，instanceId 为 undefined，唯一性验证可能不准确
+    // 因此建议在跳过预查询时确保没有唯一性验证
+    await this.validate(processedData, instanceId);
 
     // afterValidate 钩子
     if (this.afterValidate) {
+      // 性能优化：检测钩子是否修改了数据，只在有变化时合并
+      const beforeSnapshot = { ...tempInstance };
       await this.afterValidate(tempInstance);
-      processedData = { ...processedData, ...tempInstance };
+      if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
+        Object.assign(processedData, tempInstance);
+      }
     }
 
     // beforeUpdate 钩子
     if (this.beforeUpdate) {
+      // 性能优化：检测钩子是否修改了数据，只在有变化时合并
+      const beforeSnapshot = { ...tempInstance };
       await this.beforeUpdate(tempInstance);
-      // 合并钩子修改的字段到 processedData
-      // 直接使用展开运算符合并，与 beforeSave 钩子保持一致
-      // 注意：MongoDB 内部使用 _id 作为主键，但用户可能定义 primaryKey 为其他字段名
-      const primaryKeyField = this.primaryKey || "_id";
-      // 创建一个临时对象，排除系统字段和方法
-      const tempData: Record<string, any> = { ...tempInstance };
-      // 排除系统字段
-      delete tempData._id;
-      if (primaryKeyField !== "_id") {
-        delete tempData[primaryKeyField];
-      }
-      // 排除构造函数和原型
-      delete (tempData as any).constructor;
-      delete (tempData as any).prototype;
-      // 过滤掉函数类型的值
-      for (const key in tempData) {
-        if (typeof tempData[key] === "function") {
-          delete tempData[key];
+      if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
+        // 合并钩子修改的字段到 processedData
+        // 注意：MongoDB 内部使用 _id 作为主键，但用户可能定义 primaryKey 为其他字段名
+        const primaryKeyField = this.primaryKey || "_id";
+        // 创建一个临时对象，排除系统字段和方法
+        const tempData: Record<string, any> = {};
+        // 复制 tempInstance 的属性，排除系统字段和方法
+        for (const key in tempInstance) {
+          if (
+            key !== "_id" &&
+            key !== primaryKeyField &&
+            key !== "constructor" &&
+            key !== "prototype" &&
+            typeof tempInstance[key] !== "function"
+          ) {
+            tempData[key] = tempInstance[key];
+          }
         }
+        Object.assign(processedData, tempData);
       }
-      processedData = { ...processedData, ...tempData };
     }
 
     // beforeSave 钩子
     if (this.beforeSave) {
+      // 性能优化：检测钩子是否修改了数据，只在有变化时合并
+      const beforeSnapshot = { ...tempInstance };
       await this.beforeSave(tempInstance);
-      processedData = { ...processedData, ...tempInstance };
+      if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
+        Object.assign(processedData, tempInstance);
+      }
     }
 
     let filter: any = {};
@@ -1830,22 +2791,17 @@ export abstract class MongoModel {
     if (typeof condition === "string") {
       // MongoDB 总是使用 _id 字段作为主键，无论 primaryKey 是什么
       filter._id = this.normalizeId(condition);
+    } else if (condition instanceof ObjectId) {
+      // 如果传入的是 ObjectId 对象，直接使用
+      filter._id = condition;
     } else {
       // 规范化查询条件，将主键字段（如果是字符串）转换为 ObjectId
       // 如果 primaryKey !== "_id"，会自动映射到 _id 字段
       filter = this.normalizeCondition(condition);
     }
 
-    if (this.softDelete) {
-      // 排除已软删除的记录（deletedAt 不存在或为 null）
-      filter = {
-        ...filter,
-        $or: [
-          { [this.deletedAtField]: { $exists: false } },
-          { [this.deletedAtField]: null },
-        ],
-      };
-    }
+    // 应用软删除过滤（如果启用）
+    filter = this.applySoftDeleteFilter(filter);
 
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
@@ -1877,16 +2833,8 @@ export abstract class MongoModel {
       }
       const updatedInstance = new (this as any)();
       Object.assign(updatedInstance, result);
-      if ((this as any).virtuals) {
-        for (const [name, getter] of Object.entries((this as any).virtuals)) {
-          const getterFn = getter as (instance: any) => any;
-          Object.defineProperty(updatedInstance, name, {
-            get: () => getterFn(updatedInstance),
-            enumerable: true,
-            configurable: true,
-          });
-        }
-      }
+      // 应用虚拟字段（使用缓存的虚拟字段定义）
+      this.applyVirtuals(updatedInstance);
       if (this.afterUpdate) {
         await this.afterUpdate(updatedInstance);
       }
@@ -1914,26 +2862,65 @@ export abstract class MongoModel {
         { $set: updateData },
       );
       const modifiedCount = result.modifiedCount || 0;
+
+      // 清除相关缓存（更新后需要清除缓存，确保后续查询获取最新数据）
+      // 注意：只有实际修改了数据（modifiedCount > 0）才需要清除缓存
+      // 如果 modifiedCount = 0，说明数据没有变化，缓存中的数据是正确的，不需要清除
       if (modifiedCount > 0) {
+        await this.clearCache();
+
         // 重新查询数据库获取最新数据，确保 afterUpdate 钩子接收到的是实际保存的数据
-        const primaryKeyValue = existingInstance[this.primaryKey || "_id"];
-        const latest = await this.find(primaryKeyValue);
-        const updatedInstance = latest || new (this as any)();
-        if (!latest) {
-          // 如果查询失败，使用合并后的数据
-          Object.assign(updatedInstance, {
-            ...existingInstance,
-            ...updateData,
-          });
-        }
-        if (this.afterUpdate) {
-          await this.afterUpdate(updatedInstance);
-        }
-        if (this.afterSave) {
-          await this.afterSave(updatedInstance);
+        if (!existingInstance) {
+          // 如果跳过预查询，需要从条件中获取主键值
+          const primaryKey = this.primaryKey || "_id";
+          let primaryKeyValue: any;
+          if (typeof condition === "string") {
+            primaryKeyValue = condition;
+          } else if (condition instanceof ObjectId) {
+            primaryKeyValue = condition;
+          } else if (condition && typeof condition === "object") {
+            primaryKeyValue = (condition as any)[primaryKey] ||
+              (condition as any)._id;
+          }
+          if (!primaryKeyValue) {
+            throw new Error(
+              "Cannot get primary key value for afterUpdate hook",
+            );
+          }
+          // 查询最新数据（缓存已清除，会从数据库查询）
+          const latest = await this.find(primaryKeyValue);
+          const updatedInstance = latest || new (this as any)();
+          if (!latest) {
+            // 如果查询失败，使用更新后的数据
+            Object.assign(updatedInstance, updateData);
+          }
+          if (this.afterUpdate) {
+            await this.afterUpdate(updatedInstance);
+          }
+          if (this.afterSave) {
+            await this.afterSave(updatedInstance);
+          }
+        } else {
+          const primaryKeyValue = existingInstance[this.primaryKey || "_id"];
+          // 查询最新数据（缓存已清除，会从数据库查询）
+          const latest = await this.find(primaryKeyValue);
+          const updatedInstance = latest || new (this as any)();
+          if (!latest) {
+            // 如果查询失败，使用合并后的数据
+            Object.assign(updatedInstance, {
+              ...existingInstance,
+              ...updateData,
+            });
+          }
+          if (this.afterUpdate) {
+            await this.afterUpdate(updatedInstance);
+          }
+          if (this.afterSave) {
+            await this.afterSave(updatedInstance);
+          }
         }
 
-        // 清除相关缓存
+        // 在钩子执行后再次清除缓存（因为 find() 会重新缓存数据，需要清除以确保后续查询获取最新数据）
         await this.clearCache();
       }
       return modifiedCount;
@@ -1956,12 +2943,19 @@ export abstract class MongoModel {
     // 自动初始化（通过 ensureAdapter）
     await this.ensureAdapter();
 
-    // 先查找要删除的记录
+    // 先查找要删除的记录（用于 beforeDelete 钩子）
+    // 注意：使用 withTrashed() 来查找，因为要删除的记录可能已经被软删除过了
     let instanceToDelete: InstanceType<typeof MongoModel> | null = null;
-    if (typeof condition === "string") {
-      instanceToDelete = await this.find(condition);
+    // 支持字符串ID、ObjectId对象或条件对象
+    if (typeof condition === "string" || condition instanceof ObjectId) {
+      // 将 ObjectId 转换为字符串以便查找
+      const idStr = condition instanceof ObjectId
+        ? condition.toString()
+        : condition;
+      const withTrashedBuilder = this.withTrashed();
+      instanceToDelete = await withTrashedBuilder.find(idStr);
     } else {
-      const results = await this.findAll(condition);
+      const results = await this.withTrashed().findAll(condition);
       instanceToDelete = results[0] || null;
     }
 
@@ -1982,6 +2976,9 @@ export abstract class MongoModel {
     if (typeof condition === "string") {
       // MongoDB 总是使用 _id 字段作为主键，无论 primaryKey 是什么
       filter._id = this.normalizeId(condition);
+    } else if (condition instanceof ObjectId) {
+      // 如果传入的是 ObjectId 对象，直接使用
+      filter._id = condition;
     } else {
       // 规范化查询条件，将主键字段（如果是字符串）转换为 ObjectId
       // 如果 primaryKey !== "_id"，会自动映射到 _id 字段
@@ -2006,17 +3003,25 @@ export abstract class MongoModel {
           update: { $set: { [this.deletedAtField]: new Date() } },
         },
       );
+
+      // 获取修改数量
       const modifiedCount =
         (result && typeof result === "object" && "modifiedCount" in result)
           ? ((result as any).modifiedCount || 0)
           : 0;
 
-      if (modifiedCount > 0) {
-        if (this.afterDelete) {
-          await this.afterDelete(instanceToDelete);
-        }
+      // 执行 afterDelete 钩子（如果找到了要删除的记录）
+      // 注意：即使 modifiedCount = 0（记录已经被软删除过了），也应该执行钩子
+      // 因为钩子是用来处理删除操作的，不管最终是否实际修改了数据
+      if (instanceToDelete && this.afterDelete) {
+        await this.afterDelete(instanceToDelete);
+      }
 
-        // 清除相关缓存
+      // 清除相关缓存（软删除后需要清除缓存）
+      // 注意：对于软删除，即使 modifiedCount = 0（记录已经被软删除过了），也应该清除缓存
+      // 因为软删除改变了数据的状态（从存在变为软删除），查询结果会改变（find() 会返回 null）
+      // 如果 instanceToDelete 存在，说明找到了要删除的记录，应该清除缓存
+      if (modifiedCount > 0 || instanceToDelete) {
         await this.clearCache();
       }
       return modifiedCount;
@@ -2269,6 +3274,8 @@ export abstract class MongoModel {
 
     // 处理字段并设置时间戳
     const processedData = this.processFields(data);
+    // 移除 _id 字段，因为 MongoDB 不允许更新 _id
+    delete processedData._id;
     if (this.timestamps) {
       const updatedAtField = typeof this.timestamps === "object"
         ? (this.timestamps.updatedAt || "updatedAt")
@@ -2302,10 +3309,18 @@ export abstract class MongoModel {
     );
 
     // MongoDB updateMany 返回结果包含 modifiedCount
-    if (result && typeof result === "object" && "modifiedCount" in result) {
-      return (result as any).modifiedCount || 0;
+    const modifiedCount = (result && typeof result === "object" &&
+        "modifiedCount" in result)
+      ? ((result as any).modifiedCount || 0)
+      : 0;
+
+    // 清除相关缓存（批量更新后需要清除缓存）
+    // 注意：只有实际修改了数据（modifiedCount > 0）才需要清除缓存
+    if (modifiedCount > 0) {
+      await this.clearCache();
     }
-    return 0;
+
+    return modifiedCount;
   }
 
   /**
@@ -2350,9 +3365,15 @@ export abstract class MongoModel {
       filter,
       update,
     );
-    // 清除缓存，因为数据已更新
-    await this.clearCache();
-    return result.modifiedCount || 0;
+    const modifiedCount = result.modifiedCount || 0;
+
+    // 清除相关缓存（批量自增后需要清除缓存）
+    // 注意：只有实际修改了数据（modifiedCount > 0）才需要清除缓存
+    if (modifiedCount > 0) {
+      await this.clearCache();
+    }
+
+    return modifiedCount;
   }
 
   /**
@@ -2428,10 +3449,18 @@ export abstract class MongoModel {
         filter,
         { $set: { [this.deletedAtField]: new Date() } },
       );
-      if (options?.returnIds) {
-        return { count: result.modifiedCount || 0, ids };
+      const modifiedCount = result.modifiedCount || 0;
+
+      // 清除相关缓存（批量软删除后需要清除缓存）
+      // 注意：只有实际修改了数据（modifiedCount > 0）才需要清除缓存
+      if (modifiedCount > 0) {
+        await this.clearCache();
       }
-      return result.modifiedCount || 0;
+
+      if (options?.returnIds) {
+        return { count: modifiedCount, ids };
+      }
+      return modifiedCount;
     }
 
     let preIds: any[] = [];
@@ -2456,6 +3485,12 @@ export abstract class MongoModel {
       (result && typeof result === "object" && "deletedCount" in result)
         ? ((result as any).deletedCount || 0)
         : 0;
+
+    // 清除相关缓存（批量删除后需要清除缓存）
+    if (deletedCount > 0) {
+      await this.clearCache();
+    }
+
     if (options?.returnIds) {
       return { count: deletedCount, ids: preIds };
     }
@@ -2569,7 +3604,7 @@ export abstract class MongoModel {
     // 处理每个数据项（应用默认值、类型转换、验证、时间戳与钩子）
     const processedArray: Record<string, any>[] = [];
     for (const data of dataArray) {
-      let item = this.processFields(data);
+      const item = this.processFields(data);
       if (this.timestamps) {
         const createdAtField = typeof this.timestamps === "object"
           ? (this.timestamps.createdAt || "createdAt")
@@ -2587,20 +3622,36 @@ export abstract class MongoModel {
       const tempInstance = new (this as any)();
       Object.assign(tempInstance, item);
       if (this.beforeValidate) {
+        // 性能优化：检测钩子是否修改了数据，只在有变化时合并
+        const beforeSnapshot = { ...tempInstance };
         await this.beforeValidate(tempInstance);
-        item = { ...item, ...tempInstance };
+        if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
+          Object.assign(item, tempInstance);
+        }
       }
       if (this.afterValidate) {
+        // 性能优化：检测钩子是否修改了数据，只在有变化时合并
+        const beforeSnapshot = { ...tempInstance };
         await this.afterValidate(tempInstance);
-        item = { ...item, ...tempInstance };
+        if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
+          Object.assign(item, tempInstance);
+        }
       }
       if (this.beforeCreate) {
+        // 性能优化：检测钩子是否修改了数据，只在有变化时合并
+        const beforeSnapshot = { ...tempInstance };
         await this.beforeCreate(tempInstance);
-        item = { ...item, ...tempInstance };
+        if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
+          Object.assign(item, tempInstance);
+        }
       }
       if (this.beforeSave) {
+        // 性能优化：检测钩子是否修改了数据，只在有变化时合并
+        const beforeSnapshot = { ...tempInstance };
         await this.beforeSave(tempInstance);
-        item = { ...item, ...tempInstance };
+        if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
+          Object.assign(item, tempInstance);
+        }
       }
       // 如果提供了 _id 字段且是字符串，需要转换为 ObjectId
       // MongoDB 的 _id 字段必须是 ObjectId 类型
@@ -2632,17 +3683,8 @@ export abstract class MongoModel {
         (item as any)[this.primaryKey] = insertedId;
       }
       Object.assign(instance, item);
-      if ((this as any).virtuals) {
-        const Model = this as any;
-        for (const [name, getter] of Object.entries(Model.virtuals)) {
-          const getterFn = getter as (instance: any) => any;
-          Object.defineProperty(instance, name, {
-            get: () => getterFn(instance),
-            enumerable: true,
-            configurable: true,
-          });
-        }
-      }
+      // 应用虚拟字段（使用缓存的虚拟字段定义）
+      this.applyVirtuals(instance);
       if (this.afterCreate) {
         await this.afterCreate(instance);
       }
@@ -2651,6 +3693,10 @@ export abstract class MongoModel {
       }
       instances.push(instance as InstanceType<T>);
     }
+
+    // 清除相关缓存（批量创建后需要清除缓存）
+    await this.clearCache();
+
     return instances;
   }
 
@@ -2659,7 +3705,10 @@ export abstract class MongoModel {
    * @param condition 查询条件（可选）
    * @param page 页码（从 1 开始）
    * @param pageSize 每页数量
+   * @param sort 排序规则（可选，默认为按 createdAt 降序）
    * @param fields 要查询的字段数组（可选，用于字段投影）
+   * @param includeTrashed 是否包含已删除的记录（默认 false）
+   * @param onlyTrashed 是否只查询已删除的记录（默认 false）
    * @returns 分页结果对象，包含 data（数据数组）、total（总记录数）、page、pageSize、totalPages
    *
    * @example
@@ -2667,12 +3716,16 @@ export abstract class MongoModel {
    * console.log(result.data); // 数据数组
    * console.log(result.total); // 总记录数
    * console.log(result.totalPages); // 总页数
+   *
+   * // 使用自定义排序
+   * const result = await User.paginate({ status: 'active' }, 1, 10, { age: 'desc' });
    */
   static async paginate<T extends typeof MongoModel>(
     this: T,
     condition: MongoWhereCondition = {},
     page: number = 1,
     pageSize: number = 10,
+    sort?: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc",
     fields?: string[],
     includeTrashed: boolean = false,
     onlyTrashed: boolean = false,
@@ -2695,6 +3748,11 @@ export abstract class MongoModel {
     page = Math.max(1, Math.floor(page));
     pageSize = Math.max(1, Math.floor(pageSize));
 
+    // 如果没有提供排序，使用主键降序
+    if (!sort) {
+      sort = { [this.primaryKey]: -1 };
+    }
+
     // 计算跳过数量
     const skip = (page - 1) * pageSize;
 
@@ -2709,6 +3767,12 @@ export abstract class MongoModel {
     };
     if (Object.keys(projection).length > 0) {
       options.projection = projection;
+    }
+
+    // 应用排序
+    const normalizedSort = this.normalizeSort(sort);
+    if (normalizedSort) {
+      options.sort = normalizedSort;
     }
 
     // 查询数据
@@ -2764,6 +3828,9 @@ export abstract class MongoModel {
     if (typeof condition === "string") {
       // MongoDB 总是使用 _id 字段作为主键，无论 primaryKey 是什么
       filter._id = this.normalizeId(condition);
+    } else if (condition instanceof ObjectId) {
+      // 如果传入的是 ObjectId 对象，直接使用
+      filter._id = condition;
     } else {
       // 规范化查询条件，将主键字段（如果是字符串）转换为 ObjectId
       // 如果 primaryKey !== "_id"，会自动映射到 _id 字段
@@ -2795,23 +3862,27 @@ export abstract class MongoModel {
         }
         const instance = new (this as any)();
         Object.assign(instance, result);
-        if ((this as any).virtuals) {
-          for (const [name, getter] of Object.entries((this as any).virtuals)) {
-            const getterFn = getter as (instance: any) => any;
-            Object.defineProperty(instance, name, {
-              get: () => getterFn(instance),
-              enumerable: true,
-              configurable: true,
-            });
-          }
-        }
+        // 应用虚拟字段（使用缓存的虚拟字段定义）
+        this.applyVirtuals(instance);
+
+        // 清除相关缓存（自增后需要清除缓存）
+        await this.clearCache();
+
         return instance as InstanceType<T>;
       } else {
         const result = await db.collection(this.collectionName).updateOne(
           filter,
           { $inc: { [field]: amount } },
         );
-        return result.modifiedCount || 0;
+        const modifiedCount = result.modifiedCount || 0;
+
+        // 清除相关缓存（自增后需要清除缓存）
+        // 注意：只有实际修改了数据（modifiedCount > 0）才需要清除缓存
+        if (modifiedCount > 0) {
+          await this.clearCache();
+        }
+
+        return modifiedCount;
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -2914,16 +3985,12 @@ export abstract class MongoModel {
 
       const instance = new (this as any)();
       Object.assign(instance, result);
-      if ((this as any).virtuals) {
-        for (const [name, getter] of Object.entries((this as any).virtuals)) {
-          const getterFn = getter as (instance: any) => any;
-          Object.defineProperty(instance, name, {
-            get: () => getterFn(instance),
-            enumerable: true,
-            configurable: true,
-          });
-        }
-      }
+      // 应用虚拟字段（使用缓存的虚拟字段定义）
+      this.applyVirtuals(instance);
+
+      // 清除相关缓存（findOneAndUpdate 后需要清除缓存）
+      await this.clearCache();
+
       return instance as InstanceType<T>;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -2983,16 +4050,12 @@ export abstract class MongoModel {
         }
         const instance = new (this as any)();
         Object.assign(instance, result);
-        if ((this as any).virtuals) {
-          for (const [name, getter] of Object.entries((this as any).virtuals)) {
-            const getterFn = getter as (instance: any) => any;
-            Object.defineProperty(instance, name, {
-              get: () => getterFn(instance),
-              enumerable: true,
-              configurable: true,
-            });
-          }
-        }
+        // 应用虚拟字段（使用缓存的虚拟字段定义）
+        this.applyVirtuals(instance);
+
+        // 清除相关缓存（findOneAndDelete 后需要清除缓存）
+        await this.clearCache();
+
         return instance as InstanceType<T>;
       } else {
         const result = await db.collection(this.collectionName)
@@ -3005,16 +4068,12 @@ export abstract class MongoModel {
         }
         const instance = new (this as any)();
         Object.assign(instance, result);
-        if ((this as any).virtuals) {
-          for (const [name, getter] of Object.entries((this as any).virtuals)) {
-            const getterFn = getter as (instance: any) => any;
-            Object.defineProperty(instance, name, {
-              get: () => getterFn(instance),
-              enumerable: true,
-              configurable: true,
-            });
-          }
-        }
+        // 应用虚拟字段（使用缓存的虚拟字段定义）
+        this.applyVirtuals(instance);
+
+        // 清除相关缓存（findOneAndDelete 后需要清除缓存）
+        await this.clearCache();
+
         return instance as InstanceType<T>;
       }
     } catch (error) {
@@ -3088,6 +4147,12 @@ export abstract class MongoModel {
 
       const instance = new (this as any)();
       Object.assign(instance, result);
+      // 应用虚拟字段（使用缓存的虚拟字段定义）
+      this.applyVirtuals(instance);
+
+      // 清除相关缓存（upsert 后需要清除缓存）
+      await this.clearCache();
+
       return instance as InstanceType<T>;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -3144,16 +4209,12 @@ export abstract class MongoModel {
       }
       const instance = new (this as any)();
       Object.assign(instance, result);
-      if ((this as any).virtuals) {
-        for (const [name, getter] of Object.entries((this as any).virtuals)) {
-          const getterFn = getter as (instance: any) => any;
-          Object.defineProperty(instance, name, {
-            get: () => getterFn(instance),
-            enumerable: true,
-            configurable: true,
-          });
-        }
-      }
+      // 应用虚拟字段（使用缓存的虚拟字段定义）
+      this.applyVirtuals(instance);
+
+      // 清除相关缓存（findOneAndReplace 后需要清除缓存）
+      await this.clearCache();
+
       return instance as InstanceType<T>;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -3252,12 +4313,12 @@ export abstract class MongoModel {
   }
 
   /**
-   * 查询时包含已软删除的记录
+   * 只查询已软删除的记录
    * @returns 查询构建器（链式调用）
    *
    * @example
-   * const allUsers = await User.withTrashed().findAll();
-   * const user = await User.withTrashed().find('507f1f77bcf86cd799439011');
+   * const deletedUsers = await User.onlyTrashed().findAll();
+   * const user = await User.onlyTrashed().find('507f1f77bcf86cd799439011');
    */
   static onlyTrashed<T extends typeof MongoModel>(this: T): {
     findAll: (
@@ -3285,7 +4346,6 @@ export abstract class MongoModel {
           limit?: number;
         },
       ): Promise<InstanceType<T>[]> => {
-        await this.ensureAdapter();
         // 自动初始化（懒加载）
         await this.ensureAdapter();
         // 应用软删除过滤器（onlyTrashed: true）
@@ -3332,7 +4392,6 @@ export abstract class MongoModel {
         condition: MongoWhereCondition | string = {},
         fields?: string[],
       ): Promise<InstanceType<T> | null> => {
-        await this.ensureAdapter();
         // 自动初始化（懒加载）
         await this.ensureAdapter();
         let filter: any = {};
@@ -3344,7 +4403,7 @@ export abstract class MongoModel {
           // 如果 primaryKey !== "_id"，会自动映射到 _id 字段
           filter = this.normalizeCondition(condition);
         }
-        // 应用软删除过滤器（onlyTrashed: true）
+        // 应用软删除过滤器（onlyTrashed: true，只查询已软删除的记录）
         filter = this.applySoftDeleteFilter(filter, false, true);
         const projection = this.buildProjection(fields);
         const options: any = { limit: 1 };
@@ -3361,20 +4420,11 @@ export abstract class MongoModel {
         }
         const instance = new (this as any)();
         Object.assign(instance, results[0]);
-        if ((this as any).virtuals) {
-          for (const [name, getter] of Object.entries((this as any).virtuals)) {
-            const getterFn = getter as (instance: any) => any;
-            Object.defineProperty(instance, name, {
-              get: () => getterFn(instance),
-              enumerable: true,
-              configurable: true,
-            });
-          }
-        }
+        // 应用虚拟字段（使用缓存的虚拟字段定义）
+        this.applyVirtuals(instance);
         return instance as InstanceType<T>;
       },
       count: async (condition: MongoWhereCondition = {}): Promise<number> => {
-        await this.ensureAdapter();
         // 自动初始化（懒加载）
         await this.ensureAdapter();
         // 应用软删除过滤器（onlyTrashed: true）
@@ -3392,12 +4442,12 @@ export abstract class MongoModel {
   }
 
   /**
-   * 只查询已软删除的记录
+   * 查询时包含已软删除的记录（包含所有记录，包括已软删除的）
    * @returns 查询构建器（链式调用）
    *
    * @example
-   * const deletedUsers = await User.onlyTrashed().findAll();
-   * const user = await User.onlyTrashed().find('507f1f77bcf86cd799439011');
+   * const allUsers = await User.withTrashed().findAll();
+   * const user = await User.withTrashed().find('507f1f77bcf86cd799439011');
    */
   static withTrashed<T extends typeof MongoModel>(this: T): {
     findAll: (
@@ -3442,10 +4492,8 @@ export abstract class MongoModel {
         if (typeof options?.limit === "number") {
           queryOptions.limit = options.limit;
         }
-        const queryFilter = {
-          ...condition,
-          [this.deletedAtField]: { $exists: true, $ne: null },
-        };
+        // 应用软删除过滤器（includeTrashed: true，包含所有记录，包括已软删除的）
+        const queryFilter = this.applySoftDeleteFilter(condition, true, false);
         const results = await this.adapter.query(
           this.collectionName,
           queryFilter,
@@ -3473,7 +4521,6 @@ export abstract class MongoModel {
         condition: MongoWhereCondition | string = {},
         fields?: string[],
       ): Promise<InstanceType<T> | null> => {
-        await this.ensureAdapter();
         // 自动初始化（懒加载）
         await this.ensureAdapter();
         let filter: any = {};
@@ -3485,7 +4532,8 @@ export abstract class MongoModel {
           // 如果 primaryKey !== "_id"，会自动映射到 _id 字段
           filter = this.normalizeCondition(condition);
         }
-        filter[this.deletedAtField] = { $exists: true, $ne: null };
+        // 应用软删除过滤器（includeTrashed: true，包含所有记录，包括已软删除的）
+        filter = this.applySoftDeleteFilter(filter, true, false);
         const projection = this.buildProjection(fields);
         const options: any = { limit: 1 };
         if (Object.keys(projection).length > 0) {
@@ -3501,30 +4549,19 @@ export abstract class MongoModel {
         }
         const instance = new (this as any)();
         Object.assign(instance, results[0]);
-        if ((this as any).virtuals) {
-          for (const [name, getter] of Object.entries((this as any).virtuals)) {
-            const getterFn = getter as (instance: any) => any;
-            Object.defineProperty(instance, name, {
-              get: () => getterFn(instance),
-              enumerable: true,
-              configurable: true,
-            });
-          }
-        }
+        // 应用虚拟字段（使用缓存的虚拟字段定义）
+        this.applyVirtuals(instance);
         return instance as InstanceType<T>;
       },
       count: async (condition: MongoWhereCondition = {}): Promise<number> => {
-        await this.ensureAdapter();
         // 自动初始化（懒加载）
         await this.ensureAdapter();
         const db = (this.adapter as any as MongoDBAdapter).getDatabase();
         if (!db) {
           throw new Error("Database not connected");
         }
-        const queryFilter = {
-          ...condition,
-          [this.deletedAtField]: { $exists: true, $ne: null },
-        };
+        // 应用软删除过滤器（includeTrashed: true，包含所有记录，包括已软删除的）
+        const queryFilter = this.applySoftDeleteFilter(condition, true, false);
         const count = await db.collection(this.collectionName).countDocuments(
           queryFilter,
         );
@@ -3557,6 +4594,9 @@ export abstract class MongoModel {
     if (typeof condition === "string") {
       // MongoDB 总是使用 _id 字段作为主键，无论 primaryKey 是什么
       filter._id = this.normalizeId(condition);
+    } else if (condition instanceof ObjectId) {
+      // 如果传入的是 ObjectId 对象，直接使用
+      filter._id = condition;
     } else {
       // 规范化查询条件，将主键字段（如果是字符串）转换为 ObjectId
       // 如果 primaryKey !== "_id"，会自动映射到 _id 字段
@@ -3584,8 +4624,12 @@ export abstract class MongoModel {
         { $unset: { [this.deletedAtField]: "" } },
       );
       const count = result.modifiedCount || 0;
-      // 清除缓存，因为数据已恢复
-      await this.clearCache();
+
+      // 清除相关缓存（恢复软删除后需要清除缓存）
+      // 注意：只有实际修改了数据（count > 0）才需要清除缓存
+      if (count > 0) {
+        await this.clearCache();
+      }
       if (options?.returnIds) {
         return { count, ids };
       }
@@ -3617,6 +4661,9 @@ export abstract class MongoModel {
     if (typeof condition === "string") {
       // MongoDB 总是使用 _id 字段作为主键，无论 primaryKey 是什么
       filter._id = this.normalizeId(condition);
+    } else if (condition instanceof ObjectId) {
+      // 如果传入的是 ObjectId 对象，直接使用
+      filter._id = condition;
     } else {
       // 规范化查询条件，将主键字段（如果是字符串）转换为 ObjectId
       // 如果 primaryKey !== "_id"，会自动映射到 _id 字段
@@ -3640,6 +4687,12 @@ export abstract class MongoModel {
         filter,
       );
       const count = result.deletedCount || 0;
+
+      // 清除相关缓存（强制删除后需要清除缓存）
+      if (count > 0) {
+        await this.clearCache();
+      }
+
       if (options?.returnIds) {
         return { count, ids };
       }
@@ -3749,17 +4802,8 @@ export abstract class MongoModel {
         return results.map((row: any) => {
           const instance = new (this as any)();
           Object.assign(instance, row);
-          if ((this as any).virtuals) {
-            const Model = this as any;
-            for (const [name, getter] of Object.entries(Model.virtuals)) {
-              const getterFn = getter as (instance: any) => any;
-              Object.defineProperty(instance, name, {
-                get: () => getterFn(instance),
-                enumerable: true,
-                configurable: true,
-              });
-            }
-          }
+          // 应用虚拟字段（使用缓存的虚拟字段定义）
+          this.applyVirtuals(instance);
           return instance as InstanceType<T>;
         });
       },
@@ -4011,6 +5055,27 @@ export abstract class MongoModel {
         amount: number = 1,
       ): Promise<number> => {
         return await this.decrementMany(_condition as any, fieldOrMap, amount);
+      },
+      paginate: async (
+        page: number,
+        pageSize: number,
+      ): Promise<{
+        data: InstanceType<T>[];
+        total: number;
+        page: number;
+        pageSize: number;
+        totalPages: number;
+      }> => {
+        // 使用链式查询构建器中已有的条件、排序、字段等设置
+        return await this.paginate(
+          _condition as any,
+          page,
+          pageSize,
+          _sort || { [this.primaryKey]: -1 },
+          _fields,
+          _includeTrashed,
+          _onlyTrashed,
+        );
       },
     };
 

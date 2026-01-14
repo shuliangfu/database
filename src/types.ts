@@ -9,196 +9,259 @@
 export type DatabaseType = "postgresql" | "mongodb" | "mysql" | "sqlite";
 
 /**
- * 数据库连接配置
- * 包含数据库类型、连接信息、连接池配置等
+ * PostgreSQL 数据库配置
  */
-export interface DatabaseConfig {
+export interface PostgreSQLConfig {
   /**
    * 数据库类型
-   * 指定要连接的数据库类型：postgresql、mongodb、mysql、sqlite
    */
-  type: DatabaseType;
+  type: "postgresql";
 
   /**
    * 连接配置
-   * 包含数据库连接所需的基本信息
    */
   connection: {
     /**
      * 数据库主机地址
-     * SQL 数据库（PostgreSQL、MySQL/MariaDB）和 MongoDB 使用
      * 默认值：localhost
      */
     host?: string;
 
     /**
      * 数据库端口号
-     * SQL 数据库（PostgreSQL、MySQL/MariaDB）和 MongoDB 使用
-     * PostgreSQL 默认：5432
-     * MySQL/MariaDB 默认：3306
-     * MongoDB 默认：27017
+     * 默认值：5432
      */
     port?: number;
 
     /**
      * 数据库名称
-     * SQL 数据库（PostgreSQL、MySQL/MariaDB）和 MongoDB 使用
      */
     database?: string;
 
     /**
      * 数据库用户名
-     * SQL 数据库（PostgreSQL、MySQL/MariaDB）和 MongoDB 使用
      */
     username?: string;
 
     /**
      * 数据库密码
-     * SQL 数据库（PostgreSQL、MySQL/MariaDB）和 MongoDB 使用
      */
     password?: string;
-
-    /**
-     * SQLite 数据库文件路径
-     * 仅 SQLite 使用
-     * 示例：":memory:"（内存数据库）或 "/path/to/database.db"
-     */
-    filename?: string;
-
-    /**
-     * MongoDB 认证源
-     * 仅 MongoDB 使用
-     * 指定用于身份验证的数据库名称
-     */
-    authSource?: string;
-
-    /**
-     * MongoDB 副本集名称
-     * 仅 MongoDB 使用
-     * 如果 MongoDB 配置为副本集，需要指定副本集名称
-     */
-    replicaSet?: string;
   };
 
   /**
    * 连接池配置
-   * 仅 SQL 数据库（PostgreSQL、MySQL/MariaDB）使用
-   * 用于管理数据库连接池的参数
    */
   pool?: {
     /**
      * 连接池最小连接数
-     * 保持的最小空闲连接数
      * 默认值：1
      */
     min?: number;
 
     /**
      * 连接池最大连接数
-     * 允许的最大连接数
      * 默认值：10
      */
     max?: number;
 
     /**
      * 空闲连接超时时间（秒）
-     * 超过此时间的空闲连接将被关闭
      * 默认值：30
      */
     idleTimeout?: number;
 
     /**
      * 最大重试次数
-     * 连接失败时的最大重试次数
      * 默认值：3
      */
     maxRetries?: number;
 
     /**
      * 重试延迟（毫秒）
-     * 每次重试之间的延迟时间
      * 默认值：1000
      */
     retryDelay?: number;
-
-    /**
-     * 连接超时时间（毫秒）
-     * 建立连接的超时时间
-     * 默认值：根据数据库类型而定
-     */
-    connectionTimeout?: number;
   };
 
   /**
-   * SQLite 特定配置
-   * 仅 SQLite 数据库使用
+   * PostgreSQL 特定配置
    */
-  sqliteOptions?: {
+  postgresqlOptions?: {
     /**
-     * 是否只读模式
-     * 设置为 true 时，数据库将以只读模式打开
-     * 默认值：false
-     */
-    readonly?: boolean;
-
-    /**
-     * 文件必须存在
-     * 设置为 true 时，如果数据库文件不存在将抛出错误
-     * 默认值：false
-     */
-    fileMustExist?: boolean;
-
-    /**
-     * 操作超时时间（毫秒）
-     * 数据库操作的超时时间
+     * 连接超时时间（毫秒）
+     * pg 库使用 connect_timeout（秒）参数
      * 默认值：5000
      */
-    timeout?: number;
+    connectionTimeout?: number;
+  };
+}
+
+/**
+ * MySQL/MariaDB 数据库配置
+ */
+export interface MySQLConfig {
+  /**
+   * 数据库类型
+   */
+  type: "mysql";
+
+  /**
+   * 连接配置
+   */
+  connection: {
+    /**
+     * 数据库主机地址
+     * 默认值：localhost
+     */
+    host?: string;
 
     /**
-     * 是否启用详细日志
-     * 设置为 true 时，将输出详细的 SQL 日志
-     * 默认值：false
+     * 数据库端口号
+     * 默认值：3306
      */
-    verbose?: boolean;
+    port?: number;
+
+    /**
+     * 数据库名称
+     */
+    database?: string;
+
+    /**
+     * 数据库用户名
+     */
+    username?: string;
+
+    /**
+     * 数据库密码
+     */
+    password?: string;
+  };
+
+  /**
+   * 连接池配置
+   */
+  pool?: {
+    /**
+     * 连接池最小连接数
+     * 默认值：1
+     */
+    min?: number;
+
+    /**
+     * 连接池最大连接数
+     * 默认值：10
+     */
+    max?: number;
+
+    /**
+     * 空闲连接超时时间（秒）
+     * 默认值：30
+     */
+    idleTimeout?: number;
+
+    /**
+     * 最大重试次数
+     * 默认值：3
+     */
+    maxRetries?: number;
+
+    /**
+     * 重试延迟（毫秒）
+     * 默认值：1000
+     */
+    retryDelay?: number;
+  };
+
+  /**
+   * MySQL/MariaDB 特定配置
+   */
+  mysqlOptions?: {
+    /**
+     * 连接超时时间（毫秒）
+     * 默认值：10000
+     */
+    connectionTimeout?: number;
+  };
+}
+
+/**
+ * MongoDB 数据库配置
+ */
+export interface MongoConfig {
+  /**
+   * 数据库类型
+   */
+  type: "mongodb";
+
+  /**
+   * 连接配置
+   */
+  connection: {
+    /**
+     * 数据库主机地址
+     * 默认值：localhost
+     */
+    host?: string;
+
+    /**
+     * 数据库端口号
+     * 默认值：27017
+     */
+    port?: number;
+
+    /**
+     * 数据库名称
+     */
+    database?: string;
+
+    /**
+     * 数据库用户名
+     */
+    username?: string;
+
+    /**
+     * 数据库密码
+     */
+    password?: string;
+
+    /**
+     * MongoDB 认证源
+     * 指定用于身份验证的数据库名称
+     */
+    authSource?: string;
   };
 
   /**
    * MongoDB 特定配置
-   * 仅 MongoDB 数据库使用
    */
   mongoOptions?: {
     /**
      * 连接池最大连接数
-     * MongoDB 连接池允许的最大连接数
      * 默认值：根据 MongoDB 驱动默认值
      */
     maxPoolSize?: number;
 
     /**
      * 连接池最小连接数
-     * MongoDB 连接池保持的最小连接数
      * 默认值：根据 MongoDB 驱动默认值
      */
     minPoolSize?: number;
 
     /**
      * 服务器选择超时时间（毫秒）
-     * 选择可用服务器时的超时时间
      * 默认值：30000
      */
     timeoutMS?: number;
 
     /**
      * 最大重试次数
-     * 连接失败时的最大重试次数
      * 默认值：3
      */
     maxRetries?: number;
 
     /**
      * 重试延迟（毫秒）
-     * 每次重试之间的延迟时间
      * 默认值：1000
      */
     retryDelay?: number;
@@ -284,6 +347,70 @@ export interface DatabaseConfig {
 }
 
 /**
+ * SQLite 数据库配置
+ */
+export interface SQLiteConfig {
+  /**
+   * 数据库类型
+   */
+  type: "sqlite";
+
+  /**
+   * 连接配置
+   */
+  connection: {
+    /**
+     * SQLite 数据库文件路径
+     * 示例：":memory:"（内存数据库）或 "/path/to/database.db"
+     */
+    filename?: string;
+  };
+
+  /**
+   * SQLite 特定配置
+   */
+  sqliteOptions?: {
+    /**
+     * 是否只读模式
+     * 设置为 true 时，数据库将以只读模式打开
+     * 默认值：false
+     */
+    readonly?: boolean;
+
+    /**
+     * 文件必须存在
+     * 设置为 true 时，如果数据库文件不存在将抛出错误
+     * 默认值：false
+     */
+    fileMustExist?: boolean;
+
+    /**
+     * 操作超时时间（毫秒）
+     * 数据库操作的超时时间
+     * 默认值：5000
+     */
+    timeout?: number;
+
+    /**
+     * 是否启用详细日志
+     * 设置为 true 时，将输出详细的 SQL 日志
+     * 默认值：false
+     */
+    verbose?: boolean;
+  };
+}
+
+/**
+ * 数据库连接配置（联合类型）
+ * 用于向后兼容，推荐使用具体的配置类型（PostgreSQLConfig、MySQLConfig、MongoConfig、SQLiteConfig）
+ */
+export type DatabaseConfig =
+  | PostgreSQLConfig
+  | MySQLConfig
+  | MongoConfig
+  | SQLiteConfig;
+
+/**
  * 数据库适配器接口
  * 所有数据库适配器必须实现此接口
  *
@@ -298,7 +425,7 @@ export interface DatabaseAdapter {
    * 连接数据库
    * 根据提供的配置连接到数据库
    *
-   * @param config 数据库连接配置
+   * @param config 数据库连接配置（PostgreSQLConfig、MySQLConfig、MongoConfig 或 SQLiteConfig）
    * @throws {DatabaseError} 连接失败时抛出错误
    */
   connect(config: DatabaseConfig): Promise<void>;

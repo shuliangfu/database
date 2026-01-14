@@ -13,7 +13,7 @@ import {
   createTransactionError,
   DatabaseErrorCode,
 } from "../errors.ts";
-import type { DatabaseAdapter, DatabaseConfig } from "../types.ts";
+import type { DatabaseAdapter, DatabaseConfig, MySQLConfig } from "../types.ts";
 import {
   BaseAdapter,
   type HealthCheckResult,
@@ -28,11 +28,21 @@ export class MySQLAdapter extends BaseAdapter {
 
   /**
    * 连接 MySQL/MariaDB 数据库
+   * @param config MySQL/MariaDB 数据库配置
    * @param retryCount 重试次数（内部使用）
    */
-  async connect(config: DatabaseConfig, retryCount: number = 0): Promise<void> {
-    const pool = config.pool as
-      | (typeof config.pool & { maxRetries?: number; retryDelay?: number })
+  async connect(
+    config: MySQLConfig | DatabaseConfig,
+    retryCount: number = 0,
+  ): Promise<void> {
+    // 类型守卫：确保是 MySQL 配置
+    if (config.type !== "mysql") {
+      throw new Error("Invalid config type for MySQL adapter");
+    }
+
+    const mysqlConfig = config as MySQLConfig;
+    const pool = mysqlConfig.pool as
+      | (typeof mysqlConfig.pool & { maxRetries?: number; retryDelay?: number })
       | undefined;
     const maxRetries = pool?.maxRetries || 3;
     const retryDelay = pool?.retryDelay || 1000;
@@ -41,7 +51,8 @@ export class MySQLAdapter extends BaseAdapter {
       this.validateConfig(config);
       this.config = config;
 
-      const { host, port, database, username, password } = config.connection;
+      const { host, port, database, username, password } =
+        mysqlConfig.connection;
 
       // 创建连接池
       this.pool = createPool({
@@ -50,7 +61,7 @@ export class MySQLAdapter extends BaseAdapter {
         database: database || "",
         user: username || "",
         password: password || "",
-        connectionLimit: config.pool?.max || 10,
+        connectionLimit: mysqlConfig.pool?.max || 10,
         waitForConnections: true,
         queueLimit: 0,
       });
@@ -514,19 +525,44 @@ class MySQLTransactionAdapter extends MySQLAdapter {
 
   /**
    * 回滚到保存点（用于嵌套事务）
+   * 如果有多个同名保存点，回滚到最后一个（最新的）
    */
   override async rollbackToSavepoint(name: string): Promise<void> {
-    const savepointName = this.savepoints.find((sp) => sp.includes(name));
-    if (!savepointName) {
-      throw createTransactionError(`Savepoint "${name}" not found`, {
-        code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
-      });
+    // 找到所有匹配的保存点，取最后一个（最新的）
+    // 保存点名称格式是 sp_${name}_${timestamp}，所以需要精确匹配 name 部分
+    // 例如：如果 name 是 "sp2"，保存点名称是 "sp_sp2_1234567890"
+    const matchingSavepoints = this.savepoints.filter((sp) => {
+      // 保存点名称格式：sp_${name}_${timestamp}
+      // 例如：sp_sp1_1234567890，需要匹配 name 部分为 "sp1"
+      // 使用正则匹配：sp_ 开头，然后是 name，然后是 _ 和数字结尾
+      const match = sp.match(/^sp_(.+?)_\d+$/);
+      return match && match[1] === name;
+    });
+    if (matchingSavepoints.length === 0) {
+      throw createTransactionError(
+        `Savepoint '${name}' not found. Available savepoints: ${
+          this.savepoints.join(", ")
+        }`,
+        {
+          code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
+        },
+      );
     }
+    // 取最后一个匹配的保存点（最新的）
+    const savepointName = matchingSavepoints[matchingSavepoints.length - 1];
 
     try {
       await this.connection.query(`ROLLBACK TO SAVEPOINT ${savepointName}`);
       // 移除该保存点之后的所有保存点
       const index = this.savepoints.indexOf(savepointName);
+      if (index === -1) {
+        throw createTransactionError(
+          `Savepoint '${savepointName}' not found in savepoints list`,
+          {
+            code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
+          },
+        );
+      }
       this.savepoints = this.savepoints.slice(0, index + 1);
     } catch (error) {
       const originalError = error instanceof Error

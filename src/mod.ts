@@ -86,6 +86,7 @@ export type { DatabaseError as DatabaseErrorType } from "./errors.ts";
 // ==================== 数据库访问辅助函数 ====================
 export {
   getDatabase,
+  closeDatabase,
   getDatabaseAsync,
   getDatabaseManager,
   isDatabaseInitialized,
@@ -94,7 +95,6 @@ export {
 // ==================== 数据库初始化工具 ====================
 export {
   autoInitDatabase,
-  closeDatabase,
   initDatabase,
   initDatabaseFromConfig,
   setDatabaseConfigLoader,

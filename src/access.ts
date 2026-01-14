@@ -70,3 +70,8 @@ export function getDatabaseManager(): DatabaseManager {
 export function isDatabaseInitialized(): boolean {
   return checkInitialized();
 }
+
+export async function closeDatabase(): Promise<void> {
+  const dbManager = getManager();
+  await dbManager.closeAll();
+}

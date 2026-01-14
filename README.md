@@ -16,19 +16,22 @@
 ## ✨ 特性
 
 - **多数据库适配器**：
-- PostgreSQL 适配器（PostgreSQLAdapter）
+  - PostgreSQL 适配器（PostgreSQLAdapter）
   - MySQL/MariaDB 适配器（MySQLAdapter）
   - SQLite 适配器（SQLiteAdapter，支持 Bun 原生 API）
-- MongoDB 适配器（MongoDBAdapter）
+  - MongoDB 适配器（MongoDBAdapter）
   - 统一的数据库接口（DatabaseAdapter）
-- 运行时切换数据库后端
-- 多数据库实例支持（同时使用多个数据库）
+  - 运行时切换数据库后端
+  - 多数据库实例支持（同时使用多个数据库）
 
 - **ORM/ODM 功能**：
   - SQLModel - 关系型数据库 ORM（PostgreSQL、MySQL、SQLite）
   - MongoModel - MongoDB ODM
   - 链式查询构建器（流畅的查询 API）
-  - 数据验证（required、type、min、max、pattern、enum、custom）
+  - 数据验证：
+    - 基础验证：required、type、min、max、length、pattern、enum、custom
+    - 跨字段验证：equals（字段相等）、notEquals（字段不相等）、compare（自定义比较函数）
+    - 数据库查询验证：unique（唯一性）、exists（存在性）、notExists（不存在性）
   - 生命周期钩子（beforeCreate、afterCreate、beforeUpdate、afterUpdate 等）
   - 软删除支持
   - 查询结果缓存
@@ -48,11 +51,12 @@
   - 迁移回滚支持
 
 - **其他功能**：
-- 事务支持
+  - 事务支持（基本事务、嵌套事务、保存点）
   - 连接池管理
-  - 查询日志记录
+  - 查询日志记录（支持日志级别过滤、慢查询检测）
   - 健康检查
-- 预处理语句（防止 SQL 注入）
+  - 数据库初始化工具（支持自动初始化、配置加载）
+  - 预处理语句（防止 SQL 注入）
 
 ---
 
@@ -63,7 +67,7 @@
 - **主包（@dreamer/xxx）**：用于服务端（兼容 Deno 和 Bun 运行时）
 - **统一接口**：使用适配器模式，提供统一的数据库接口，支持多种数据库后端
 - **类型安全**：完整的 TypeScript 类型支持
-- **跨运行时**：支持 Deno 2.5+ 和 Bun 1.0+
+- **跨运行时**：支持 Deno 2.6+ 和 Bun 1.3.5
 
 ---
 
@@ -218,18 +222,39 @@ class User extends SQLModel {
   static override schema: ModelSchema = {
     name: {
       type: "string",
-      required: true,
-      maxLength: 100,
+      validate: {
+        required: true,
+        max: 100,
+      },
     },
     email: {
       type: "string",
-      required: true,
-      pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+      validate: {
+        required: true,
+        pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+        unique: true, // 邮箱必须唯一
+      },
     },
     age: {
       type: "number",
-      min: 0,
-      max: 150,
+      validate: {
+        min: 0,
+        max: 150,
+      },
+    },
+    password: {
+      type: "string",
+      validate: {
+        required: true,
+        min: 8,
+      },
+    },
+    confirmPassword: {
+      type: "string",
+      validate: {
+        required: true,
+        equals: "password", // 必须与 password 字段相等
+      },
     },
   };
 
@@ -558,6 +583,149 @@ MongoDB 数据库适配器。
 - `getConnectionNames(): string[]`: 获取所有连接名称
 - `setAdapterFactory(factory: AdapterFactory): void`: 设置适配器工厂（用于测试）
 
+### 数据库初始化工具函数
+
+数据库初始化工具函数，用于简化数据库连接的初始化和访问。
+
+**主要函数**：
+
+#### initDatabase
+
+初始化数据库连接。
+
+```typescript
+initDatabase(config: DatabaseConfig, connectionName?: string): Promise<ConnectionStatus>
+```
+
+- `config: DatabaseConfig`: 数据库配置
+- `connectionName?: string`: 连接名称（默认为 'default'）
+- 返回: `Promise<ConnectionStatus>` 连接状态
+
+#### initDatabaseFromConfig
+
+从配置对象初始化数据库连接。
+
+```typescript
+initDatabaseFromConfig(config: DatabaseConfig, connectionName?: string): Promise<ConnectionStatus>
+```
+
+#### autoInitDatabase
+
+自动初始化数据库（从环境变量或配置文件加载配置）。
+
+```typescript
+autoInitDatabase(connectionName?: string): Promise<ConnectionStatus>
+```
+
+#### getDatabaseManager
+
+获取数据库管理器实例。
+
+```typescript
+getDatabaseManager(): DatabaseManager
+```
+
+#### isDatabaseInitialized
+
+检查数据库是否已初始化。
+
+```typescript
+isDatabaseInitialized(connectionName?: string): boolean
+```
+
+#### hasConnection
+
+检查指定连接是否存在。
+
+```typescript
+hasConnection(connectionName?: string): boolean
+```
+
+#### closeDatabase
+
+关闭所有数据库连接。
+
+```typescript
+closeDatabase(): Promise<void>
+```
+
+#### setDatabaseConfigLoader
+
+设置数据库配置加载器（用于自定义配置加载逻辑）。
+
+```typescript
+setDatabaseConfigLoader(loader: (connectionName?: string) => Promise<DatabaseConfig>): void
+```
+
+#### setupDatabaseConfigLoader
+
+设置数据库配置加载器（便捷方法，别名）。
+
+```typescript
+setupDatabaseConfigLoader(loader: (connectionName?: string) => Promise<DatabaseConfig>): void
+```
+
+#### setDatabaseManager
+
+设置数据库管理器实例（用于测试或自定义管理器）。
+
+```typescript
+setDatabaseManager(manager: DatabaseManager): void
+```
+
+### 数据库访问辅助函数
+
+数据库访问辅助函数，提供便捷的数据库连接访问方式。
+
+**主要函数**：
+
+#### getDatabase
+
+同步获取数据库连接（如果未初始化会抛出错误）。
+
+```typescript
+getDatabase(connectionName?: string): DatabaseAdapter
+```
+
+- `connectionName?: string`: 连接名称（默认为 'default'）
+- 返回: `DatabaseAdapter` 数据库适配器实例
+
+#### getDatabaseAsync
+
+异步获取数据库连接（支持自动初始化）。
+
+```typescript
+getDatabaseAsync(connectionName?: string): Promise<DatabaseAdapter>
+```
+
+- `connectionName?: string`: 连接名称（默认为 'default'）
+- 返回: `Promise<DatabaseAdapter>` 数据库适配器实例
+
+**注意**：如果数据库未初始化，`getDatabaseAsync` 会尝试自动初始化（如果配置了自动初始化）。
+
+### QueryLogger
+
+查询日志记录器，用于记录和监控数据库查询。
+
+**构造函数**：
+
+```typescript
+new QueryLogger(options?: QueryLoggerOptions)
+```
+
+**选项**：
+- `enabled?: boolean`: 是否启用日志（默认 true）
+- `logLevel?: "all" | "error" | "slow"`: 日志级别（默认 "all"）
+- `slowQueryThreshold?: number`: 慢查询阈值（毫秒，默认 1000）
+- `maxLogs?: number`: 最大日志数量（默认 1000）
+
+**方法**：
+
+- `log(type: string, sql: string, params?: any[], duration?: number, error?: Error): void`: 记录查询日志
+- `getLogs(): QueryLogEntry[]`: 获取所有日志
+- `clear(): void`: 清空日志
+- `getLogger(): QueryLogger`: 获取 logger 实例（单例模式）
+
 ### SQLModel
 
 关系型数据库 ORM 模型基类。
@@ -640,6 +808,164 @@ MongoDB 数据库适配器。
 - `beforeValidate(data: any): any`: 验证前钩子
 - `afterValidate(data: any): any`: 验证后钩子
 
+**数据验证规则**：
+
+基础验证：
+- `required: boolean`: 必填字段
+- `type: FieldType`: 字段类型
+- `min: number`: 最小值（数字）或最小长度（字符串）
+- `max: number`: 最大值（数字）或最大长度（字符串）
+- `length: number`: 固定长度（字符串）
+- `pattern: RegExp | string`: 正则表达式
+- `enum: any[]`: 枚举值
+- `custom: (value: any) => boolean | string`: 自定义验证函数
+
+跨字段验证：
+- `equals: string`: 与另一个字段值相等（字段名）
+- `notEquals: string`: 与另一个字段值不相等（字段名）
+- `compare: (value: any, allValues: Record<string, any>) => boolean | string`: 自定义字段比较函数
+
+数据库查询验证（异步）：
+- `unique: boolean | { exclude?: Record<string, any>, where?: Record<string, any> }`: 在数据表中唯一
+- `exists: boolean | { table?: string, where?: Record<string, any> }`: 在数据表中存在
+- `notExists: boolean | { table?: string, where?: Record<string, any> }`: 在数据表中不存在
+
+高级验证功能：
+- `when: { field: string, is?: any, isNot?: any, check?: (value, allValues) => boolean }`: 条件验证（根据其他字段值决定是否验证）
+- `requiredWhen: { field: string, is?: any, isNot?: any, check?: (value, allValues) => boolean }`: 条件必填（根据条件决定是否必填）
+- `asyncCustom: (value, allValues, context) => Promise<boolean | string>`: 异步自定义验证（可访问数据库）
+- `groups: string[]`: 验证组（只在指定组中验证）
+- `array: { type?, min?, max?, length?, items? }`: 数组验证（验证数组元素）
+- `format: "email" | "url" | "ip" | "ipv4" | "ipv6" | "uuid" | "date" | "datetime" | "time"`: 内置格式验证器
+
+**验证示例**：
+
+```typescript
+class User extends SQLModel {
+  static override tableName = "users";
+  static override schema: ModelSchema = {
+    email: {
+      type: "string",
+      validate: {
+        required: true,
+        pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+        unique: true, // 邮箱必须唯一
+      },
+    },
+    password: {
+      type: "string",
+      validate: {
+        required: true,
+        min: 8,
+      },
+    },
+    confirmPassword: {
+      type: "string",
+      validate: {
+        required: true,
+        equals: "password", // 必须与 password 字段相等
+      },
+    },
+    startDate: {
+      type: "date",
+      validate: {
+        required: true,
+      },
+    },
+    endDate: {
+      type: "date",
+      validate: {
+        required: true,
+        compare: (value, allValues) => {
+          // 结束日期必须大于开始日期
+          if (value <= allValues.startDate) {
+            return "结束日期必须大于开始日期";
+          }
+          return true;
+        },
+      },
+    },
+    categoryId: {
+      type: "number",
+      validate: {
+        required: true,
+        exists: true, // 必须在 categories 表中存在
+      },
+    },
+    // 条件验证示例
+    discountCode: {
+      type: "string",
+      validate: {
+        when: {
+          field: "hasDiscount",
+          is: true, // 只有当 hasDiscount 为 true 时才验证
+        },
+        required: true,
+      },
+    },
+    // 条件必填示例
+    companyName: {
+      type: "string",
+      validate: {
+        requiredWhen: {
+          field: "userType",
+          is: "company", // 当 userType 为 "company" 时必填
+        },
+      },
+    },
+    // 数组验证示例
+    tags: {
+      type: "array",
+      validate: {
+        array: {
+          type: "string",
+          min: 1,
+          max: 10,
+          items: {
+            min: 2,
+            max: 20,
+          },
+        },
+      },
+    },
+    // 格式验证示例
+    website: {
+      type: "string",
+      validate: {
+        format: "url", // 内置 URL 格式验证
+      },
+    },
+    // 异步自定义验证示例
+    username: {
+      type: "string",
+      validate: {
+        required: true,
+        asyncCustom: async (value, allValues, context) => {
+          // 可以访问数据库进行复杂验证
+          const exists = await context.model.where({ username: value }).exists();
+          if (exists && context.instanceId !== allValues.id) {
+            return "用户名已存在";
+          }
+          return true;
+        },
+      },
+    },
+    // 验证组示例
+    password: {
+      type: "string",
+      validate: {
+        required: true,
+        min: 8,
+        groups: ["create", "update"], // 只在创建和更新时验证
+      },
+    },
+  };
+}
+
+// 使用验证组
+await User.validate(userData, undefined, ["create"]); // 只验证 "create" 组的字段
+```
+
 ### MongoModel
 
 MongoDB ODM 模型基类。
@@ -679,6 +1005,9 @@ MongoDB ODM 模型基类。
 - `forceDelete(conditions: MongoWhereCondition): Promise<number>`: 强制删除文档
 - `forceDeleteById(id: string): Promise<number>`: 通过 ID 强制删除文档
 - `scope(name: string): QueryBuilder`: 作用域查询
+- `createIndexes(force?: boolean): Promise<string[]>`: 创建索引（根据模型定义的 indexes 创建）
+- `dropIndexes(): Promise<string[]>`: 删除所有索引（除了 _id 索引）
+- `getIndexes(): Promise<any[]>`: 获取所有索引信息
 - `query(): MongoQueryBuilder`: 获取链式查询构建器
 
 **链式查询构建器方法**（通过 `query()` 返回）：
@@ -822,23 +1151,45 @@ MongoDB 查询构建器，提供链式查询 API。
 本项目包含完整的测试套件，所有测试均使用真实数据库进行测试。
 
 **测试统计：**
-- ✅ **240 个测试** - 全部通过
-- ✅ **7 个测试文件** - 覆盖所有核心功能
+- ✅ **452 个测试** - 全部通过
+- ✅ **15 个测试文件** - 覆盖所有核心功能
 - ✅ **100% 通过率** - 无失败测试
-- ✅ **真实数据库** - 所有测试使用真实 SQLite 和 MongoDB 实例
+- ✅ **真实数据库** - 所有测试使用真实 SQLite、PostgreSQL、MySQL 和 MongoDB 实例
 - ✅ **跨运行时** - 测试在 Deno 和 Bun 环境中都通过
+- ✅ **测试覆盖率** - 核心功能覆盖率 ~100%，总体覆盖率 ~98%
 
-**详细测试报告请查看：** [TESTREPORT.md](./TESTREPORT.md)
+**详细测试报告请查看：** [TEST_REPORT.md](./TEST_REPORT.md)
 
 ### 测试覆盖
 
-- ✅ **SQLModel** - 70 个测试（核心 CRUD、查询、生命周期钩子、数据验证）
-- ✅ **MongoModel** - 71 个测试（核心 CRUD、查询、生命周期钩子、数据验证）
-- ✅ **SQLQueryBuilder** - 23 个测试
-- ✅ **MongoQueryBuilder** - 28 个测试
-- ✅ **SQLiteAdapter** - 21 个测试
-- ✅ **DatabaseManager** - 15 个测试
-- ✅ **MigrationManager** - 12 个测试
+**ORM/ODM 功能：**
+- ✅ **SQLModel** - 107 个测试（核心 CRUD、查询、生命周期钩子、数据验证、软删除、关联关系）
+- ✅ **MongoModel** - 116 个测试（核心 CRUD、查询、生命周期钩子、数据验证、索引管理、关联关系）
+
+**查询构建器：**
+- ✅ **SQLQueryBuilder** - 23 个测试（SELECT、JOIN、WHERE、ORDER BY、LIMIT、INSERT、UPDATE、DELETE）
+- ✅ **MongoQueryBuilder** - 28 个测试（查询、投影、排序、聚合、更新、删除）
+
+**数据库适配器：**
+- ✅ **SQLiteAdapter** - 21 个测试（连接、查询、执行、事务、连接池、健康检查）
+- ✅ **PostgreSQLAdapter** - 15 个测试（连接、查询、执行、连接池、健康检查、参数转换）
+- ✅ **MySQLAdapter** - 14 个测试（连接、查询、执行、连接池、健康检查）
+- ✅ **MongoDBAdapter** - 18 个测试（连接、查询、执行、连接池、健康检查）
+
+**数据库管理：**
+- ✅ **DatabaseManager** - 16 个测试（多连接管理、适配器工厂、连接状态）
+- ✅ **MigrationManager** - 12 个测试（迁移创建、执行、回滚、状态跟踪）
+
+**数据库初始化与访问：**
+- ✅ **init-database** - 22 个测试（数据库初始化、配置加载、连接管理）
+- ✅ **access** - 11 个测试（数据库访问辅助函数、自动初始化）
+
+**工具与辅助功能：**
+- ✅ **QueryLogger** - 19 个测试（查询日志记录、日志级别过滤、慢查询检测）
+- ✅ **BaseAdapter** - 11 个测试（健康检查、查询日志、连接状态）
+
+**事务处理：**
+- ✅ **Transaction** - 19 个测试（基本事务、嵌套事务、保存点、多数据库支持）
 
 ---
 
@@ -848,8 +1199,10 @@ MongoDB 查询构建器，提供链式查询 API。
 - **统一接口**：使用适配器模式，提供统一的数据库接口，支持多种数据库后端
 - **类型安全**：完整的 TypeScript 类型支持
 - **依赖**：需要相应的数据库驱动（PostgreSQL、MySQL、SQLite、MongoDB）
-- **跨运行时**：支持 Deno 2.5+ 和 Bun 1.0+，代码在两个环境中都经过测试
+- **跨运行时**：支持 Deno 2.6+ 和 Bun 1.3.5，代码在两个环境中都经过测试
 - **Bun 原生支持**：SQLiteAdapter 优先使用 Bun 原生 SQLite API，提供更好的性能
+- **测试覆盖**：452 个测试用例，核心功能覆盖率 ~100%，总体覆盖率 ~98%
+- **真实数据库测试**：所有测试使用真实数据库实例，确保测试的真实性和可靠性
 
 ---
 
@@ -870,4 +1223,3 @@ MIT License - 详见 [LICENSE.md](./LICENSE.md)
 **Made with ❤️ by Dreamer Team**
 
 </div>
-

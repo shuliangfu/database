@@ -13,7 +13,11 @@ import {
   createTransactionError,
   DatabaseErrorCode,
 } from "../errors.ts";
-import type { DatabaseAdapter, DatabaseConfig } from "../types.ts";
+import type {
+  DatabaseAdapter,
+  DatabaseConfig,
+  PostgreSQLConfig,
+} from "../types.ts";
 import {
   BaseAdapter,
   type HealthCheckResult,
@@ -36,20 +40,37 @@ export class PostgreSQLAdapter extends BaseAdapter {
 
   /**
    * 连接 PostgreSQL 数据库
+   * @param config PostgreSQL 数据库配置
    * @param retryCount 重试次数（内部使用）
    */
-  async connect(config: DatabaseConfig, retryCount: number = 0): Promise<void> {
-    const pool = config.pool as
-      | (typeof config.pool & { maxRetries?: number; retryDelay?: number })
+  async connect(
+    config: PostgreSQLConfig | DatabaseConfig,
+    retryCount: number = 0,
+  ): Promise<void> {
+    // 类型守卫：确保是 PostgreSQL 配置
+    if (config.type !== "postgresql") {
+      throw new Error("Invalid config type for PostgreSQL adapter");
+    }
+
+    const pgConfig = config as PostgreSQLConfig;
+    const pool = pgConfig.pool as
+      | (typeof pgConfig.pool & { maxRetries?: number; retryDelay?: number })
       | undefined;
-    const maxRetries = pool?.maxRetries || 3;
+    // 使用 ?? 而不是 ||，因为 maxRetries 可能为 0
+    const maxRetries = pool?.maxRetries ?? 3;
     const retryDelay = pool?.retryDelay || 1000;
 
     try {
       this.validateConfig(config);
       this.config = config;
 
-      const { host, port, database, username, password } = config.connection;
+      const { host, port, database, username, password } = pgConfig.connection;
+
+      // 获取 PostgreSQL 特定选项（连接超时等）
+      const postgresqlOptions = pgConfig.postgresqlOptions || {};
+      const connectionTimeoutMs = postgresqlOptions.connectionTimeout || 5000;
+      // pg 库使用 connect_timeout（秒），不是 connectionTimeoutMillis
+      const connectionTimeoutSeconds = Math.ceil(connectionTimeoutMs / 1000);
 
       // 创建连接池
       this.pool = new Pool({
@@ -58,9 +79,10 @@ export class PostgreSQLAdapter extends BaseAdapter {
         database: database || "",
         user: username || "",
         password: password || "",
-        max: config.pool?.max || 10,
-        min: config.pool?.min || 1,
-        idleTimeoutMillis: (config.pool?.idleTimeout || 30) * 1000,
+        max: pgConfig.pool?.max || 10,
+        min: pgConfig.pool?.min || 1,
+        idleTimeoutMillis: (pgConfig.pool?.idleTimeout || 30) * 1000,
+        connect_timeout: connectionTimeoutSeconds, // pg 库使用 connect_timeout（秒）
       });
 
       // 测试连接
@@ -609,14 +631,28 @@ class PostgreSQLTransactionAdapter extends PostgreSQLAdapter {
 
   /**
    * 回滚到保存点（用于嵌套事务）
+   * 如果有多个同名保存点，回滚到最后一个（最新的）
    */
   override async rollbackToSavepoint(name: string): Promise<void> {
-    const savepointName = this.savepoints.find((sp) => sp.includes(name));
-    if (!savepointName) {
+    // 找到所有匹配的保存点（保存点名称格式：sp_${name}_${timestamp}）
+    // 使用字符串方法匹配保存点名称，避免使用正则表达式
+    const prefix = `sp_${name}_`;
+    const matchingSavepoints = this.savepoints.filter((sp) => {
+      if (!sp.startsWith(prefix)) {
+        return false;
+      }
+      // 检查时间戳部分是否全是数字（不使用正则表达式）
+      const timestampPart = sp.slice(prefix.length);
+      return timestampPart.length > 0 &&
+        timestampPart.split("").every((char) => char >= "0" && char <= "9");
+    });
+    if (matchingSavepoints.length === 0) {
       throw createTransactionError(`Savepoint "${name}" not found`, {
         code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
       });
     }
+    // 取最后一个匹配的保存点（最新的）
+    const savepointName = matchingSavepoints[matchingSavepoints.length - 1];
 
     try {
       await this.client.query(`ROLLBACK TO SAVEPOINT ${savepointName}`);
@@ -642,12 +678,25 @@ class PostgreSQLTransactionAdapter extends PostgreSQLAdapter {
    * 释放保存点（用于嵌套事务）
    */
   override async releaseSavepoint(name: string): Promise<void> {
-    const savepointName = this.savepoints.find((sp) => sp.includes(name));
-    if (!savepointName) {
+    // 找到所有匹配的保存点（保存点名称格式：sp_${name}_${timestamp}）
+    // 使用字符串方法匹配保存点名称，避免使用正则表达式
+    const prefix = `sp_${name}_`;
+    const matchingSavepoints = this.savepoints.filter((sp) => {
+      if (!sp.startsWith(prefix)) {
+        return false;
+      }
+      // 检查时间戳部分是否全是数字（不使用正则表达式）
+      const timestampPart = sp.slice(prefix.length);
+      return timestampPart.length > 0 &&
+        timestampPart.split("").every((char) => char >= "0" && char <= "9");
+    });
+    if (matchingSavepoints.length === 0) {
       throw createTransactionError(`Savepoint "${name}" not found`, {
         code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
       });
     }
+    // 取最后一个匹配的保存点（最新的）
+    const savepointName = matchingSavepoints[matchingSavepoints.length - 1];
 
     try {
       await this.client.query(`RELEASE SAVEPOINT ${savepointName}`);

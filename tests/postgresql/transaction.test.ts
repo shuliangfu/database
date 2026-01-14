@@ -1,0 +1,321 @@
+/**
+ * @fileoverview PostgreSQL 事务和嵌套事务测试
+ */
+
+import { getEnv } from "@dreamer/runtime-adapter";
+import { afterEach, beforeEach, describe, expect, it } from "@dreamer/test";
+import { PostgreSQLAdapter } from "../../src/adapters/postgresql.ts";
+
+/**
+ * 获取环境变量（跨运行时，带默认值）
+ */
+function getEnvWithDefault(key: string, defaultValue: string = ""): string {
+  return getEnv(key) || defaultValue;
+}
+
+describe("事务测试", () => {
+  let adapter: PostgreSQLAdapter;
+
+  beforeEach(async () => {
+    adapter = new PostgreSQLAdapter();
+    // 注意：需要实际的 PostgreSQL 数据库连接
+    // 如果环境变量未设置，跳过测试
+    const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
+    const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
+    const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
+    // 默认使用当前系统用户名，因为本地 PostgreSQL 可能使用系统用户名而不是 postgres
+    // 优先使用环境变量，否则尝试获取系统用户名（USER 或 USERNAME），最后回退到 postgres
+    const defaultUser = getEnv("USER") || getEnv("USERNAME") || "postgres";
+    const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
+    const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "");
+
+    try {
+      await adapter.connect({
+        type: "postgresql",
+        connection: {
+          host: pgHost,
+          port: pgPort,
+          database: pgDatabase,
+          username: pgUser,
+          password: pgPassword,
+        },
+      });
+
+      // 创建测试表
+      await adapter.execute(
+        `CREATE TABLE IF NOT EXISTS accounts (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100) NOT NULL,
+          balance INTEGER NOT NULL DEFAULT 0
+        )`,
+        [],
+      );
+
+      // 清空表
+      await adapter.execute("TRUNCATE TABLE accounts RESTART IDENTITY", []);
+    } catch (error) {
+      // PostgreSQL 不可用，跳过测试
+      const errorMessage = error instanceof Error
+        ? error.message
+        : String(error);
+      console.warn(
+        `PostgreSQL not available, skipping tests. Error: ${errorMessage}`,
+      );
+      // 确保清理已创建的资源
+      try {
+        if (adapter && adapter.isConnected()) {
+          await adapter.close();
+        }
+      } catch {
+        // 忽略关闭错误
+      }
+      adapter = null as any;
+    }
+  });
+
+  afterEach(async () => {
+    if (adapter) {
+      try {
+        // 先尝试清理表（如果连接正常）
+        if (adapter.isConnected()) {
+          try {
+            await adapter.execute("DROP TABLE IF EXISTS accounts", []);
+          } catch {
+            // 忽略错误
+          }
+        }
+      } catch {
+        // 忽略错误
+      }
+      // 确保关闭连接
+      try {
+        await adapter.close();
+      } catch {
+        // 忽略关闭错误
+      }
+    }
+  });
+
+  describe("基本事务", () => {
+    it("应该执行事务并提交", async () => {
+      if (!adapter) {
+        console.log("PostgreSQL not available, skipping test");
+        return;
+      }
+
+      await adapter.execute(
+        "INSERT INTO accounts (name, balance) VALUES ($1, $2)",
+        ["Alice", 1000],
+      );
+
+      await adapter.transaction(async (db) => {
+        await db.execute(
+          "UPDATE accounts SET balance = balance - $1 WHERE name = $2",
+          [100, "Alice"],
+        );
+        await db.execute(
+          "INSERT INTO accounts (name, balance) VALUES ($1, $2)",
+          ["Bob", 100],
+        );
+      });
+
+      // 验证事务已提交
+      const accounts = await adapter.query(
+        "SELECT * FROM accounts ORDER BY name",
+        [],
+      );
+      expect(accounts.length).toBe(2);
+      expect(accounts[0].balance).toBe(900);
+      expect(accounts[1].balance).toBe(100);
+    }, {
+      sanitizeResources: false,
+      sanitizeOps: false,
+    });
+
+    it("应该在事务中回滚错误", async () => {
+      if (!adapter) {
+        console.log("PostgreSQL not available, skipping test");
+        return;
+      }
+
+      await adapter.execute(
+        "INSERT INTO accounts (name, balance) VALUES ($1, $2)",
+        ["Alice", 1000],
+      );
+
+      try {
+        await adapter.transaction(async (db) => {
+          await db.execute(
+            "UPDATE accounts SET balance = balance - $1 WHERE name = $2",
+            [100, "Alice"],
+          );
+          throw new Error("Transaction error");
+        });
+      } catch {
+        // 预期会抛出错误
+      }
+
+      // 验证事务已回滚
+      const alice = await adapter.query(
+        "SELECT * FROM accounts WHERE name = $1",
+        ["Alice"],
+      );
+      expect(alice[0].balance).toBe(1000); // 余额未改变
+    }, {
+      sanitizeResources: false,
+      sanitizeOps: false,
+    });
+  });
+
+  describe("嵌套事务（保存点）", () => {
+    it("应该支持嵌套事务并提交", async () => {
+      if (!adapter) {
+        console.log("PostgreSQL not available, skipping test");
+        return;
+      }
+
+      await adapter.execute(
+        "INSERT INTO accounts (name, balance) VALUES ($1, $2)",
+        ["Alice", 1000],
+      );
+
+      await adapter.transaction(async (outerTx) => {
+        // 外层事务操作
+        await outerTx.execute(
+          "UPDATE accounts SET balance = balance - $1 WHERE name = $2",
+          [100, "Alice"],
+        );
+
+        // 嵌套事务（使用保存点）
+        await outerTx.transaction(async (innerTx) => {
+          await innerTx.execute(
+            "INSERT INTO accounts (name, balance) VALUES ($1, $2)",
+            ["Bob", 100],
+          );
+        });
+
+        // 外层事务继续
+        await outerTx.execute(
+          "INSERT INTO accounts (name, balance) VALUES ($1, $2)",
+          ["Charlie", 50],
+        );
+      });
+
+      // 验证所有操作都已提交
+      const accounts = await adapter.query(
+        "SELECT * FROM accounts ORDER BY name",
+        [],
+      );
+      expect(accounts.length).toBe(3);
+      expect(accounts[0].balance).toBe(900); // Alice
+      expect(accounts[1].balance).toBe(100); // Bob
+      expect(accounts[2].balance).toBe(50); // Charlie
+    }, {
+      sanitizeResources: false,
+      sanitizeOps: false,
+    });
+
+    it("嵌套事务回滚应该只回滚内层操作", async () => {
+      if (!adapter) {
+        console.log("PostgreSQL not available, skipping test");
+        return;
+      }
+
+      await adapter.execute(
+        "INSERT INTO accounts (name, balance) VALUES ($1, $2)",
+        ["Alice", 1000],
+      );
+
+      await adapter.transaction(async (outerTx) => {
+        // 外层事务操作
+        await outerTx.execute(
+          "UPDATE accounts SET balance = balance - $1 WHERE name = $2",
+          [100, "Alice"],
+        );
+
+        // 嵌套事务失败（应该只回滚内层）
+        try {
+          await outerTx.transaction(async (innerTx) => {
+            await innerTx.execute(
+              "INSERT INTO accounts (name, balance) VALUES ($1, $2)",
+              ["Bob", 100],
+            );
+            throw new Error("Inner transaction error");
+          });
+        } catch {
+          // 预期会抛出错误
+        }
+
+        // 外层事务继续
+        await outerTx.execute(
+          "INSERT INTO accounts (name, balance) VALUES ($1, $2)",
+          ["Charlie", 50],
+        );
+      });
+
+      // 验证：外层操作已提交，内层操作已回滚
+      const accounts = await adapter.query(
+        "SELECT * FROM accounts ORDER BY name",
+        [],
+      );
+      expect(accounts.length).toBe(2);
+      expect(accounts[0].balance).toBe(900); // Alice (外层操作)
+      expect(accounts[1].balance).toBe(50); // Charlie (外层操作)
+      // Bob 不应该存在（内层操作已回滚）
+    }, {
+      sanitizeResources: false,
+      sanitizeOps: false,
+    });
+
+    it("应该支持手动创建和释放保存点", async () => {
+      if (!adapter) {
+        console.log("PostgreSQL not available, skipping test");
+        return;
+      }
+
+      await adapter.execute(
+        "INSERT INTO accounts (name, balance) VALUES ($1, $2)",
+        ["Alice", 1000],
+      );
+
+      await adapter.transaction(async (tx) => {
+        // 创建保存点
+        await tx.createSavepoint("sp1");
+
+        await tx.execute(
+          "UPDATE accounts SET balance = balance - $1 WHERE name = $2",
+          [100, "Alice"],
+        );
+
+        // 回滚到保存点
+        await tx.rollbackToSavepoint("sp1");
+
+        // 验证回滚成功
+        const alice = await tx.query(
+          "SELECT * FROM accounts WHERE name = $1",
+          ["Alice"],
+        );
+        expect(alice[0].balance).toBe(1000); // 余额未改变
+
+        // 再次操作
+        await tx.execute(
+          "UPDATE accounts SET balance = balance - $1 WHERE name = $2",
+          [50, "Alice"],
+        );
+
+        // 释放保存点
+        await tx.releaseSavepoint("sp1");
+      });
+
+      // 验证最终状态
+      const alice = await adapter.query(
+        "SELECT * FROM accounts WHERE name = $1",
+        ["Alice"],
+      );
+      expect(alice[0].balance).toBe(950);
+    }, {
+      sanitizeResources: false,
+      sanitizeOps: false,
+    });
+  });
+});
