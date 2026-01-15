@@ -91,7 +91,7 @@ describe("MongoQueryBuilder", () => {
       await db.collection("query_builder_users").insertOne({ name: "Alice", age: 25 });
 
       const builder = new MongoQueryBuilder(adapter);
-      const results = await builder.from("users").query();
+      const results = await builder.from("query_builder_users").query();
 
       expect(results.length).toBe(1);
       expect(results[0].name).toBe("Alice");
@@ -111,7 +111,7 @@ describe("MongoQueryBuilder", () => {
       ]);
 
       const builder = new MongoQueryBuilder(adapter);
-      const results = await builder.from("users").find({ name: "Alice" })
+      const results = await builder.from("query_builder_users").find({ name: "Alice" })
         .query();
 
       expect(results.length).toBe(1);
@@ -131,7 +131,7 @@ describe("MongoQueryBuilder", () => {
       ]);
 
       const builder = new MongoQueryBuilder(adapter);
-      const results = await builder.from("users").eq("status", "active")
+      const results = await builder.from("query_builder_users").eq("status", "active")
         .query();
 
       expect(results.length).toBe(1);
@@ -152,7 +152,7 @@ describe("MongoQueryBuilder", () => {
       ]);
 
       const builder = new MongoQueryBuilder(adapter);
-      const results = await builder.from("users").gt("age", 20).query();
+      const results = await builder.from("query_builder_users").gt("age", 20).query();
 
       expect(results.length).toBe(2);
       results.forEach((user) => {
@@ -172,7 +172,7 @@ describe("MongoQueryBuilder", () => {
       ]);
 
       const builder = new MongoQueryBuilder(adapter);
-      const results = await builder.from("users").gte("age", 25).query();
+      const results = await builder.from("query_builder_users").gte("age", 25).query();
 
       expect(results.length).toBe(2);
       results.forEach((user) => {
@@ -192,7 +192,7 @@ describe("MongoQueryBuilder", () => {
       ]);
 
       const builder = new MongoQueryBuilder(adapter);
-      const results = await builder.from("users").lt("age", 30).query();
+      const results = await builder.from("query_builder_users").lt("age", 30).query();
 
       expect(results.length).toBe(2);
       results.forEach((user) => {
@@ -212,7 +212,7 @@ describe("MongoQueryBuilder", () => {
       ]);
 
       const builder = new MongoQueryBuilder(adapter);
-      const results = await builder.from("users").lte("age", 25).query();
+      const results = await builder.from("query_builder_users").lte("age", 25).query();
 
       expect(results.length).toBe(2);
       results.forEach((user) => {
@@ -234,7 +234,7 @@ describe("MongoQueryBuilder", () => {
       ]);
 
       const builder = new MongoQueryBuilder(adapter);
-      const results = await builder.from("users").ne("status", "deleted")
+      const results = await builder.from("query_builder_users").ne("status", "deleted")
         .query();
 
       expect(results.length).toBe(2);
@@ -257,7 +257,7 @@ describe("MongoQueryBuilder", () => {
       ]);
 
       const builder = new MongoQueryBuilder(adapter);
-      const results = await builder.from("users").in("status", [
+      const results = await builder.from("query_builder_users").in("status", [
         "active",
         "pending",
       ]).query();
@@ -282,7 +282,7 @@ describe("MongoQueryBuilder", () => {
       ]);
 
       const builder = new MongoQueryBuilder(adapter);
-      const results = await builder.from("users").sort({ age: -1 }).query();
+      const results = await builder.from("query_builder_users").sort({ age: -1 }).query();
 
       expect(results.length).toBe(3);
       expect(results[0].age).toBe(30);
@@ -304,7 +304,7 @@ describe("MongoQueryBuilder", () => {
       ]);
 
       const builder = new MongoQueryBuilder(adapter);
-      const results = await builder.from("users").limit(2).query();
+      const results = await builder.from("query_builder_users").limit(2).query();
 
       expect(results.length).toBe(2);
     }, {
@@ -321,7 +321,7 @@ describe("MongoQueryBuilder", () => {
       ]);
 
       const builder = new MongoQueryBuilder(adapter);
-      const results = await builder.from("users").sort({ age: 1 }).skip(1)
+      const results = await builder.from("query_builder_users").sort({ age: 1 }).skip(1)
         .limit(1).query();
 
       expect(results.length).toBe(1);
@@ -341,7 +341,7 @@ describe("MongoQueryBuilder", () => {
       ]);
 
       const builder = new MongoQueryBuilder(adapter);
-      const results = await builder.from("users").query();
+      const results = await builder.from("query_builder_users").query();
 
       expect(results.length).toBe(2);
       expect(results[0].name).toBeTruthy();
@@ -369,7 +369,7 @@ describe("MongoQueryBuilder", () => {
       ]);
 
       const builder = new MongoQueryBuilder(adapter);
-      const result = await builder.from("users").queryOne();
+      const result = await builder.from("query_builder_users").queryOne();
 
       expect(result).toBeTruthy();
       expect(result?.name).toBeTruthy();
@@ -380,7 +380,7 @@ describe("MongoQueryBuilder", () => {
 
     it("应该在无结果时返回 null", async () => {
       const builder = new MongoQueryBuilder(adapter);
-      const result = await builder.from("users").queryOne();
+      const result = await builder.from("query_builder_users").queryOne();
 
       expect(result).toBeNull();
     }, {
@@ -399,7 +399,7 @@ describe("MongoQueryBuilder", () => {
       ]);
 
       const builder = new MongoQueryBuilder(adapter);
-      const count = await builder.from("users").count();
+      const count = await builder.from("query_builder_users").count();
 
       expect(count).toBe(3);
     }, {
@@ -420,7 +420,7 @@ describe("MongoQueryBuilder", () => {
   describe("execute", () => {
     it("应该返回执行器对象", () => {
       const builder = new MongoQueryBuilder(adapter);
-      const executor = builder.from("users").execute();
+      const executor = builder.from("query_builder_users").execute();
 
       expect(executor).toBeTruthy();
       expect(typeof executor.insert).toBe("function");
@@ -447,7 +447,7 @@ describe("MongoQueryBuilder", () => {
     it("应该插入单个文档", async () => {
       const builder = new MongoQueryBuilder(adapter);
       const result = await builder
-        .from("users")
+        .from("query_builder_users")
         .execute()
         .insert({ name: "Alice", age: 25 });
 
@@ -468,7 +468,7 @@ describe("MongoQueryBuilder", () => {
     it("应该插入多个文档", async () => {
       const builder = new MongoQueryBuilder(adapter);
       const result = await builder
-        .from("users")
+        .from("query_builder_users")
         .execute()
         .insertMany([
           { name: "Alice", age: 25 },
@@ -503,7 +503,7 @@ describe("MongoQueryBuilder", () => {
 
       const builder = new MongoQueryBuilder(adapter);
       const result = await builder
-        .from("users")
+        .from("query_builder_users")
         .find({ name: "Alice" })
         .execute()
         .update({ age: 26 });
@@ -528,7 +528,7 @@ describe("MongoQueryBuilder", () => {
 
       const builder = new MongoQueryBuilder(adapter);
       const result = await builder
-        .from("users")
+        .from("query_builder_users")
         .find({ status: "active" })
         .execute()
         .updateMany({ status: "inactive" });
@@ -553,7 +553,7 @@ describe("MongoQueryBuilder", () => {
 
       const builder = new MongoQueryBuilder(adapter);
       const result = await builder
-        .from("users")
+        .from("query_builder_users")
         .find({ name: "Alice" })
         .execute()
         .delete();
@@ -579,7 +579,7 @@ describe("MongoQueryBuilder", () => {
 
       const builder = new MongoQueryBuilder(adapter);
       const result = await builder
-        .from("users")
+        .from("query_builder_users")
         .find({ status: "deleted" })
         .execute()
         .deleteMany();
@@ -600,7 +600,7 @@ describe("MongoQueryBuilder", () => {
   describe("getFilter 和 getOptions", () => {
     it("应该返回查询过滤器", () => {
       const builder = new MongoQueryBuilder(adapter);
-      builder.from("users").find({ name: "Alice" }).eq("status", "active");
+      builder.from("query_builder_users").find({ name: "Alice" }).eq("status", "active");
 
       const filter = builder.getFilter();
       expect(filter.name).toBe("Alice");
@@ -613,7 +613,7 @@ describe("MongoQueryBuilder", () => {
 
     it("应该返回查询选项", () => {
       const builder = new MongoQueryBuilder(adapter);
-      builder.from("users").sort({ age: -1 }).limit(10).skip(5);
+      builder.from("query_builder_users").sort({ age: -1 }).limit(10).skip(5);
 
       const options = builder.getOptions();
       expect(options.sort).toEqual({ age: -1 });
