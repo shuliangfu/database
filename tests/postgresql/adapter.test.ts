@@ -91,7 +91,7 @@ describe("PostgreSQLAdapter", () => {
     // 创建测试表
     try {
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_users (
+        `CREATE TABLE IF NOT EXISTS postgresql_test_users (
           id SERIAL PRIMARY KEY,
           name VARCHAR(100) NOT NULL,
           email VARCHAR(100) UNIQUE,
@@ -152,12 +152,12 @@ describe("PostgreSQLAdapter", () => {
       }
 
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+        "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
         ["Alice", "alice@example.com", 25],
       );
 
       const results = await adapter.query(
-        "SELECT * FROM test_users WHERE name = $1",
+        "SELECT * FROM postgresql_test_users WHERE name = $1",
         ["Alice"],
       );
 
@@ -174,12 +174,12 @@ describe("PostgreSQLAdapter", () => {
       }
 
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+        "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
         ["Bob", "bob@example.com", 30],
       );
 
       const results = await adapter.query(
-        "SELECT * FROM test_users WHERE age > $1",
+        "SELECT * FROM postgresql_test_users WHERE age > $1",
         [20],
       );
 
@@ -193,7 +193,7 @@ describe("PostgreSQLAdapter", () => {
       }
 
       const results = await adapter.query(
-        "SELECT * FROM test_users WHERE email = $1",
+        "SELECT * FROM postgresql_test_users WHERE email = $1",
         ["nonexistent@example.com"],
       );
 
@@ -205,7 +205,7 @@ describe("PostgreSQLAdapter", () => {
 
       try {
         await assertRejects(
-          () => newAdapter.query("SELECT * FROM test_users", []),
+          () => newAdapter.query("SELECT * FROM postgresql_test_users", []),
           Error,
         );
       } finally {
@@ -259,12 +259,12 @@ describe("PostgreSQLAdapter", () => {
       }
 
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+        "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
         ["David", "david@example.com", 40],
       );
 
       const result = await adapter.execute(
-        "UPDATE test_users SET age = $1 WHERE name = $2",
+        "UPDATE postgresql_test_users SET age = $1 WHERE name = $2",
         [45, "David"],
       );
 
@@ -278,12 +278,12 @@ describe("PostgreSQLAdapter", () => {
       }
 
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+        "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
         ["Eve", "eve@example.com", 28],
       );
 
       const result = await adapter.execute(
-        "DELETE FROM test_users WHERE name = $1",
+        "DELETE FROM postgresql_test_users WHERE name = $1",
         ["Eve"],
       );
 
@@ -508,17 +508,17 @@ describe("PostgreSQLAdapter", () => {
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+          "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
           ["Transaction User 1", "trans1@test.com", 25],
         );
         await db.execute(
-          "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+          "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
           ["Transaction User 2", "trans2@test.com", 30],
         );
       });
 
       const users = await adapter.query(
-        "SELECT * FROM test_users WHERE email IN ($1, $2)",
+        "SELECT * FROM postgresql_test_users WHERE email IN ($1, $2)",
         ["trans1@test.com", "trans2@test.com"],
       );
       expect(users.length).toBe(2);
@@ -536,12 +536,12 @@ describe("PostgreSQLAdapter", () => {
         async () => {
           await adapter.transaction(async (db: DatabaseAdapter) => {
             await db.execute(
-              "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+              "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
               ["Transaction User", "trans@test.com", 25],
             );
             // 故意触发错误（违反唯一约束）
             await db.execute(
-              "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+              "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
               ["Transaction User 2", "trans@test.com", 30], // 重复的 email
             );
           });
@@ -550,7 +550,7 @@ describe("PostgreSQLAdapter", () => {
       );
 
       const users = await adapter.query(
-        "SELECT * FROM test_users WHERE email = $1",
+        "SELECT * FROM postgresql_test_users WHERE email = $1",
         ["trans@test.com"],
       );
       expect(users.length).toBe(0); // 事务应该回滚，没有数据
@@ -568,19 +568,19 @@ describe("PostgreSQLAdapter", () => {
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+          "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
           ["Savepoint User", "savepoint@test.com", 25],
         );
 
         await db.createSavepoint("sp1");
 
         await db.execute(
-          "UPDATE test_users SET age = $1 WHERE email = $2",
+          "UPDATE postgresql_test_users SET age = $1 WHERE email = $2",
           [30, "savepoint@test.com"],
         );
 
         const user = await db.query(
-          "SELECT * FROM test_users WHERE email = $1",
+          "SELECT * FROM postgresql_test_users WHERE email = $1",
           ["savepoint@test.com"],
         );
         expect(user[0].age).toBe(30);
@@ -588,14 +588,14 @@ describe("PostgreSQLAdapter", () => {
         await db.rollbackToSavepoint("sp1");
 
         const userAfterRollback = await db.query(
-          "SELECT * FROM test_users WHERE email = $1",
+          "SELECT * FROM postgresql_test_users WHERE email = $1",
           ["savepoint@test.com"],
         );
         expect(userAfterRollback[0].age).toBe(25);
       });
 
       const finalUser = await adapter.query(
-        "SELECT * FROM test_users WHERE email = $1",
+        "SELECT * FROM postgresql_test_users WHERE email = $1",
         ["savepoint@test.com"],
       );
       expect(finalUser.length).toBe(1);
@@ -612,7 +612,7 @@ describe("PostgreSQLAdapter", () => {
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+          "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
           ["Release User", "release@test.com", 25],
         );
 
@@ -831,12 +831,12 @@ describe("PostgreSQLAdapter", () => {
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+          "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
           ["Transaction User", "tx@test.com", 25],
         );
 
         const users = await db.query(
-          "SELECT * FROM test_users WHERE email = $1",
+          "SELECT * FROM postgresql_test_users WHERE email = $1",
           ["tx@test.com"],
         );
         expect(users.length).toBe(1);
@@ -854,18 +854,18 @@ describe("PostgreSQLAdapter", () => {
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+          "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
           ["Update User", "update@test.com", 25],
         );
 
         const result = await db.execute(
-          "UPDATE test_users SET age = $1 WHERE email = $2",
+          "UPDATE postgresql_test_users SET age = $1 WHERE email = $2",
           [30, "update@test.com"],
         );
         expect(result.affectedRows).toBe(1);
 
         const users = await db.query(
-          "SELECT * FROM test_users WHERE email = $1",
+          "SELECT * FROM postgresql_test_users WHERE email = $1",
           ["update@test.com"],
         );
         expect(users[0].age).toBe(30);
@@ -927,28 +927,28 @@ describe("PostgreSQLAdapter", () => {
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+          "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
           ["Conflict User", "conflict@test.com", 25],
         );
 
         // 创建第一个保存点
         await db.createSavepoint("sp1");
         await db.execute(
-          "UPDATE test_users SET age = $1 WHERE email = $2",
+          "UPDATE postgresql_test_users SET age = $1 WHERE email = $2",
           [30, "conflict@test.com"],
         );
 
         // 创建第二个同名保存点（应该使用不同的内部名称）
         await db.createSavepoint("sp1");
         await db.execute(
-          "UPDATE test_users SET age = $1 WHERE email = $2",
+          "UPDATE postgresql_test_users SET age = $1 WHERE email = $2",
           [35, "conflict@test.com"],
         );
 
         // 回滚到最后一个匹配的保存点（最新的 sp1，即第二个 sp1 创建时的状态，age=30）
         await db.rollbackToSavepoint("sp1");
         const user = await db.query(
-          "SELECT * FROM test_users WHERE email = $1",
+          "SELECT * FROM postgresql_test_users WHERE email = $1",
           ["conflict@test.com"],
         );
         // 回滚到最后一个匹配的保存点（第二个 sp1 创建时的状态），age 应该是 30
@@ -984,25 +984,25 @@ describe("PostgreSQLAdapter", () => {
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+          "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
           ["Multi User", "multi@test.com", 10],
         );
 
         await db.createSavepoint("sp1");
         await db.execute(
-          "UPDATE test_users SET age = $1 WHERE email = $2",
+          "UPDATE postgresql_test_users SET age = $1 WHERE email = $2",
           [20, "multi@test.com"],
         );
 
         await db.createSavepoint("sp2");
         await db.execute(
-          "UPDATE test_users SET age = $1 WHERE email = $2",
+          "UPDATE postgresql_test_users SET age = $1 WHERE email = $2",
           [30, "multi@test.com"],
         );
 
         await db.createSavepoint("sp3");
         await db.execute(
-          "UPDATE test_users SET age = $1 WHERE email = $2",
+          "UPDATE postgresql_test_users SET age = $1 WHERE email = $2",
           [40, "multi@test.com"],
         );
 
@@ -1011,7 +1011,7 @@ describe("PostgreSQLAdapter", () => {
         // sp2 创建时 age=20，所以回滚后 age 应该是 20
         await db.rollbackToSavepoint("sp2");
         const user = await db.query(
-          "SELECT * FROM test_users WHERE email = $1",
+          "SELECT * FROM postgresql_test_users WHERE email = $1",
           ["multi@test.com"],
         );
         // 回滚到 sp2 创建时的状态（age=20），而不是更新后的状态（age=30）
@@ -1039,7 +1039,7 @@ describe("PostgreSQLAdapter", () => {
       );
 
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+        "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
         ["Join User", "join@test.com", 25],
       );
 
@@ -1120,7 +1120,7 @@ describe("PostgreSQLAdapter", () => {
       );
 
       const results = await adapter.query(
-        "SELECT * FROM test_users WHERE age > (SELECT AVG(age) FROM test_users)",
+        "SELECT * FROM postgresql_test_users WHERE age > (SELECT AVG(age) FROM test_users)",
         [],
       );
 
@@ -1141,7 +1141,7 @@ describe("PostgreSQLAdapter", () => {
       await adapter.transaction(async (db: DatabaseAdapter) => {
         for (let i = 1; i <= 5; i++) {
           await db.execute(
-            "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+            "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
             [`Batch User ${i}`, `batch${i}@test.com`, 20 + i],
           );
         }
@@ -1178,14 +1178,14 @@ describe("PostgreSQLAdapter", () => {
       );
 
       const result = await adapter.execute(
-        "UPDATE test_users SET age = $1 WHERE age = $2",
+        "UPDATE postgresql_test_users SET age = $1 WHERE age = $2",
         [30, 20],
       );
 
       expect(result.affectedRows).toBe(3);
 
       const users = await adapter.query(
-        "SELECT * FROM test_users WHERE age = $1",
+        "SELECT * FROM postgresql_test_users WHERE age = $1",
         [30],
       );
       expect(users.length).toBe(3);
@@ -1215,7 +1215,7 @@ describe("PostgreSQLAdapter", () => {
       );
 
       const result = await adapter.execute(
-        "DELETE FROM test_users WHERE age < $1",
+        "DELETE FROM postgresql_test_users WHERE age < $1",
         [35],
       );
 
@@ -1256,7 +1256,7 @@ describe("PostgreSQLAdapter", () => {
 
       await adapter.execute("TRUNCATE TABLE test_users", []);
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+        "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
         ["Log User", "log@test.com", 25],
       );
 
@@ -1307,12 +1307,12 @@ describe("PostgreSQLAdapter", () => {
       await adapter.execute("TRUNCATE TABLE test_users", []);
 
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+        "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
         ["Null User", null, null],
       );
 
       const users = await adapter.query(
-        "SELECT * FROM test_users WHERE name = $1",
+        "SELECT * FROM postgresql_test_users WHERE name = $1",
         ["Null User"],
       );
       expect(users.length).toBe(1);
@@ -1330,12 +1330,12 @@ describe("PostgreSQLAdapter", () => {
 
       const specialName = 'User\'s Name & "Special" <Chars>';
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+        "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
         [specialName, "special@test.com", 25],
       );
 
       const users = await adapter.query(
-        "SELECT * FROM test_users WHERE email = $1",
+        "SELECT * FROM postgresql_test_users WHERE email = $1",
         ["special@test.com"],
       );
       expect(users.length).toBe(1);
@@ -1353,7 +1353,7 @@ describe("PostgreSQLAdapter", () => {
       // 尝试SQL注入
       const maliciousInput = "'; DROP TABLE test_users; --";
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+        "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
         [maliciousInput, "inject@test.com", 25],
       );
 
@@ -1545,26 +1545,26 @@ describe("PostgreSQLAdapter", () => {
 
       await adapter.transaction(async (db1: DatabaseAdapter) => {
         await db1.execute(
-          "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+          "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
           ["Nested User", "nested@test.com", 25],
         );
 
         await db1.transaction(async (db2: DatabaseAdapter) => {
           await db2.execute(
-            "UPDATE test_users SET age = $1 WHERE email = $2",
+            "UPDATE postgresql_test_users SET age = $1 WHERE email = $2",
             [30, "nested@test.com"],
           );
 
           await db2.transaction(async (db3: DatabaseAdapter) => {
             await db3.execute(
-              "UPDATE test_users SET age = $1 WHERE email = $2",
+              "UPDATE postgresql_test_users SET age = $1 WHERE email = $2",
               [35, "nested@test.com"],
             );
           });
         });
 
         const users = await db1.query(
-          "SELECT * FROM test_users WHERE email = $1",
+          "SELECT * FROM postgresql_test_users WHERE email = $1",
           ["nested@test.com"],
         );
         expect(users[0].age).toBe(35);
@@ -1583,13 +1583,13 @@ describe("PostgreSQLAdapter", () => {
         async () => {
           await adapter.transaction(async (db1: DatabaseAdapter) => {
             await db1.execute(
-              "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+              "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
               ["Nested Rollback User", "nested_rollback@test.com", 25],
             );
 
             await db1.transaction(async (db2: DatabaseAdapter) => {
               await db2.execute(
-                "UPDATE test_users SET age = $1 WHERE email = $2",
+                "UPDATE postgresql_test_users SET age = $1 WHERE email = $2",
                 [30, "nested_rollback@test.com"],
               );
 
@@ -1602,7 +1602,7 @@ describe("PostgreSQLAdapter", () => {
 
       // 验证整个事务已回滚
       const users = await adapter.query(
-        "SELECT * FROM test_users WHERE email = $1",
+        "SELECT * FROM postgresql_test_users WHERE email = $1",
         ["nested_rollback@test.com"],
       );
       expect(users.length).toBe(0);
@@ -1621,7 +1621,7 @@ describe("PostgreSQLAdapter", () => {
       // 插入测试数据
       for (let i = 1; i <= 10; i++) {
         await adapter.execute(
-          "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+          "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
           [`Concurrent User ${i}`, `concurrent${i}@test.com`, 20 + i],
         );
       }
@@ -1629,7 +1629,7 @@ describe("PostgreSQLAdapter", () => {
       // 并发查询
       const promises = Array.from({ length: 10 }, (_, i) =>
         adapter.query(
-          "SELECT * FROM test_users WHERE email = $1",
+          "SELECT * FROM postgresql_test_users WHERE email = $1",
           [`concurrent${i + 1}@test.com`],
         ));
 
@@ -1655,7 +1655,7 @@ describe("PostgreSQLAdapter", () => {
         (_, i) =>
           adapter.transaction(async (db: DatabaseAdapter) => {
             await db.execute(
-              "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+              "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
               [`Concurrent TX User ${i}`, `concurrent_tx${i}@test.com`, 20 + i],
             );
             return i;
@@ -1708,7 +1708,7 @@ describe("PostgreSQLAdapter", () => {
       (adapter as any).setQueryLogger(logger);
 
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",
+        "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
         ["Log Detail User", "log_detail@test.com", 25],
       );
 

@@ -66,7 +66,7 @@ describe("缓存机制测试", () => {
 
   afterEach(async () => {
     // 清理测试数据
-    await adapter.execute("TRUNCATE TABLE cache_test_users", []);
+    await adapter.execute("TRUNCATE TABLE mysql_cache_test_users", []);
     // 清除缓存适配器的缓存（如果存在）
     if (CacheTestUser.cacheAdapter) {
       const tag = `model:${CacheTestUser.tableName}`;
