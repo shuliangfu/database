@@ -15,11 +15,16 @@ import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { SQLModel } from "../../src/orm/sql-model.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
 
+// 定义表名常量（使用目录名_文件名_作为前缀）
+// 注意：SQLite 不允许表名以 sqlite_ 开头，因此使用 test_sqlite_ 前缀
+const TABLE_VIRTUALS = "test_sqlite_model_advanced_users_virtuals";
+const TABLE_SCOPES = "test_sqlite_model_advanced_users_scopes";
+
 /**
  * 测试用户模型（带虚拟字段）
  */
 class UserWithVirtuals extends SQLModel {
-  static override tableName = "sqlite_users_virtuals";
+  static override tableName = TABLE_VIRTUALS;
   static override primaryKey = "id";
 
   // 定义虚拟字段
@@ -40,7 +45,7 @@ class UserWithVirtuals extends SQLModel {
  * 测试用户模型（带查询作用域）
  */
 class UserWithScopes extends SQLModel {
-  static override tableName = "sqlite_users_scopes";
+  static override tableName = TABLE_SCOPES;
   static override primaryKey = "id";
 
   // 定义查询作用域
@@ -71,7 +76,7 @@ describe("SQLModel 高级功能", () => {
 
     // 创建测试表
     await adapter.execute(
-      `CREATE TABLE IF NOT EXISTS users_virtuals (
+      `CREATE TABLE IF NOT EXISTS ${TABLE_VIRTUALS} (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         firstName TEXT,
         lastName TEXT,
@@ -84,7 +89,7 @@ describe("SQLModel 高级功能", () => {
     );
 
     await adapter.execute(
-      `CREATE TABLE IF NOT EXISTS users_scopes (
+      `CREATE TABLE IF NOT EXISTS ${TABLE_SCOPES} (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT,
         age INTEGER,
@@ -106,9 +111,78 @@ describe("SQLModel 高级功能", () => {
   });
 
   beforeEach(async () => {
-    // 清空测试数据
-    await adapter.execute("DELETE FROM sqlite_users_virtuals", []);
-    await adapter.execute("DELETE FROM sqlite_users_scopes", []);
+    // 如果适配器未连接（可能被其他测试文件关闭），重新初始化
+    if (!adapter || !adapter.isConnected()) {
+      try {
+        adapter = getDatabase();
+      } catch {
+        // 如果数据库未初始化，重新初始化
+        await initDatabase({
+          type: "sqlite",
+          connection: {
+            filename: ":memory:",
+          },
+        });
+        adapter = getDatabase();
+        // 重新创建表
+        await adapter.execute(
+          `CREATE TABLE IF NOT EXISTS ${TABLE_VIRTUALS} (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            firstName TEXT,
+            lastName TEXT,
+            age INTEGER,
+            nickname TEXT,
+            status TEXT DEFAULT 'active',
+            createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+          )`,
+          [],
+        );
+        await adapter.execute(
+          `CREATE TABLE IF NOT EXISTS ${TABLE_SCOPES} (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            age INTEGER,
+            status TEXT DEFAULT 'active',
+            published INTEGER DEFAULT 0,
+            createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+          )`,
+          [],
+        );
+        // 重新设置模型适配器
+        UserWithVirtuals.setAdapter(adapter);
+        UserWithScopes.setAdapter(adapter);
+      }
+    }
+    // 清空测试数据（使用 try-catch 防止表不存在错误）
+    try {
+      await adapter.execute(`DELETE FROM ${TABLE_VIRTUALS}`, []);
+      await adapter.execute(`DELETE FROM ${TABLE_SCOPES}`, []);
+    } catch {
+      // 如果表不存在，重新创建
+      await adapter.execute(
+        `CREATE TABLE IF NOT EXISTS ${TABLE_VIRTUALS} (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          firstName TEXT,
+          lastName TEXT,
+          age INTEGER,
+          nickname TEXT,
+          status TEXT DEFAULT 'active',
+          createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+        )`,
+        [],
+      );
+      await adapter.execute(
+        `CREATE TABLE IF NOT EXISTS ${TABLE_SCOPES} (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT,
+          age INTEGER,
+          status TEXT DEFAULT 'active',
+          published INTEGER DEFAULT 0,
+          createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+        )`,
+        [],
+      );
+    }
   });
 
   describe("虚拟字段（virtuals）", () => {

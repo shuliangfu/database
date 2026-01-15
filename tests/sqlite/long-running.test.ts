@@ -3,13 +3,7 @@
  * 测试数据库连接在长时间运行场景下的稳定性
  */
 
-import {
-  afterAll,
-  beforeAll,
-  describe,
-  expect,
-  it,
-} from "@dreamer/test";
+import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
 
@@ -48,9 +42,30 @@ describe("SQLite 长时间运行集成测试", () => {
   });
 
   it("应该在长时间运行后连接仍然正常", async () => {
-    if (!adapter) {
-      console.log("SQLite not available, skipping test");
-      return;
+    // 如果适配器未连接（可能被其他测试文件关闭），重新初始化
+    if (!adapter || !adapter.isConnected()) {
+      try {
+        adapter = getDatabase();
+      } catch {
+        // 如果数据库未初始化，重新初始化
+        await initDatabase({
+          type: "sqlite",
+          connection: {
+            filename: ":memory:",
+          },
+        });
+        adapter = getDatabase();
+        // 重新创建表
+        await adapter.execute(
+          `CREATE TABLE IF NOT EXISTS long_running_test (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            value INTEGER,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+          )`,
+          [],
+        );
+      }
     }
 
     // 执行多次操作，模拟长时间运行
@@ -68,7 +83,6 @@ describe("SQLite 长时间运行集成测试", () => {
       }
 
       // 添加小延迟，模拟真实场景
-      
     }
 
     // 最终验证
@@ -80,9 +94,20 @@ describe("SQLite 长时间运行集成测试", () => {
   }, { sanitizeOps: false, sanitizeResources: false });
 
   it("应该在长时间运行后连接池状态正常", async () => {
-    if (!adapter) {
-      console.log("SQLite not available, skipping test");
-      return;
+    // 如果适配器未连接（可能被其他测试文件关闭），重新初始化
+    if (!adapter || !adapter.isConnected()) {
+      try {
+        adapter = getDatabase();
+      } catch {
+        // 如果数据库未初始化，重新初始化
+        await initDatabase({
+          type: "sqlite",
+          connection: {
+            filename: ":memory:",
+          },
+        });
+        adapter = getDatabase();
+      }
     }
 
     // 执行大量查询
@@ -101,9 +126,20 @@ describe("SQLite 长时间运行集成测试", () => {
   }, { sanitizeOps: false, sanitizeResources: false });
 
   it("应该在长时间运行后健康检查正常", async () => {
-    if (!adapter) {
-      console.log("SQLite not available, skipping test");
-      return;
+    // 如果适配器未连接（可能被其他测试文件关闭），重新初始化
+    if (!adapter || !adapter.isConnected()) {
+      try {
+        adapter = getDatabase();
+      } catch {
+        // 如果数据库未初始化，重新初始化
+        await initDatabase({
+          type: "sqlite",
+          connection: {
+            filename: ":memory:",
+          },
+        });
+        adapter = getDatabase();
+      }
     }
 
     // 执行一些操作

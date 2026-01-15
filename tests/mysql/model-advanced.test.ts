@@ -23,11 +23,15 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
+// 定义表名常量（使用目录名_文件名_作为前缀）
+const TABLE_VIRTUALS = "mysql_model_advanced_users_virtuals";
+const TABLE_SCOPES = "mysql_model_advanced_users_scopes";
+
 /**
  * 测试用户模型（带虚拟字段）
  */
 class UserWithVirtuals extends SQLModel {
-  static override tableName = "mysql_users_virtuals";
+  static override tableName = TABLE_VIRTUALS;
   static override primaryKey = "id";
 
   // 定义虚拟字段
@@ -48,7 +52,7 @@ class UserWithVirtuals extends SQLModel {
  * 测试用户模型（带查询作用域）
  */
 class UserWithScopes extends SQLModel {
-  static override tableName = "mysql_users_scopes";
+  static override tableName = TABLE_SCOPES;
   static override primaryKey = "id";
 
   // 定义查询作用域
@@ -89,7 +93,7 @@ describe("SQLModel 高级功能", () => {
 
     // 创建测试表
     await adapter.execute(
-      `CREATE TABLE IF NOT EXISTS users_virtuals (
+      `CREATE TABLE IF NOT EXISTS ${TABLE_VIRTUALS} (
         id INT AUTO_INCREMENT PRIMARY KEY,
         firstName VARCHAR(100),
         lastName VARCHAR(100),
@@ -102,7 +106,7 @@ describe("SQLModel 高级功能", () => {
     );
 
     await adapter.execute(
-      `CREATE TABLE IF NOT EXISTS users_scopes (
+      `CREATE TABLE IF NOT EXISTS ${TABLE_SCOPES} (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(100),
         age INT,
@@ -114,8 +118,8 @@ describe("SQLModel 高级功能", () => {
     );
 
     // 清空测试数据
-    await adapter.execute("TRUNCATE TABLE mysql_users_virtuals", []);
-    await adapter.execute("TRUNCATE TABLE mysql_users_scopes", []);
+    await adapter.execute(`TRUNCATE TABLE ${TABLE_VIRTUALS}`, []);
+    await adapter.execute(`TRUNCATE TABLE ${TABLE_SCOPES}`, []);
 
     // 设置模型适配器
     UserWithVirtuals.setAdapter(adapter);
@@ -129,8 +133,8 @@ describe("SQLModel 高级功能", () => {
 
   beforeEach(async () => {
     // 清空测试数据
-    await adapter.execute("TRUNCATE TABLE mysql_users_virtuals", []);
-    await adapter.execute("TRUNCATE TABLE mysql_users_scopes", []);
+    await adapter.execute(`TRUNCATE TABLE ${TABLE_VIRTUALS}`, []);
+    await adapter.execute(`TRUNCATE TABLE ${TABLE_SCOPES}`, []);
   });
 
   describe("虚拟字段（virtuals）", () => {

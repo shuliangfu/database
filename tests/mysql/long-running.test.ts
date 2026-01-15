@@ -21,6 +21,9 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
+// 定义表名常量（使用目录名_文件名_作为前缀）
+const TABLE_NAME = "mysql_long_running_long_running_test";
+
 describe("MySQL 长时间运行集成测试", () => {
   let adapter: DatabaseAdapter;
 
@@ -52,7 +55,7 @@ describe("MySQL 长时间运行集成测试", () => {
 
     // 创建测试表
     await adapter.execute(
-      `CREATE TABLE IF NOT EXISTS long_running_test (
+      `CREATE TABLE IF NOT EXISTS ${TABLE_NAME} (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255),
         value INT,
@@ -61,7 +64,7 @@ describe("MySQL 长时间运行集成测试", () => {
       [],
     );
 
-    await adapter.execute("TRUNCATE TABLE long_running_test", []);
+    await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
   });
 
   afterAll(async () => {
@@ -78,7 +81,7 @@ describe("MySQL 长时间运行集成测试", () => {
     // 执行多次操作，模拟长时间运行
     for (let i = 0; i < 50; i++) {
       await adapter.execute(
-        "INSERT INTO long_running_test (name, value) VALUES (?, ?)",
+        `INSERT INTO ${TABLE_NAME} (name, value) VALUES (?, ?)`,
         [`Test ${i}`, i],
       );
 
@@ -90,12 +93,12 @@ describe("MySQL 长时间运行集成测试", () => {
       }
 
       // 添加小延迟，模拟真实场景
-      
+
     }
 
     // 最终验证
     const results = await adapter.query(
-      "SELECT COUNT(*) as count FROM long_running_test",
+      `SELECT COUNT(*) as count FROM ${TABLE_NAME}`,
       [],
     );
     expect(parseInt(results[0].count)).toBe(50);

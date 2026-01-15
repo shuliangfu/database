@@ -206,7 +206,7 @@ describe("MongoDBAdapter", () => {
         return;
       }
 
-      const result = await adapter.execute("insert", "adapter_test_users", {
+      const result = await adapter.execute("insert", COLLECTION_USERS, {
         name: "David",
         email: "david@example.com",
         age: 40,
@@ -222,7 +222,7 @@ describe("MongoDBAdapter", () => {
         return;
       }
 
-      const result = await adapter.execute("insertMany", "adapter_test_users", [
+      const result = await adapter.execute("insertMany", COLLECTION_USERS, [
         { name: "Eve", age: 28 },
         { name: "Frank", age: 32 },
       ]);
@@ -238,12 +238,12 @@ describe("MongoDBAdapter", () => {
       }
 
       // 先插入数据
-      const insertResult = await adapter.execute("insert", "adapter_test_users", {
+      const insertResult = await adapter.execute("insert", COLLECTION_USERS, {
         name: "Grace",
         age: 30,
       });
 
-      const result = await adapter.execute("update", "adapter_test_users", {
+      const result = await adapter.execute("update", COLLECTION_USERS, {
         filter: { _id: insertResult.insertedId },
         update: { $set: { age: 35 } },
       });
@@ -259,12 +259,12 @@ describe("MongoDBAdapter", () => {
       }
 
       // 先插入数据
-      await adapter.execute("insertMany", "adapter_test_users", [
+      await adapter.execute("insertMany", COLLECTION_USERS, [
         { name: "Henry", age: 25 },
         { name: "Ivy", age: 25 },
       ]);
 
-      const result = await adapter.execute("updateMany", "adapter_test_users", {
+      const result = await adapter.execute("updateMany", COLLECTION_USERS, {
         filter: { age: 25 },
         update: { $set: { age: 26 } },
       });
@@ -280,12 +280,12 @@ describe("MongoDBAdapter", () => {
       }
 
       // 先插入数据
-      const insertResult = await adapter.execute("insert", "adapter_test_users", {
+      const insertResult = await adapter.execute("insert", COLLECTION_USERS, {
         name: "Jack",
         age: 30,
       });
 
-      const result = await adapter.execute("delete", "adapter_test_users", {
+      const result = await adapter.execute("delete", COLLECTION_USERS, {
         filter: { _id: insertResult.insertedId },
       });
 
@@ -300,12 +300,12 @@ describe("MongoDBAdapter", () => {
       }
 
       // 先插入数据
-      await adapter.execute("insertMany", "adapter_test_users", [
+      await adapter.execute("insertMany", COLLECTION_USERS, [
         { name: "Kate", age: 30 },
         { name: "Leo", age: 30 },
       ]);
 
-      const result = await adapter.execute("deleteMany", "adapter_test_users", {
+      const result = await adapter.execute("deleteMany", COLLECTION_USERS, {
         filter: { age: 30 },
       });
 
@@ -336,7 +336,7 @@ describe("MongoDBAdapter", () => {
 
       await assertRejects(
         async () => {
-          await adapter.execute("insert", "adapter_test_users", undefined as any);
+          await adapter.execute("insert", COLLECTION_USERS, undefined as any);
         },
         Error,
         "data",
@@ -478,19 +478,19 @@ describe("MongoDBAdapter", () => {
       }
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
-        await db.execute("insert", "adapter_test_users", {
+        await db.execute("insert", COLLECTION_USERS, {
           name: "Transaction User 1",
           email: "trans1@test.com",
           age: 25,
         });
-        await db.execute("insert", "adapter_test_users", {
+        await db.execute("insert", COLLECTION_USERS, {
           name: "Transaction User 2",
           email: "trans2@test.com",
           age: 30,
         });
       });
 
-      const users = await adapter.query("adapter_test_users", {
+      const users = await adapter.query(COLLECTION_USERS, {
         email: { $in: ["trans1@test.com", "trans2@test.com"] },
       });
       expect(users.length).toBe(2);
@@ -513,7 +513,7 @@ describe("MongoDBAdapter", () => {
       await assertRejects(
         async () => {
           await adapter.transaction(async (db: DatabaseAdapter) => {
-            await db.execute("insert", "adapter_test_users", {
+            await db.execute("insert", COLLECTION_USERS, {
               name: "Transaction User",
               email: "trans@test.com",
               age: 25,
@@ -525,7 +525,7 @@ describe("MongoDBAdapter", () => {
         Error,
       );
 
-      const users = await adapter.query("adapter_test_users", {
+      const users = await adapter.query(COLLECTION_USERS, {
         email: "trans@test.com",
       });
       expect(users.length).toBe(0); // 事务应该回滚，没有数据
@@ -568,7 +568,7 @@ describe("MongoDBAdapter", () => {
       expect(adapter.getQueryLogger()).toBe(logger);
 
       // 执行一个查询，验证日志记录
-      await adapter.query("adapter_test_users", {});
+      await adapter.query(COLLECTION_USERS, {});
 
       const logs = logger.getLogs();
       expect(logs.length).toBeGreaterThan(0);
@@ -786,19 +786,21 @@ describe("MongoDBAdapter", () => {
       }
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
-        await db.execute("insert", "adapter_test_users", {
+        await db.execute("insert", COLLECTION_USERS, {
           name: "Transaction User",
           email: "tx@test.com",
           age: 25,
         });
 
-        const users = await db.query("adapter_test_users", { email: "tx@test.com" });
+        const users = await db.query(COLLECTION_USERS, {
+          email: "tx@test.com",
+        });
         expect(users.length).toBe(1);
         expect(users[0].name).toBe("Transaction User");
       });
 
       // 清理
-      await adapter.execute("deleteMany", "adapter_test_users", {
+      await adapter.execute("deleteMany", COLLECTION_USERS, {
         email: "tx@test.com",
       });
     }, { sanitizeOps: false, sanitizeResources: false });
@@ -810,26 +812,26 @@ describe("MongoDBAdapter", () => {
       }
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
-        await db.execute("insert", "adapter_test_users", {
+        await db.execute("insert", COLLECTION_USERS, {
           name: "Update User",
           email: "update@test.com",
           age: 25,
         });
 
-        const result = await db.execute("update", "adapter_test_users", {
+        const result = await db.execute("update", COLLECTION_USERS, {
           filter: { email: "update@test.com" },
           update: { age: 30 },
         });
         expect(result.modifiedCount).toBe(1);
 
-        const users = await db.query("adapter_test_users", {
+        const users = await db.query(COLLECTION_USERS, {
           email: "update@test.com",
         });
         expect(users[0].age).toBe(30);
       });
 
       // 清理
-      await adapter.execute("deleteMany", "adapter_test_users", {
+      await adapter.execute("deleteMany", COLLECTION_USERS, {
         email: "update@test.com",
       });
     }, { sanitizeOps: false, sanitizeResources: false });
@@ -869,7 +871,7 @@ describe("MongoDBAdapter", () => {
       }
 
       // 插入测试数据
-      await adapter.execute("insertMany", "adapter_test_users", [
+      await adapter.execute("insertMany", COLLECTION_USERS, [
         { name: "User 1", age: 20, city: "Beijing" },
         { name: "User 2", age: 30, city: "Shanghai" },
         { name: "User 3", age: 40, city: "Beijing" },
@@ -892,7 +894,7 @@ describe("MongoDBAdapter", () => {
       expect(results.length).toBeGreaterThan(0);
 
       // 清理
-      await adapter.execute("deleteMany", "adapter_test_users", {});
+      await adapter.execute("deleteMany", COLLECTION_USERS, {});
     }, { sanitizeOps: false, sanitizeResources: false });
 
     it("应该支持查询选项", async () => {
@@ -902,7 +904,7 @@ describe("MongoDBAdapter", () => {
       }
 
       // 插入测试数据
-      await adapter.execute("insertMany", "adapter_test_users", [
+      await adapter.execute("insertMany", COLLECTION_USERS, [
         { name: "User 1", age: 20 },
         { name: "User 2", age: 30 },
         { name: "User 3", age: 40 },
@@ -918,7 +920,7 @@ describe("MongoDBAdapter", () => {
       expect(results[0].age).toBe(40);
 
       // 清理
-      await adapter.execute("deleteMany", "adapter_test_users", {});
+      await adapter.execute("deleteMany", COLLECTION_USERS, {});
     }, { sanitizeOps: false, sanitizeResources: false });
 
     it("应该支持投影查询", async () => {
@@ -947,7 +949,7 @@ describe("MongoDBAdapter", () => {
       expect(results[0].email).toBeUndefined();
 
       // 清理
-      await adapter.execute("deleteMany", "adapter_test_users", {});
+      await adapter.execute("deleteMany", COLLECTION_USERS, {});
     }, { sanitizeOps: false, sanitizeResources: false });
   });
 
@@ -959,7 +961,7 @@ describe("MongoDBAdapter", () => {
       }
 
       // 插入测试数据
-      const insertResult = await adapter.execute("insert", "adapter_test_users", {
+      const insertResult = await adapter.execute("insert", COLLECTION_USERS, {
         name: "FindOne User",
         email: "findone@test.com",
         age: 25,
@@ -967,18 +969,22 @@ describe("MongoDBAdapter", () => {
       expect(insertResult.insertedId).toBeTruthy();
 
       // 验证数据已插入
-      const beforeUpdate = await adapter.query("adapter_test_users", {
+      const beforeUpdate = await adapter.query(COLLECTION_USERS, {
         email: "findone@test.com",
       });
       expect(beforeUpdate.length).toBe(1);
       expect(beforeUpdate[0].age).toBe(25);
 
       // 使用 findOneAndUpdate
-      const result = await adapter.execute("findOneAndUpdate", "adapter_test_users", {
-        filter: { email: "findone@test.com" },
-        update: { $set: { age: 30 } },
-        options: { returnDocument: "after" },
-      });
+      const result = await adapter.execute(
+        "findOneAndUpdate",
+        COLLECTION_USERS,
+        {
+          filter: { email: "findone@test.com" },
+          update: { $set: { age: 30 } },
+          options: { returnDocument: "after" },
+        },
+      );
 
       // MongoDB findOneAndUpdate 返回 { value: Document | null }
       // 如果 returnDocument 是 "after"，value 应该是更新后的文档
@@ -986,7 +992,7 @@ describe("MongoDBAdapter", () => {
       expect(result).toBeTruthy();
 
       // 检查更新是否成功（通过查询验证）
-      const afterUpdate = await adapter.query("adapter_test_users", {
+      const afterUpdate = await adapter.query(COLLECTION_USERS, {
         email: "findone@test.com",
       });
       expect(afterUpdate.length).toBe(1);
@@ -998,7 +1004,7 @@ describe("MongoDBAdapter", () => {
       }
 
       // 清理
-      await adapter.execute("deleteMany", "adapter_test_users", {});
+      await adapter.execute("deleteMany", COLLECTION_USERS, {});
     }, { sanitizeOps: false, sanitizeResources: false });
 
     it("应该支持 findOneAndDelete", async () => {
@@ -1015,13 +1021,17 @@ describe("MongoDBAdapter", () => {
       });
 
       // 使用 findOneAndDelete
-      const result = await adapter.execute("findOneAndDelete", "adapter_test_users", {
-        filter: { email: "delete@test.com" },
-      });
+      const result = await adapter.execute(
+        "findOneAndDelete",
+        COLLECTION_USERS,
+        {
+          filter: { email: "delete@test.com" },
+        },
+      );
 
       // MongoDB findOneAndDelete 返回 { value: Document | null }
       // 验证已删除（通过查询验证）
-      const users = await adapter.query("adapter_test_users", {
+      const users = await adapter.query(COLLECTION_USERS, {
         email: "delete@test.com",
       });
       expect(users.length).toBe(0);
@@ -1047,29 +1057,29 @@ describe("MongoDBAdapter", () => {
       });
 
       // 使用 $inc 操作符
-      await adapter.execute("update", "adapter_test_users", {
+      await adapter.execute("update", COLLECTION_USERS, {
         filter: { email: "operator@test.com" },
         update: { $inc: { score: 10 } },
       });
 
-      const user = await adapter.query("adapter_test_users", {
+      const user = await adapter.query(COLLECTION_USERS, {
         email: "operator@test.com",
       });
       expect(user[0].score).toBe(110);
 
       // 使用 $set 操作符
-      await adapter.execute("update", "adapter_test_users", {
+      await adapter.execute("update", COLLECTION_USERS, {
         filter: { email: "operator@test.com" },
         update: { $set: { age: 30 } },
       });
 
-      const user2 = await adapter.query("adapter_test_users", {
+      const user2 = await adapter.query(COLLECTION_USERS, {
         email: "operator@test.com",
       });
       expect(user2[0].age).toBe(30);
 
       // 清理
-      await adapter.execute("deleteMany", "adapter_test_users", {});
+      await adapter.execute("deleteMany", COLLECTION_USERS, {});
     }, { sanitizeOps: false, sanitizeResources: false });
   });
 
@@ -1083,8 +1093,8 @@ describe("MongoDBAdapter", () => {
       const logger = new QueryLogger({ enabled: true, logLevel: "all" });
       (adapter as any).setQueryLogger(logger);
 
-      await adapter.query("adapter_test_users", {});
-      await adapter.query("adapter_test_users", { name: "Test" });
+      await adapter.query(COLLECTION_USERS, {});
+      await adapter.query(COLLECTION_USERS, { name: "Test" });
 
       const logs = logger.getLogs();
       expect(logs.length).toBeGreaterThanOrEqual(2);
@@ -1111,7 +1121,7 @@ describe("MongoDBAdapter", () => {
       expect(logs.some((log) => log.type === "execute")).toBe(true);
 
       // 清理
-      await adapter.execute("deleteMany", "adapter_test_users", {});
+      await adapter.execute("deleteMany", COLLECTION_USERS, {});
     }, { sanitizeOps: false, sanitizeResources: false });
 
     it("应该记录错误日志", async () => {
@@ -1124,7 +1134,7 @@ describe("MongoDBAdapter", () => {
       (adapter as any).setQueryLogger(logger);
 
       try {
-        await adapter.execute("invalidOperation", "adapter_test_users", {});
+        await adapter.execute("invalidOperation", COLLECTION_USERS, {});
       } catch {
         // 忽略错误
       }
@@ -1157,13 +1167,15 @@ describe("MongoDBAdapter", () => {
         age: null,
       });
 
-      const users = await adapter.query("adapter_test_users", { name: "Null User" });
+      const users = await adapter.query(COLLECTION_USERS, {
+        name: "Null User",
+      });
       expect(users.length).toBe(1);
       expect(users[0].email).toBeNull();
       expect(users[0].age).toBeNull();
 
       // 清理
-      await adapter.execute("deleteMany", "adapter_test_users", {});
+      await adapter.execute("deleteMany", COLLECTION_USERS, {});
     }, { sanitizeOps: false, sanitizeResources: false });
 
     it("应该处理特殊字符", async () => {
@@ -1179,14 +1191,14 @@ describe("MongoDBAdapter", () => {
         age: 25,
       });
 
-      const users = await adapter.query("adapter_test_users", {
+      const users = await adapter.query(COLLECTION_USERS, {
         email: "special@test.com",
       });
       expect(users.length).toBe(1);
       expect(users[0].name).toBe(specialName);
 
       // 清理
-      await adapter.execute("deleteMany", "adapter_test_users", {});
+      await adapter.execute("deleteMany", COLLECTION_USERS, {});
     }, { sanitizeOps: false, sanitizeResources: false });
 
     it("应该处理嵌套对象", async () => {
@@ -1204,14 +1216,14 @@ describe("MongoDBAdapter", () => {
         },
       });
 
-      const users = await adapter.query("adapter_test_users", {
+      const users = await adapter.query(COLLECTION_USERS, {
         "address.city": "Beijing",
       });
       expect(users.length).toBe(1);
       expect(users[0].address.city).toBe("Beijing");
 
       // 清理
-      await adapter.execute("deleteMany", "adapter_test_users", {});
+      await adapter.execute("deleteMany", COLLECTION_USERS, {});
     }, { sanitizeOps: false, sanitizeResources: false });
   });
 
@@ -1285,7 +1297,7 @@ describe("MongoDBAdapter", () => {
 
       await assertRejects(
         async () => {
-          await adapter.execute("invalidOperation", "adapter_test_users", {});
+          await adapter.execute("invalidOperation", COLLECTION_USERS, {});
         },
         Error,
       );
@@ -1319,19 +1331,23 @@ describe("MongoDBAdapter", () => {
         age: 25,
       });
 
-      const result = await adapter.execute("findOneAndReplace", "adapter_test_users", {
-        filter: { email: "replace@test.com" },
-        replacement: {
-          name: "Replaced User",
-          email: "replace@test.com",
-          age: 30,
+      const result = await adapter.execute(
+        "findOneAndReplace",
+        COLLECTION_USERS,
+        {
+          filter: { email: "replace@test.com" },
+          replacement: {
+            name: "Replaced User",
+            email: "replace@test.com",
+            age: 30,
+          },
+          options: { returnDocument: "after" },
         },
-        options: { returnDocument: "after" },
-      });
+      );
 
       // MongoDB findOneAndReplace 返回 { value: Document | null }
       // 验证替换是否成功（通过查询验证）
-      const afterReplace = await adapter.query("adapter_test_users", {
+      const afterReplace = await adapter.query(COLLECTION_USERS, {
         email: "replace@test.com",
       });
       expect(afterReplace.length).toBe(1);
@@ -1343,7 +1359,7 @@ describe("MongoDBAdapter", () => {
         expect(result.value.age).toBe(30);
       }
 
-      await adapter.execute("deleteMany", "adapter_test_users", {});
+      await adapter.execute("deleteMany", COLLECTION_USERS, {});
     }, { sanitizeOps: false, sanitizeResources: false });
 
     it("应该支持 upsert", async () => {
@@ -1353,7 +1369,7 @@ describe("MongoDBAdapter", () => {
       }
 
       // 使用 update 操作符进行 upsert
-      const result1 = await adapter.execute("update", "adapter_test_users", {
+      const result1 = await adapter.execute("update", COLLECTION_USERS, {
         filter: { email: "upsert@test.com" },
         update: { $set: { name: "Upsert User", age: 25 } },
         options: { upsert: true },
@@ -1362,18 +1378,18 @@ describe("MongoDBAdapter", () => {
       expect(result1.upsertedCount || result1.modifiedCount).toBeGreaterThan(0);
 
       // 再次 upsert 应该更新而不是插入
-      const result2 = await adapter.execute("update", "adapter_test_users", {
+      const result2 = await adapter.execute("update", COLLECTION_USERS, {
         filter: { email: "upsert@test.com" },
         update: { $set: { age: 30 } },
         options: { upsert: true },
       });
 
-      const user = await adapter.query("adapter_test_users", {
+      const user = await adapter.query(COLLECTION_USERS, {
         email: "upsert@test.com",
       });
       expect(user[0].age).toBe(30);
 
-      await adapter.execute("deleteMany", "adapter_test_users", {});
+      await adapter.execute("deleteMany", COLLECTION_USERS, {});
     }, { sanitizeOps: false, sanitizeResources: false });
 
     it("应该支持更多更新操作符", async () => {
@@ -1391,24 +1407,24 @@ describe("MongoDBAdapter", () => {
       });
 
       // 使用 $push 操作符
-      await adapter.execute("update", "adapter_test_users", {
+      await adapter.execute("update", COLLECTION_USERS, {
         filter: { email: "operator2@test.com" },
         update: { $push: { tags: "tag2" } },
       });
 
       // 使用 $unset 操作符
-      await adapter.execute("update", "adapter_test_users", {
+      await adapter.execute("update", COLLECTION_USERS, {
         filter: { email: "operator2@test.com" },
         update: { $unset: { score: "" } },
       });
 
-      const user = await adapter.query("adapter_test_users", {
+      const user = await adapter.query(COLLECTION_USERS, {
         email: "operator2@test.com",
       });
       expect(user[0].tags.length).toBe(2);
       expect(user[0].score).toBeUndefined();
 
-      await adapter.execute("deleteMany", "adapter_test_users", {});
+      await adapter.execute("deleteMany", COLLECTION_USERS, {});
     }, { sanitizeOps: false, sanitizeResources: false });
   });
 
@@ -1474,7 +1490,7 @@ describe("MongoDBAdapter", () => {
       const promises = Array.from(
         { length: 10 },
         (_, i) =>
-          adapter.query("adapter_test_users", {
+          adapter.query(COLLECTION_USERS, {
             email: `concurrent${i + 1}@test.com`,
           }),
       );
@@ -1486,7 +1502,7 @@ describe("MongoDBAdapter", () => {
         expect(result[0].email).toBe(`concurrent${index + 1}@test.com`);
       });
 
-      await adapter.execute("deleteMany", "adapter_test_users", {});
+      await adapter.execute("deleteMany", COLLECTION_USERS, {});
     }, { sanitizeOps: false, sanitizeResources: false });
 
     it("应该支持并发事务", async () => {
@@ -1500,7 +1516,7 @@ describe("MongoDBAdapter", () => {
         { length: 5 },
         (_, i) =>
           adapter.transaction(async (db: DatabaseAdapter) => {
-            await db.execute("insert", "adapter_test_users", {
+            await db.execute("insert", COLLECTION_USERS, {
               name: `Concurrent TX User ${i}`,
               email: `concurrent_tx${i}@test.com`,
               age: 20 + i,
@@ -1512,10 +1528,10 @@ describe("MongoDBAdapter", () => {
       const results = await Promise.all(promises);
       expect(results.length).toBe(5);
 
-      const count = await adapter.query("adapter_test_users", {});
+      const count = await adapter.query(COLLECTION_USERS, {});
       expect(count.length).toBeGreaterThanOrEqual(5);
 
-      await adapter.execute("deleteMany", "adapter_test_users", {});
+      await adapter.execute("deleteMany", COLLECTION_USERS, {});
     }, { sanitizeOps: false, sanitizeResources: false });
   });
 
@@ -1529,13 +1545,13 @@ describe("MongoDBAdapter", () => {
       const logger = new QueryLogger({ enabled: true, logLevel: "all" });
       (adapter as any).setQueryLogger(logger);
 
-      await adapter.query("adapter_test_users", { name: "Test" });
+      await adapter.query(COLLECTION_USERS, { name: "Test" });
 
       const logs = logger.getLogs();
       const queryLog = logs.find((log) => log.type === "query");
       expect(queryLog).toBeTruthy();
       if (queryLog) {
-        expect(queryLog.sql).toContain("adapter_test_users");
+        expect(queryLog.sql).toContain(COLLECTION_USERS);
         expect(queryLog.duration).toBeGreaterThanOrEqual(0);
       }
     }, { sanitizeOps: false, sanitizeResources: false });
@@ -1563,7 +1579,7 @@ describe("MongoDBAdapter", () => {
         expect(executeLog.duration).toBeGreaterThanOrEqual(0);
       }
 
-      await adapter.execute("deleteMany", "adapter_test_users", {});
+      await adapter.execute("deleteMany", COLLECTION_USERS, {});
     }, { sanitizeOps: false, sanitizeResources: false });
   });
 
@@ -1575,7 +1591,7 @@ describe("MongoDBAdapter", () => {
       }
 
       // 插入测试数据
-      await adapter.execute("insertMany", "adapter_test_users", [
+      await adapter.execute("insertMany", COLLECTION_USERS, [
         { _id: 1, name: "User 1", city: "Beijing" },
         { _id: 2, name: "User 2", city: "Shanghai" },
       ]);
@@ -1603,7 +1619,7 @@ describe("MongoDBAdapter", () => {
       expect(results.length).toBeGreaterThan(0);
       expect(results[0].orders).toBeTruthy();
 
-      await adapter.execute("deleteMany", "adapter_test_users", {});
+      await adapter.execute("deleteMany", COLLECTION_USERS, {});
       await adapter.execute("deleteMany", COLLECTION_ORDERS, {});
     }, { sanitizeOps: false, sanitizeResources: false });
 
@@ -1613,7 +1629,7 @@ describe("MongoDBAdapter", () => {
         return;
       }
 
-      await adapter.execute("insertMany", "adapter_test_users", [
+      await adapter.execute("insertMany", COLLECTION_USERS, [
         { name: "User 1", age: 20, city: "Beijing" },
         { name: "User 2", age: 30, city: "Beijing" },
         { name: "User 3", age: 40, city: "Shanghai" },
@@ -1636,7 +1652,7 @@ describe("MongoDBAdapter", () => {
       expect(beijingGroup).toBeTruthy();
       expect(beijingGroup?.count).toBe(2);
 
-      await adapter.execute("deleteMany", "adapter_test_users", {});
+      await adapter.execute("deleteMany", COLLECTION_USERS, {});
     }, { sanitizeOps: false, sanitizeResources: false });
   });
 });

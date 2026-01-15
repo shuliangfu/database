@@ -173,7 +173,7 @@ describe("SQLQueryBuilder", () => {
       const builder = new SQLQueryBuilder(adapter);
       builder
         .select(["*"])
-        .from("users")
+        .from(TABLE_USERS)
         .where("age > ?", [30])
         .orWhere("name = ?", ["Alice"]);
 

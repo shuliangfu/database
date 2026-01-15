@@ -80,6 +80,17 @@ export interface ValidationRule {
   notEquals?: string; // 另一个字段的名称
   /** 自定义字段比较函数，可以访问所有字段值 */
   compare?: (value: any, allValues: Record<string, any>) => boolean | string; // 返回 true 或错误信息
+  /** 跨表/跨字段值比较验证（异步） */
+  compareValue?: {
+    /** 目标字段名 */
+    targetField: string;
+    /** 目标模型（可选，不指定则默认当前表） */
+    targetModel?: typeof SQLModel;
+    /** 比较操作符：'=' | '>' | '<' | '>=' | '<='，默认为 '=' */
+    compare?: "=" | ">" | "<" | ">=" | "<=";
+    /** 额外的查询条件（可选） */
+    where?: Record<string, any>;
+  };
 
   // 数据库查询验证（异步）
   /** 在数据表中唯一（不能重复） */
@@ -151,6 +162,8 @@ export interface ValidationRule {
     length?: number;
     /** 元素验证规则 */
     items?: ValidationRule;
+    /** 数组元素唯一性 */
+    uniqueItems?: boolean;
   };
   /** 内置格式验证器 */
   format?:
@@ -163,6 +176,63 @@ export interface ValidationRule {
     | "date"
     | "datetime"
     | "time";
+
+  // 数值验证增强
+  /** 整数验证 */
+  integer?: boolean;
+  /** 正数验证 */
+  positive?: boolean;
+  /** 负数验证 */
+  negative?: boolean;
+  /** 倍数验证 */
+  multipleOf?: number;
+  /** 范围验证 [min, max] */
+  range?: [number, number];
+
+  // 字符串验证增强
+  /** 只能包含字母和数字 */
+  alphanumeric?: boolean;
+  /** 只能包含数字 */
+  numeric?: boolean;
+  /** 只能包含字母 */
+  alpha?: boolean;
+  /** 必须是小写 */
+  lowercase?: boolean;
+  /** 必须是大写 */
+  uppercase?: boolean;
+  /** 必须以某个字符串开头 */
+  startsWith?: string;
+  /** 必须以某个字符串结尾 */
+  endsWith?: string;
+  /** 必须包含某个字符串 */
+  contains?: string;
+  /** 自动去除首尾空格 */
+  trim?: boolean;
+  /** 自动转换为小写 */
+  toLowerCase?: boolean;
+  /** 自动转换为大写 */
+  toUpperCase?: boolean;
+
+  // 日期/时间验证增强
+  /** 必须早于某个日期 */
+  before?: string | Date;
+  /** 必须晚于某个日期 */
+  after?: string | Date;
+  /** 必须早于某个时间 */
+  beforeTime?: string;
+  /** 必须晚于某个时间 */
+  afterTime?: string;
+  /** 时区验证 */
+  timezone?: string;
+
+  /** 密码强度验证 */
+  passwordStrength?: {
+    minLength?: number;
+    requireUppercase?: boolean;
+    requireLowercase?: boolean;
+    requireNumbers?: boolean;
+    requireSymbols?: boolean;
+  };
 }
 
 /**
@@ -271,25 +341,47 @@ export type SQLQueryBuilder<T extends typeof SQLModel> = {
   ) => Promise<InstanceType<T> | null>;
   count: () => Promise<number>;
   exists: () => Promise<boolean>;
-  update: (data: Record<string, any>) => Promise<number>;
+  update: (
+    data: Record<string, any>,
+    returnLatest?: boolean,
+  ) => Promise<number | InstanceType<T>>;
   updateById: (
     id: number | string,
     data: Record<string, any>,
   ) => Promise<number>;
   updateMany: (data: Record<string, any>) => Promise<number>;
-  increment: (field: string, amount?: number) => Promise<number>;
-  decrement: (field: string, amount?: number) => Promise<number>;
+  increment: (
+    field: string,
+    amount?: number,
+    returnLatest?: boolean,
+  ) => Promise<number | InstanceType<T>>;
+  decrement: (
+    field: string,
+    amount?: number,
+    returnLatest?: boolean,
+  ) => Promise<number | InstanceType<T>>;
   deleteById: (id: number | string) => Promise<number>;
-  deleteMany: () => Promise<number>;
+  deleteMany: (
+    options?: { returnIds?: boolean },
+  ) => Promise<number | { count: number; ids: any[] }>;
   restore: (
     options?: { returnIds?: boolean },
   ) => Promise<number | { count: number; ids: any[] }>;
+  restoreById: (id: number | string) => Promise<number>;
   forceDelete: (
     options?: { returnIds?: boolean },
   ) => Promise<number | { count: number; ids: any[] }>;
+  forceDeleteById: (id: number | string) => Promise<number>;
   distinct: (field: string) => Promise<any[]>;
-  upsert: (data: Record<string, any>) => Promise<InstanceType<T>>;
-  findOrCreate: (data: Record<string, any>) => Promise<InstanceType<T>>;
+  upsert: (
+    data: Record<string, any>,
+    returnLatest?: boolean,
+    resurrect?: boolean,
+  ) => Promise<InstanceType<T>>;
+  findOrCreate: (
+    data: Record<string, any>,
+    resurrect?: boolean,
+  ) => Promise<InstanceType<T>>;
   findOneAndUpdate: (
     data: Record<string, any>,
   ) => Promise<InstanceType<T> | null>;
@@ -1463,6 +1555,239 @@ export abstract class SQLModel {
       }
     }
 
+    // 数值验证增强
+    if (typeof value === "number") {
+      // 整数验证
+      if (rule.integer && !Number.isInteger(value)) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} 必须是整数`,
+        );
+      }
+
+      // 正数验证
+      if (rule.positive && value <= 0) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} 必须是正数`,
+        );
+      }
+
+      // 负数验证
+      if (rule.negative && value >= 0) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} 必须是负数`,
+        );
+      }
+
+      // 倍数验证
+      if (rule.multipleOf !== undefined) {
+        if (value % rule.multipleOf !== 0) {
+          throw new ValidationError(
+            fieldName,
+            rule.message || `${fieldName} 必须是 ${rule.multipleOf} 的倍数`,
+          );
+        }
+      }
+
+      // 范围验证
+      if (rule.range) {
+        const [min, max] = rule.range;
+        if (value < min || value > max) {
+          throw new ValidationError(
+            fieldName,
+            rule.message || `${fieldName} 必须在 ${min} 到 ${max} 之间`,
+          );
+        }
+      }
+    }
+
+    // 字符串验证增强
+    if (typeof value === "string") {
+      // 字符类型验证
+      if (rule.alphanumeric && !/^[a-zA-Z0-9]+$/.test(value)) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} 只能包含字母和数字`,
+        );
+      }
+
+      if (rule.numeric && !/^[0-9]+$/.test(value)) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} 只能包含数字`,
+        );
+      }
+
+      if (rule.alpha && !/^[a-zA-Z]+$/.test(value)) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} 只能包含字母`,
+        );
+      }
+
+      // 大小写验证
+      if (rule.lowercase && value !== value.toLowerCase()) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} 必须是小写`,
+        );
+      }
+
+      if (rule.uppercase && value !== value.toUpperCase()) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} 必须是大写`,
+        );
+      }
+
+      // 字符串包含验证
+      if (rule.startsWith !== undefined && !value.startsWith(rule.startsWith)) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} 必须以 "${rule.startsWith}" 开头`,
+        );
+      }
+
+      if (rule.endsWith !== undefined && !value.endsWith(rule.endsWith)) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} 必须以 "${rule.endsWith}" 结尾`,
+        );
+      }
+
+      if (rule.contains !== undefined && !value.includes(rule.contains)) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} 必须包含 "${rule.contains}"`,
+        );
+      }
+
+      // 字符串处理（自动转换，修改 allValues）
+      if (rule.trim) {
+        allValues[fieldName] = value.trim();
+      }
+      if (rule.toLowerCase) {
+        allValues[fieldName] = value.toLowerCase();
+      }
+      if (rule.toUpperCase) {
+        allValues[fieldName] = value.toUpperCase();
+      }
+    }
+
+    // 日期/时间验证增强
+    if (value instanceof Date || typeof value === "string") {
+      let dateValue: Date | null = null;
+      if (value instanceof Date) {
+        dateValue = value;
+      } else if (typeof value === "string") {
+        // 尝试解析日期字符串
+        const parsed = new Date(value);
+        if (!isNaN(parsed.getTime())) {
+          dateValue = parsed;
+        }
+      }
+
+      if (dateValue) {
+        // 日期比较
+        if (rule.before !== undefined) {
+          const beforeDate = rule.before instanceof Date
+            ? rule.before
+            : new Date(rule.before);
+          if (dateValue >= beforeDate) {
+            throw new ValidationError(
+              fieldName,
+              rule.message || `${fieldName} 必须早于 ${rule.before}`,
+            );
+          }
+        }
+
+        if (rule.after !== undefined) {
+          const afterDate = rule.after instanceof Date
+            ? rule.after
+            : new Date(rule.after);
+          if (dateValue <= afterDate) {
+            throw new ValidationError(
+              fieldName,
+              rule.message || `${fieldName} 必须晚于 ${rule.after}`,
+            );
+          }
+        }
+
+        // 时间比较（只比较时间部分，忽略日期）
+        if (rule.beforeTime !== undefined) {
+          const timeValue = dateValue.getHours() * 3600 +
+            dateValue.getMinutes() * 60 +
+            dateValue.getSeconds();
+          const [hours, minutes, seconds] = rule.beforeTime.split(":").map(
+            Number,
+          );
+          const beforeTimeValue = (hours || 0) * 3600 + (minutes || 0) * 60 +
+            (seconds || 0);
+          if (timeValue >= beforeTimeValue) {
+            throw new ValidationError(
+              fieldName,
+              rule.message || `${fieldName} 必须早于 ${rule.beforeTime}`,
+            );
+          }
+        }
+
+        if (rule.afterTime !== undefined) {
+          const timeValue = dateValue.getHours() * 3600 +
+            dateValue.getMinutes() * 60 +
+            dateValue.getSeconds();
+          const [hours, minutes, seconds] = rule.afterTime.split(":").map(
+            Number,
+          );
+          const afterTimeValue = (hours || 0) * 3600 + (minutes || 0) * 60 +
+            (seconds || 0);
+          if (timeValue <= afterTimeValue) {
+            throw new ValidationError(
+              fieldName,
+              rule.message || `${fieldName} 必须晚于 ${rule.afterTime}`,
+            );
+          }
+        }
+      }
+    }
+
+    // 密码强度验证
+    if (rule.passwordStrength && typeof value === "string") {
+      const options = rule.passwordStrength;
+      if (options.minLength && value.length < options.minLength) {
+        throw new ValidationError(
+          fieldName,
+          rule.message ||
+            `${fieldName} 长度必须至少 ${options.minLength} 个字符`,
+        );
+      }
+      if (options.requireUppercase && !/[A-Z]/.test(value)) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} 必须包含至少一个大写字母`,
+        );
+      }
+      if (options.requireLowercase && !/[a-z]/.test(value)) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} 必须包含至少一个小写字母`,
+        );
+      }
+      if (options.requireNumbers && !/[0-9]/.test(value)) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} 必须包含至少一个数字`,
+        );
+      }
+      if (options.requireSymbols && !/[^a-zA-Z0-9]/.test(value)) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} 必须包含至少一个特殊字符`,
+        );
+      }
+    }
+
     // 枚举验证
     if (rule.enum && !rule.enum.includes(value)) {
       throw new ValidationError(
@@ -1570,6 +1895,17 @@ export abstract class SQLModel {
         fieldName,
         value,
         rule.notExists === true ? {} : rule.notExists,
+      );
+    }
+
+    // 跨表/跨字段值比较验证（compareValue）
+    if (rule.compareValue) {
+      await this.validateCompareValue(
+        fieldName,
+        value,
+        rule.compareValue,
+        instanceId,
+        _allValues,
       );
     }
 
@@ -1701,6 +2037,7 @@ export abstract class SQLModel {
       max?: number;
       length?: number;
       items?: ValidationRule;
+      uniqueItems?: boolean;
     },
     allValues: Record<string, any>,
   ): void {
@@ -1731,6 +2068,25 @@ export abstract class SQLModel {
         fieldName,
         `${fieldName} 数组长度必须小于等于 ${arrayRule.max}`,
       );
+    }
+
+    // 数组元素唯一性验证
+    if (arrayRule.uniqueItems) {
+      const seen = new Set();
+      for (let i = 0; i < value.length; i++) {
+        const item = value[i];
+        // 使用 JSON.stringify 来比较对象和数组
+        const key = typeof item === "object" && item !== null
+          ? JSON.stringify(item)
+          : String(item);
+        if (seen.has(key)) {
+          throw new ValidationError(
+            fieldName,
+            `${fieldName} 数组元素必须唯一，发现重复元素`,
+          );
+        }
+        seen.add(key);
+      }
     }
 
     // 数组元素验证
@@ -1900,6 +2256,102 @@ export abstract class SQLModel {
       throw new ValidationError(
         fieldName,
         `${fieldName} 在数据表中已存在`,
+      );
+    }
+  }
+
+  /**
+   * 验证跨表/跨字段值比较
+   */
+  private static async validateCompareValue(
+    fieldName: string,
+    value: any,
+    options: {
+      targetField: string;
+      targetModel?: typeof SQLModel;
+      compare?: "=" | ">" | "<" | ">=" | "<=";
+      where?: Record<string, any>;
+    },
+    instanceId?: any,
+    allValues?: Record<string, any>,
+  ): Promise<void> {
+    await this.ensureAdapter();
+
+    // 确定目标模型（如果未指定，使用当前模型）
+    const TargetModel = (options.targetModel || this) as typeof SQLModel;
+    await TargetModel.ensureAdapter();
+
+    let targetValue: any;
+
+    // 如果是同表比较（未指定 targetModel）且是创建新记录（instanceId 为空），从 allValues 中获取
+    if (!options.targetModel && !instanceId && allValues) {
+      targetValue = allValues[options.targetField];
+      if (targetValue === undefined) {
+        throw new ValidationError(
+          fieldName,
+          `${fieldName} 验证失败：未找到目标字段 ${options.targetField}`,
+        );
+      }
+    } else {
+      // 构建查询条件
+      const where: Record<string, any> = {
+        ...(options.where || {}),
+      };
+
+      // 如果是同表比较且是更新记录，使用 instanceId 作为查询条件
+      if (!options.targetModel && instanceId) {
+        where[this.primaryKey] = instanceId;
+      }
+
+      // 查询目标字段的值
+      const targetRecord = await TargetModel.query()
+        .where(where)
+        .fields([options.targetField])
+        .findOne();
+
+      if (!targetRecord) {
+        throw new ValidationError(
+          fieldName,
+          `${fieldName} 验证失败：未找到目标记录`,
+        );
+      }
+
+      targetValue = (targetRecord as any)[options.targetField];
+    }
+
+    // 根据比较操作符进行验证
+    const compare = options.compare || "=";
+    let isValid = false;
+
+    switch (compare) {
+      case "=":
+        isValid = value === targetValue;
+        break;
+      case ">":
+        isValid = value > targetValue;
+        break;
+      case "<":
+        isValid = value < targetValue;
+        break;
+      case ">=":
+        isValid = value >= targetValue;
+        break;
+      case "<=":
+        isValid = value <= targetValue;
+        break;
+    }
+
+    if (!isValid) {
+      const operatorText = {
+        "=": "等于",
+        ">": "大于",
+        "<": "小于",
+        ">=": "大于等于",
+        "<=": "小于等于",
+      }[compare];
+      throw new ValidationError(
+        fieldName,
+        `${fieldName} 必须${operatorText} ${options.targetField} (${targetValue})`,
       );
     }
   }
@@ -2416,6 +2868,77 @@ export abstract class SQLModel {
   }
 
   /**
+   * 应用查询作用域
+   * @param scopeName 作用域名称
+   * @returns 查询构建器（链式调用）
+   *
+   * @example
+   * const activeUsers = await User.scope('active').findAll();
+   */
+  static scope(scopeName: string): {
+    findAll: <T extends typeof SQLModel>(
+      condition?: WhereCondition,
+      fields?: string[],
+      options?: {
+        sort?: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc";
+        skip?: number;
+        limit?: number;
+      },
+      includeTrashed?: boolean,
+      onlyTrashed?: boolean,
+    ) => Promise<InstanceType<T>[]>;
+    find: <T extends typeof SQLModel>(
+      condition?: WhereCondition | number | string,
+      fields?: string[],
+    ) => Promise<InstanceType<T> | null>;
+    count: (condition?: WhereCondition) => Promise<number>;
+  } {
+    if (!this.scopes || !this.scopes[scopeName]) {
+      throw new Error(`Scope "${scopeName}" is not defined`);
+    }
+
+    // 在闭包中捕获 this（SQLModel 类），这样返回的方法可以直接调用，不需要 .call()
+    const Model = this as typeof SQLModel;
+    const scopeCondition = this.scopes[scopeName]();
+
+    return {
+      findAll: async <T extends typeof SQLModel>(
+        condition: WhereCondition = {},
+        fields?: string[],
+        options?: {
+          sort?: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc";
+          skip?: number;
+          limit?: number;
+        },
+        includeTrashed: boolean = false,
+        onlyTrashed: boolean = false,
+      ): Promise<InstanceType<T>[]> => {
+        return await Model.findAll(
+          { ...scopeCondition, ...condition },
+          fields,
+          options,
+          includeTrashed,
+          onlyTrashed,
+        ) as InstanceType<T>[];
+      },
+      find: async <T extends typeof SQLModel>(
+        condition: WhereCondition | number | string = {},
+        fields?: string[],
+      ): Promise<InstanceType<T> | null> => {
+        if (typeof condition === "number" || typeof condition === "string") {
+          return await Model.find(condition, fields) as InstanceType<T> | null;
+        }
+        return await Model.find({ ...scopeCondition, ...condition }, fields) as
+          | InstanceType<T>
+          | null;
+      },
+      count: async (condition: WhereCondition = {}): Promise<number> => {
+        return await Model.count({ ...scopeCondition, ...condition });
+      },
+    };
+  }
+
+  /**
    * 创建新记录
    * @param data 要插入的数据对象
    * @returns 创建的模型实例
@@ -2614,6 +3137,7 @@ export abstract class SQLModel {
       skipPreQuery?: boolean;
       enableHooks?: boolean;
       enableValidation?: boolean;
+      useUpdateMany?: boolean; // 统一接口：与 MongoModel 保持一致（SQL 中此选项通常无效，但保留以统一接口）
     },
   ): Promise<number>;
   static async update<T extends typeof SQLModel>(
@@ -2625,6 +3149,7 @@ export abstract class SQLModel {
       skipPreQuery?: boolean;
       enableHooks?: boolean;
       enableValidation?: boolean;
+      useUpdateMany?: boolean; // 统一接口：与 MongoModel 保持一致（SQL 中此选项通常无效，但保留以统一接口）
     },
   ): Promise<InstanceType<T>>;
   static async update<T extends typeof SQLModel>(
@@ -2636,6 +3161,7 @@ export abstract class SQLModel {
       skipPreQuery?: boolean;
       enableHooks?: boolean;
       enableValidation?: boolean;
+      useUpdateMany?: boolean; // 统一接口：与 MongoModel 保持一致（SQL 中此选项通常无效，但保留以统一接口）
     },
   ): Promise<number | InstanceType<T>> {
     // 自动初始化（如果未初始化）
@@ -3341,7 +3867,21 @@ export abstract class SQLModel {
    */
   static async deleteMany(
     condition: WhereCondition | number | string,
-  ): Promise<number> {
+    options?: { returnIds?: boolean },
+  ): Promise<number | { count: number; ids: any[] }> {
+    // 如果需要返回 ID，先查询符合条件的记录
+    if (options?.returnIds) {
+      const conditionObj =
+        typeof condition === "number" || typeof condition === "string"
+          ? { [this.primaryKey]: condition }
+          : condition;
+      const records = await this.findAll(conditionObj);
+      const primaryKey = (this as any).primaryKey || "id";
+      const ids = records.map((record) => (record as any)[primaryKey]);
+      // 执行删除
+      const count = await this.delete(condition);
+      return { count, ids };
+    }
     // deleteMany 和 delete 在 SQL 中逻辑相同，都是 DELETE ... WHERE
     return await this.delete(condition);
   }
@@ -3806,60 +4346,97 @@ export abstract class SQLModel {
   /**
    * 增加字段值
    * @param condition 查询条件（可以是 ID、条件对象）
-   * @param field 要增加的字段名
-   * @param amount 增加的数量（默认为 1）
+   * @param fieldOrMap 要增加的字段名或字段-增量映射对象
+   * @param amountOrReturnLatest 增加的数量（当提供单个字段名时生效，默认为 1）或 returnLatest 标志
    * @param returnLatest 是否返回更新后的记录（默认 false）
    * @returns 更新的记录数或更新后的模型实例
    *
    * @example
+   * // 单个字段
    * await User.increment(1, 'views', 1);
    * await User.increment({ status: 'active' }, 'score', 10);
+   * // 对象格式（批量自增）
+   * await User.increment(1, { views: 1, likes: 2 });
+   * await User.increment({ status: 'active' }, { score: 10, level: 1 }, true);
    * // 获取更新后的记录
    * const user = await User.increment(1, 'views', 1, true);
    */
   static async increment<T extends typeof SQLModel>(
     this: T,
     condition: WhereCondition | number | string,
-    field: string,
-    amount: number = 1,
-    returnLatest: boolean = false,
+    fieldOrMap: string | Record<string, number>,
+    amountOrReturnLatest?: number | boolean,
+    returnLatest?: boolean,
   ): Promise<number | InstanceType<T>> {
     // 自动初始化（如果未初始化）
     await this.ensureAdapter();
 
     const { where, params } = this.buildWhereClause(condition, false, false);
-    const escapedField = SQLModel.escapeFieldName.call(
-      this,
-      field,
-      this.adapter,
-    );
-    let sql =
-      `UPDATE ${this.tableName} SET ${escapedField} = ${escapedField} + ? WHERE ${where}`;
+
+    // 处理参数：支持两种调用方式
+    // 1. increment(condition, field, amount, returnLatest)
+    // 2. increment(condition, fields, returnLatest)
+    let incSpec: Record<string, number>;
+    let shouldReturnLatest: boolean = false;
+
+    if (typeof fieldOrMap === "string") {
+      // 单个字段格式：increment(condition, field, amount?, returnLatest?)
+      const amount = typeof amountOrReturnLatest === "number"
+        ? amountOrReturnLatest
+        : 1;
+      shouldReturnLatest = typeof amountOrReturnLatest === "boolean"
+        ? amountOrReturnLatest
+        : (returnLatest === true);
+      incSpec = { [fieldOrMap]: amount };
+    } else {
+      // 对象格式：increment(condition, fields, returnLatest?)
+      shouldReturnLatest = typeof amountOrReturnLatest === "boolean"
+        ? amountOrReturnLatest
+        : (returnLatest === true);
+      incSpec = fieldOrMap;
+    }
+
+    // 构建 SET 子句
+    const setParts: string[] = [];
+    const setParams: any[] = [];
+    for (const [field, amount] of Object.entries(incSpec)) {
+      const escapedField = SQLModel.escapeFieldName.call(
+        this,
+        field,
+        this.adapter,
+      );
+      setParts.push(`${escapedField} = ${escapedField} + ?`);
+      setParams.push(amount);
+    }
+    const setClause = setParts.join(", ");
+
+    let sql = `UPDATE ${this.tableName} SET ${setClause} WHERE ${where}`;
     const dbType = (this.adapter as any)?.config?.type;
     const isPostgres = dbType === "postgresql";
-    const isMySQL = dbType === "mysql";
     const isSQLite = dbType === "sqlite";
 
-    // 尝试使用 RETURNING 子句获取更新后的值（MySQL 8.0+ 和 SQLite 3.35.0+ 支持）
-    if (returnLatest && (isPostgres || isMySQL || isSQLite)) {
+    // 尝试使用 RETURNING 子句获取更新后的值
+    // PostgreSQL 完全支持 RETURNING
+    // MySQL 8.0.19+ 支持 RETURNING，但适配器需要特殊处理，所以这里不使用
+    // SQLite 3.35.0+ 支持 RETURNING
+    if (shouldReturnLatest && (isPostgres || isSQLite)) {
       sql = `${sql} RETURNING *`;
     }
     // ensureAdapter() 已确保 adapter 不为 null
     let result: any;
     try {
-      result = await this.adapter.execute(sql, [amount, ...params]);
+      result = await this.adapter.execute(sql, [...setParams, ...params]);
     } catch (error) {
-      // 如果 RETURNING 不支持（旧版本 MySQL/SQLite），回退到不使用 RETURNING
-      if (returnLatest && (isMySQL || isSQLite)) {
-        sql =
-          `UPDATE ${this.tableName} SET ${escapedField} = ${escapedField} + ? WHERE ${where}`;
-        result = await this.adapter.execute(sql, [amount, ...params]);
+      // 如果 RETURNING 不支持（旧版本 SQLite），回退到不使用 RETURNING
+      if (shouldReturnLatest && isSQLite) {
+        sql = `UPDATE ${this.tableName} SET ${setClause} WHERE ${where}`;
+        result = await this.adapter.execute(sql, [...setParams, ...params]);
       } else {
         throw error;
       }
     }
 
-    if (!returnLatest) {
+    if (!shouldReturnLatest) {
       if (typeof result === "number") {
         return result;
       }
@@ -3870,39 +4447,28 @@ export abstract class SQLModel {
     }
 
     let instance: any | null = null;
-    if (
-      result && typeof result === "object" && "rows" in result
-    ) {
-      // PostgreSQL/MySQL/SQLite 使用 RETURNING 返回的行
-      const rows = (result as any).rows as any[];
-      if (Array.isArray(rows) && rows.length > 0) {
-        instance = new (this as any)();
-        Object.assign(instance, rows[0]);
-        // 应用虚拟字段
-        this.applyVirtuals(instance);
-      }
+    // 检查是否有 RETURNING 返回的数据
+    const rows = result && typeof result === "object" && "rows" in result
+      ? (result as any).rows as any[]
+      : null;
+
+    if (rows && Array.isArray(rows) && rows.length > 0) {
+      // PostgreSQL/SQLite 使用 RETURNING 返回的行
+      instance = new (this as any)();
+      Object.assign(instance, rows[0]);
+      // 应用虚拟字段
+      this.applyVirtuals(instance);
     } else {
-      // 不支持 RETURNING 或 RETURNING 失败，使用 SELECT 查询获取更新后的值
-      // 只查询更新的字段和主键，避免查询整个记录
-      const primaryKey = SQLModel.escapeFieldName.call(
-        this,
-        this.primaryKey,
-        this.adapter,
-      );
+      // 不支持 RETURNING 或 RETURNING 失败（如 MySQL），使用 SELECT 查询获取更新后的值
+      // 查询完整的记录以确保包含所有字段
       const selectSql =
-        `SELECT ${primaryKey}, ${escapedField} FROM ${this.tableName} WHERE ${where} LIMIT 1`;
+        `SELECT * FROM ${this.tableName} WHERE ${where} LIMIT 1`;
       const selectResult = await this.adapter.query(selectSql, params);
       if (selectResult && selectResult.length > 0) {
-        // 获取原始记录（用于合并其他字段）
-        const existing = await this.find(condition);
-        if (existing) {
-          instance = new (this as any)();
-          Object.assign(instance, existing);
-          // 使用 SELECT 查询返回的更新后的值
-          instance[field] = selectResult[0][field];
-          // 应用虚拟字段
-          this.applyVirtuals(instance);
-        }
+        instance = new (this as any)();
+        Object.assign(instance, selectResult[0]);
+        // 应用虚拟字段
+        this.applyVirtuals(instance);
       }
     }
 
@@ -3916,27 +4482,164 @@ export abstract class SQLModel {
   /**
    * 减少字段值
    * @param condition 查询条件（可以是 ID、条件对象）
-   * @param field 要减少的字段名
-   * @param amount 减少的数量（默认为 1）
-   * @returns 更新的记录数
+   * @param fieldOrMap 要减少的字段名或字段-减量映射对象
+   * @param amountOrReturnLatest 减少的数量（当提供单个字段名时生效，默认为 1）或 returnLatest 标志
+   * @param returnLatest 是否返回更新后的记录（默认 false）
+   * @returns 更新的记录数或更新后的模型实例
    *
    * @example
+   * // 单个字段
    * await User.decrement(1, 'views', 1);
    * await User.decrement({ status: 'active' }, 'score', 10);
+   * // 对象格式（批量自减）
+   * await User.decrement(1, { views: 1, likes: 2 });
+   * await User.decrement({ status: 'active' }, { score: 10, level: 1 }, true);
    */
   static async decrement<T extends typeof SQLModel>(
     this: T,
     condition: WhereCondition | number | string,
-    field: string,
-    amount: number = 1,
-    returnLatest: boolean = false,
+    fieldOrMap: string | Record<string, number>,
+    amountOrReturnLatest?: number | boolean,
+    returnLatest?: boolean,
   ): Promise<number | InstanceType<T>> {
-    return await (this as any).increment(
-      condition,
-      field,
-      -amount,
-      returnLatest,
-    );
+    // 如果是对象格式，将所有的值取反
+    if (typeof fieldOrMap === "object" && !Array.isArray(fieldOrMap)) {
+      const negatedMap: Record<string, number> = {};
+      for (const [key, value] of Object.entries(fieldOrMap)) {
+        negatedMap[key] = -value;
+      }
+      // 对象格式：decrement(condition, fields, returnLatest?)
+      const shouldReturnLatest = typeof amountOrReturnLatest === "boolean"
+        ? amountOrReturnLatest
+        : (returnLatest === true);
+      return await (this as any).increment(
+        condition,
+        negatedMap,
+        shouldReturnLatest,
+      );
+    } else {
+      // 单个字段格式：decrement(condition, field, amount?, returnLatest?)
+      const amount = typeof amountOrReturnLatest === "number"
+        ? -amountOrReturnLatest
+        : -1;
+      const shouldReturnLatest = typeof amountOrReturnLatest === "boolean"
+        ? amountOrReturnLatest
+        : (returnLatest === true);
+      return await (this as any).increment(
+        condition,
+        fieldOrMap,
+        amount,
+        shouldReturnLatest,
+      );
+    }
+  }
+
+  /**
+   * 批量自增字段
+   * @param condition 查询条件（可以是 ID、条件对象）
+   * @param fieldOrMap 字段名或字段-增量映射
+   * @param amount 增量（当提供单个字段名时生效）
+   * @returns 更新的记录数
+   *
+   * @example
+   * await User.incrementMany({ status: 'active' }, 'views', 1);
+   * await User.incrementMany({ status: 'active' }, { views: 1, likes: 2 });
+   */
+  static async incrementMany(
+    condition: WhereCondition | number | string,
+    fieldOrMap: string | Record<string, number>,
+    amount: number = 1,
+  ): Promise<number> {
+    // 自动初始化（如果未初始化）
+    await this.ensureAdapter();
+
+    const { where, params } = this.buildWhereClause(condition, false, false);
+
+    // 构建更新字段和值
+    const incSpec: Record<string, number> = typeof fieldOrMap === "string"
+      ? { [fieldOrMap]: amount }
+      : fieldOrMap;
+
+    // 构建 SET 子句
+    const setClauses: string[] = [];
+    const setValues: any[] = [];
+
+    for (const [field, incAmount] of Object.entries(incSpec)) {
+      const escapedField = SQLModel.escapeFieldName.call(
+        this,
+        field,
+        this.adapter,
+      );
+      setClauses.push(`${escapedField} = ${escapedField} + ?`);
+      setValues.push(incAmount);
+    }
+
+    // 处理时间戳
+    if (this.timestamps) {
+      const updatedAtField = typeof this.timestamps === "object"
+        ? (this.timestamps.updatedAt || "updatedAt")
+        : "updatedAt";
+      const escapedUpdatedAt = SQLModel.escapeFieldName.call(
+        this,
+        updatedAtField,
+        this.adapter,
+      );
+      setClauses.push(`${escapedUpdatedAt} = ?`);
+      setValues.push(new Date());
+    }
+
+    const sql = `UPDATE ${this.tableName} SET ${
+      setClauses.join(", ")
+    } WHERE ${where}`;
+    // ensureAdapter() 已确保 adapter 不为 null
+    const result = await this.adapter.execute(sql, [...setValues, ...params]);
+
+    // 获取受影响的行数
+    let affectedRows = 0;
+    if (result && typeof result === "object") {
+      if ("affectedRows" in result) {
+        affectedRows = (result as any).affectedRows || 0;
+      } else if ("rowCount" in result) {
+        affectedRows = (result as any).rowCount || 0;
+      } else if ("changes" in result) {
+        affectedRows = (result as any).changes || 0;
+      }
+    } else if (typeof result === "number") {
+      affectedRows = result;
+    }
+
+    // 清除相关缓存（批量自增后需要清除缓存）
+    if (affectedRows > 0) {
+      await this.clearCache();
+    }
+
+    return affectedRows;
+  }
+
+  /**
+   * 批量自减字段
+   * @param condition 查询条件（可以是 ID、条件对象）
+   * @param fieldOrMap 字段名或字段-减量映射
+   * @param amount 减量（当提供单个字段名时生效）
+   * @returns 更新的记录数
+   *
+   * @example
+   * await User.decrementMany({ status: 'active' }, 'views', 1);
+   * await User.decrementMany({ status: 'active' }, { views: 1, likes: 2 });
+   */
+  static async decrementMany(
+    condition: WhereCondition | number | string,
+    fieldOrMap: string | Record<string, number>,
+    amount: number = 1,
+  ): Promise<number> {
+    if (typeof fieldOrMap === "string") {
+      return await this.incrementMany(condition, fieldOrMap, -amount);
+    }
+    const map: Record<string, number> = {};
+    for (const [k, v] of Object.entries(fieldOrMap)) {
+      map[k] = -Math.abs(v);
+    }
+    return await this.incrementMany(condition, map);
   }
 
   /**
@@ -3960,6 +4663,8 @@ export abstract class SQLModel {
     this: T,
     condition: WhereCondition,
     data: Record<string, any>,
+    returnLatest: boolean = true, // 统一接口：与 MongoModel 保持一致
+    resurrect: boolean = false, // 统一接口：与 MongoModel 保持一致（SQL 中此选项通常无效，但保留以统一接口）
     options?: { useDialectUpsert?: boolean; conflictKeys?: string[] },
   ): Promise<InstanceType<T>> {
     // 自动初始化（如果未初始化）
@@ -3976,6 +4681,17 @@ export abstract class SQLModel {
 
     if (useDialect && type === "postgresql" && conflictKeys.length > 0) {
       try {
+        // 如果 resurrect 为 true，先检查并恢复已软删除的记录
+        if (resurrect && this.softDelete) {
+          const existing = await this.withTrashed().find(condition);
+          if (existing) {
+            const id = (existing as any)[this.primaryKey];
+            const deletedAtField = this.deletedAtField || "deletedAt";
+            if (id && (existing as any)[deletedAtField]) {
+              await this.restore(id);
+            }
+          }
+        }
         const processedData = this.processFields(data);
         if (this.timestamps) {
           const updatedAtField = typeof this.timestamps === "object"
@@ -4017,6 +4733,8 @@ export abstract class SQLModel {
           if (Array.isArray(rows) && rows.length > 0) {
             const instance = new (this as any)();
             Object.assign(instance, rows[0]);
+            // 应用虚拟字段
+            this.applyVirtuals(instance);
             return instance as InstanceType<T>;
           }
         }
@@ -4030,6 +4748,17 @@ export abstract class SQLModel {
     }
 
     if (useDialect && type === "mysql") {
+      // 如果 resurrect 为 true，先检查并恢复已软删除的记录
+      if (resurrect && this.softDelete) {
+        const existing = await this.withTrashed().find(condition);
+        if (existing) {
+          const id = (existing as any)[this.primaryKey];
+          const deletedAtField = this.deletedAtField || "deletedAt";
+          if (id && (existing as any)[deletedAtField]) {
+            await this.restore(id);
+          }
+        }
+      }
       const processedData = this.processFields(data);
       if (this.timestamps) {
         const updatedAtField = typeof this.timestamps === "object"
@@ -4064,14 +4793,42 @@ export abstract class SQLModel {
       return instance as InstanceType<T>;
     }
 
-    const existing = await this.withTrashed().find(condition);
+    // 查找记录（如果 resurrect 为 true，包含软删除的记录）
+    const existing = resurrect
+      ? await this.withTrashed().find(condition)
+      : await this.find(condition);
     if (existing) {
-      await this.update(condition, data);
-      const updated = await this.find(condition);
-      if (updated) {
-        return updated as InstanceType<T>;
+      // 如果 resurrect 为 true 且记录已被软删除，先恢复它
+      if (resurrect && this.softDelete) {
+        const id = (existing as any)[this.primaryKey];
+        if (id) {
+          const deletedAtField = this.deletedAtField || "deletedAt";
+          if ((existing as any)[deletedAtField]) {
+            await this.restore(id);
+          }
+        }
+      }
+      // 更新记录
+      if (returnLatest) {
+        // 如果需要返回最新记录，使用 update 的 returnLatest 选项
+        const result = await this.update(condition, data, true);
+        if (typeof result === "number") {
+          // 如果返回数字，说明更新失败，重新查询
+          const updated = await this.find(condition);
+          if (updated) {
+            return updated as InstanceType<T>;
+          }
+        } else {
+          return result as InstanceType<T>;
+        }
+      } else {
+        // 如果不需要返回最新记录，只执行更新
+        await this.update(condition, data, false);
+        // 仍然返回现有记录（因为这是 upsert 的语义）
+        return existing as InstanceType<T>;
       }
     }
+    // 如果不存在，创建新记录
     return await this.create(data);
   }
 
@@ -4456,8 +5213,18 @@ export abstract class SQLModel {
           _onlyTrashed,
         );
       },
-      update: async (data: Record<string, any>): Promise<number> => {
-        return await this.update(_condition as any, data);
+      update: async (
+        data: Record<string, any>,
+        returnLatest: boolean = false, // 统一接口：与 MongoModel 保持一致
+      ): Promise<number | InstanceType<T>> => {
+        if (returnLatest) {
+          return await this.update(
+            _condition as any,
+            data,
+            true,
+          ) as InstanceType<T>;
+        }
+        return await this.update(_condition as any, data, false) as number;
       },
       updateById: async (
         id: number | string,
@@ -4469,40 +5236,56 @@ export abstract class SQLModel {
       updateMany: async (data: Record<string, any>): Promise<number> => {
         return await this.updateMany(_condition as any, data);
       },
-      increment: async (field: string, amount: number = 1): Promise<number> => {
-        const res = await this.increment(
+      increment: async (
+        field: string,
+        amount: number = 1,
+        returnLatest: boolean = false, // 统一接口：与 MongoModel 保持一致
+      ): Promise<number | InstanceType<T>> => {
+        return await this.increment(
           _condition as any,
           field,
           amount,
-          false,
+          returnLatest,
         );
-        return typeof res === "number" ? res : 1;
       },
-      decrement: async (field: string, amount: number = 1): Promise<number> => {
-        const res = await this.decrement(
+      decrement: async (
+        field: string,
+        amount: number = 1,
+        returnLatest: boolean = false, // 统一接口：与 MongoModel 保持一致
+      ): Promise<number | InstanceType<T>> => {
+        return await this.decrement(
           _condition as any,
           field,
           amount,
-          false,
+          returnLatest,
         );
-        return typeof res === "number" ? res : 1;
       },
       deleteById: async (id: number | string): Promise<number> => {
         await this.ensureAdapter();
         return await this.deleteById(id);
       },
-      deleteMany: async (): Promise<number> => {
-        return await this.deleteMany(_condition as any);
+      deleteMany: async (
+        options?: { returnIds?: boolean },
+      ): Promise<number | { count: number; ids: any[] }> => {
+        return await this.deleteMany(_condition as any, options);
       },
       restore: async (
         options?: { returnIds?: boolean },
       ): Promise<number | { count: number; ids: any[] }> => {
         return await this.restore(_condition as any, options);
       },
+      restoreById: async (id: number | string): Promise<number> => {
+        await this.ensureAdapter();
+        return await this.restoreById(id);
+      },
       forceDelete: async (
         options?: { returnIds?: boolean },
       ): Promise<number | { count: number; ids: any[] }> => {
         return await this.forceDelete(_condition as any, options);
+      },
+      forceDeleteById: async (id: number | string): Promise<number> => {
+        await this.ensureAdapter();
+        return await this.forceDeleteById(id);
       },
       distinct: async (field: string): Promise<any[]> => {
         const cond =
@@ -4511,31 +5294,37 @@ export abstract class SQLModel {
             : (_condition as any);
         return await this.distinct(field, cond, _includeTrashed, _onlyTrashed);
       },
-      upsert: async (data: Record<string, any>): Promise<InstanceType<T>> => {
-        return await this.upsert(_condition as any, data);
+      upsert: async (
+        data: Record<string, any>,
+        returnLatest: boolean = true, // 统一接口：与 MongoModel 保持一致
+        resurrect: boolean = false, // 统一接口：与 MongoModel 保持一致
+      ): Promise<InstanceType<T>> => {
+        return await this.upsert(
+          _condition as any,
+          data,
+          returnLatest,
+          resurrect,
+        );
       },
       findOrCreate: async (
         data: Record<string, any>,
+        resurrect: boolean = false, // 统一接口：与 MongoModel 保持一致
       ): Promise<InstanceType<T>> => {
         const cond =
           typeof _condition === "number" || typeof _condition === "string"
             ? { [this.primaryKey]: _condition }
             : (_condition as any);
-        return await this.findOrCreate(cond, data);
+        return await this.findOrCreate(cond, data, resurrect);
       },
       findOneAndUpdate: async (
         data: Record<string, any>,
+        options?: { returnDocument?: "before" | "after" }, // 统一接口：与 MongoModel 保持一致
       ): Promise<InstanceType<T> | null> => {
-        const updated = await this.update(_condition as any, data);
-        if (updated > 0) {
-          return await this.find(
-            _condition as any,
-            _fields,
-            _includeTrashed,
-            _onlyTrashed,
-          );
-        }
-        return null;
+        return await this.findOneAndUpdate(
+          _condition as any,
+          data,
+          options ?? { returnDocument: "after" },
+        );
       },
       findOneAndDelete: async (): Promise<InstanceType<T> | null> => {
         const existing = await this.find(
@@ -4547,6 +5336,28 @@ export abstract class SQLModel {
         if (!existing) return null;
         const deleted = await this.delete(_condition as any);
         return deleted > 0 ? existing as InstanceType<T> : null;
+      },
+      findOneAndReplace: async (
+        replacement: Record<string, any>,
+        returnLatest: boolean = true, // 统一接口：与 MongoModel 保持一致
+      ): Promise<InstanceType<T> | null> => {
+        return await (this as typeof SQLModel).findOneAndReplace(
+          _condition as any,
+          replacement,
+          returnLatest,
+        ) as InstanceType<T> | null;
+      },
+      incrementMany: async (
+        fieldOrMap: string | Record<string, number>,
+        amount: number = 1,
+      ): Promise<number> => {
+        return await this.incrementMany(_condition as any, fieldOrMap, amount);
+      },
+      decrementMany: async (
+        fieldOrMap: string | Record<string, number>,
+        amount: number = 1,
+      ): Promise<number> => {
+        return await this.decrementMany(_condition as any, fieldOrMap, amount);
       },
       paginate: async (
         page: number,
@@ -4679,9 +5490,40 @@ export abstract class SQLModel {
   }
 
   /**
+   * 通过主键 ID 恢复软删除的记录
+   * @param id 主键值
+   * @returns 恢复的记录数
+   *
+   * @example
+   * await User.restoreById(1);
+   */
+  static async restoreById(
+    id: number | string,
+  ): Promise<number> {
+    const result = await this.restore(id);
+    return typeof result === "number" ? result : result.count;
+  }
+
+  /**
+   * 通过主键 ID 强制删除记录（忽略软删除，真正删除）
+   * @param id 主键值
+   * @returns 删除的记录数
+   *
+   * @example
+   * await User.forceDeleteById(1);
+   */
+  static async forceDeleteById(
+    id: number | string,
+  ): Promise<number> {
+    const result = await this.forceDelete(id);
+    return typeof result === "number" ? result : result.count;
+  }
+
+  /**
    * 查找或创建记录（如果不存在则创建）
    * @param condition 查询条件（用于判断是否存在）
    * @param data 要创建的数据对象（如果不存在）
+   * @param resurrect 是否恢复已软删除的记录（默认 false，统一接口：与 MongoModel 保持一致）
    * @returns 找到或创建的模型实例
    *
    * @example
@@ -4694,17 +5536,149 @@ export abstract class SQLModel {
     this: T,
     condition: WhereCondition,
     data: Record<string, any>,
+    resurrect: boolean = false, // 统一接口：与 MongoModel 保持一致
   ): Promise<InstanceType<T>> {
     await this.ensureAdapter();
 
-    // 先尝试查找
-    const existing = await this.find(condition);
+    // 先尝试查找（包含软删除的记录）
+    const existing = await this.withTrashed().find(condition);
     if (existing) {
+      if (resurrect && this.softDelete) {
+        const id = (existing as any)[this.primaryKey];
+        if (id) {
+          await this.restore(id);
+          const latest = await this.find(id);
+          if (latest) {
+            return latest as InstanceType<T>;
+          }
+        }
+      }
       return existing as InstanceType<T>;
     }
 
     // 如果不存在，创建新记录
     return await this.create(data);
+  }
+
+  /**
+   * 查找并更新记录
+   * @param condition 查询条件（可以是 ID、条件对象）
+   * @param data 要更新的数据对象
+   * @param options 更新选项（可选，如 { returnDocument: 'after' }，统一接口：与 MongoModel 保持一致）
+   * @returns 更新后的模型实例或 null
+   *
+   * @example
+   * const user = await User.findOneAndUpdate(
+   *   1,
+   *   { name: 'lisi' },
+   *   { returnDocument: 'after' }
+   * );
+   */
+  static async findOneAndUpdate<T extends typeof SQLModel>(
+    this: T,
+    condition: WhereCondition | number | string,
+    data: Record<string, any>,
+    options: { returnDocument?: "before" | "after" } = {
+      returnDocument: "after",
+    },
+  ): Promise<InstanceType<T> | null> {
+    await this.ensureAdapter();
+
+    // 如果 returnDocument 是 'before'，先查找记录
+    if (options.returnDocument === "before") {
+      const existing = await this.find(condition);
+      if (!existing) {
+        return null;
+      }
+      // 执行更新
+      const updated = await this.update(condition, data);
+      if (updated > 0) {
+        return existing as InstanceType<T>;
+      }
+      return null;
+    }
+
+    // 如果 returnDocument 是 'after'（默认），使用 update 的 returnLatest 选项
+    const result = await this.update(condition, data, true);
+    if (typeof result === "number") {
+      // 如果返回的是数字，说明更新失败或没有找到记录
+      return null;
+    }
+    return result as InstanceType<T>;
+  }
+
+  /**
+   * 查找并删除记录
+   * @param condition 查询条件（可以是 ID、条件对象）
+   * @returns 删除的模型实例或 null
+   *
+   * @example
+   * const user = await User.findOneAndDelete(1);
+   * const user = await User.findOneAndDelete({ email: 'user@example.com' });
+   */
+  static async findOneAndDelete<T extends typeof SQLModel>(
+    this: T,
+    condition: WhereCondition | number | string,
+  ): Promise<InstanceType<T> | null> {
+    await this.ensureAdapter();
+
+    // 先查找记录
+    const existing = await this.find(condition);
+    if (!existing) {
+      return null;
+    }
+
+    // 执行删除
+    const deleted = await this.delete(condition);
+    return deleted > 0 ? existing as InstanceType<T> : null;
+  }
+
+  /**
+   * 查找并替换记录
+   * @param condition 查询条件（可以是 ID、条件对象）
+   * @param replacement 替换的数据对象
+   * @param returnLatest 是否返回替换后的记录（默认 true，统一接口：与 MongoModel 保持一致）
+   * @returns 替换后的模型实例或 null
+   *
+   * @example
+   * const user = await User.findOneAndReplace(1, { name: 'John', age: 25 });
+   */
+  static async findOneAndReplace<T extends typeof SQLModel>(
+    this: T,
+    condition: WhereCondition | number | string,
+    replacement: Record<string, any>,
+    returnLatest: boolean = true, // 统一接口：与 MongoModel 保持一致
+  ): Promise<InstanceType<T> | null> {
+    await this.ensureAdapter();
+
+    // 先查找记录
+    const existing = await this.find(condition);
+    if (!existing) {
+      return null;
+    }
+
+    // 如果 returnLatest 为 false，先保存现有记录
+    let beforeRecord: InstanceType<T> | null = null;
+    if (!returnLatest) {
+      beforeRecord = existing as InstanceType<T>;
+    }
+
+    // 执行更新（替换所有字段）
+    if (returnLatest) {
+      const updated = await this.update(condition, replacement, true);
+      if (typeof updated === "number") {
+        // 如果返回数字，说明更新失败或没有找到记录
+        return null;
+      }
+      return updated as InstanceType<T>;
+    } else {
+      const updated = await this.update(condition, replacement, false);
+      if (typeof updated === "number" && updated > 0) {
+        // 更新成功，返回更新前的记录
+        return beforeRecord;
+      }
+      return null;
+    }
   }
 
   /**
@@ -4718,9 +5692,36 @@ export abstract class SQLModel {
     // 自动初始化（如果未初始化）
     await this.ensureAdapter();
 
-    const sql = `TRUNCATE TABLE ${this.tableName}`;
+    // SQLite 不支持 TRUNCATE TABLE，需要使用 DELETE FROM
+    // 对于 SQLite，还需要重置自增计数器（如果表有自增主键）
+    // 通过适配器的 config.type 来判断数据库类型
+    const adapterConfig = (this.adapter as any).config;
+    const isSQLite = adapterConfig?.type === "sqlite";
+    let sql: string;
+
+    if (isSQLite) {
+      // SQLite 使用 DELETE FROM 清空表
+      sql = `DELETE FROM ${this.tableName}`;
+    } else {
+      // 其他数据库使用 TRUNCATE TABLE
+      sql = `TRUNCATE TABLE ${this.tableName}`;
+    }
+
     // ensureAdapter() 已确保 adapter 不为 null
     const result = await this.adapter.execute(sql, []);
+
+    // 如果是 SQLite 且有自增主键，重置自增计数器
+    if (isSQLite) {
+      try {
+        // 尝试重置自增计数器（sqlite_sequence 表存储自增序列）
+        await this.adapter.execute(
+          `DELETE FROM sqlite_sequence WHERE name = ?`,
+          [this.tableName],
+        );
+      } catch {
+        // 如果表没有自增主键或 sqlite_sequence 表不存在，忽略错误
+      }
+    }
 
     const affectedRows = (typeof result === "number")
       ? result
@@ -4849,6 +5850,8 @@ export abstract class SQLModel {
       skip?: number;
       limit?: number;
     },
+    includeTrashed: boolean = false, // 统一接口：与 MongoModel 保持一致
+    onlyTrashed: boolean = false, // 统一接口：与 MongoModel 保持一致
   ): Promise<InstanceType<T>[]> {
     const Model = this.constructor as typeof SQLModel;
     // 自动初始化（如果未初始化）
@@ -4865,6 +5868,8 @@ export abstract class SQLModel {
       { [foreignKey]: localValue },
       fields,
       options,
+      includeTrashed,
+      onlyTrashed,
     );
   }
 }

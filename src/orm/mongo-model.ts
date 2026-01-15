@@ -92,6 +92,17 @@ export interface ValidationRule {
   notEquals?: string; // 另一个字段的名称
   /** 自定义字段比较函数，可以访问所有字段值 */
   compare?: (value: any, allValues: Record<string, any>) => boolean | string; // 返回 true 或错误信息
+  /** 跨表/跨字段值比较验证（异步） */
+  compareValue?: {
+    /** 目标字段名 */
+    targetField: string;
+    /** 目标模型（可选，不指定则默认当前表） */
+    targetModel?: typeof MongoModel;
+    /** 比较操作符：'=' | '>' | '<' | '>=' | '<='，默认为 '=' */
+    compare?: "=" | ">" | "<" | ">=" | "<=";
+    /** 额外的查询条件（可选） */
+    where?: Record<string, any>;
+  };
 
   // 数据库查询验证（异步）
   /** 在数据表中唯一（不能重复） */
@@ -163,6 +174,8 @@ export interface ValidationRule {
     length?: number;
     /** 元素验证规则 */
     items?: ValidationRule;
+    /** 数组元素唯一性 */
+    uniqueItems?: boolean;
   };
   /** 内置格式验证器 */
   format?:
@@ -175,6 +188,64 @@ export interface ValidationRule {
     | "date"
     | "datetime"
     | "time";
+
+  // 数值验证增强
+  /** 整数验证 */
+  integer?: boolean;
+  /** 正数验证 */
+  positive?: boolean;
+  /** 负数验证 */
+  negative?: boolean;
+  /** 倍数验证 */
+  multipleOf?: number;
+  /** 范围验证 [min, max] */
+  range?: [number, number];
+
+  // 字符串验证增强
+  /** 只能包含字母和数字 */
+  alphanumeric?: boolean;
+  /** 只能包含数字 */
+  numeric?: boolean;
+  /** 只能包含字母 */
+  alpha?: boolean;
+  /** 必须是小写 */
+  lowercase?: boolean;
+  /** 必须是大写 */
+  uppercase?: boolean;
+  /** 必须以某个字符串开头 */
+  startsWith?: string;
+  /** 必须以某个字符串结尾 */
+  endsWith?: string;
+  /** 必须包含某个字符串 */
+  contains?: string;
+  /** 自动去除首尾空格 */
+  trim?: boolean;
+  /** 自动转换为小写 */
+  toLowerCase?: boolean;
+  /** 自动转换为大写 */
+  toUpperCase?: boolean;
+
+  // 日期/时间验证增强
+  /** 必须早于某个日期 */
+  before?: string | Date;
+  /** 必须晚于某个日期 */
+  after?: string | Date;
+  /** 必须早于某个时间 */
+  beforeTime?: string;
+  /** 必须晚于某个时间 */
+  afterTime?: string;
+  /** 时区验证 */
+  timezone?: string;
+
+  // 密码强度验证
+  /** 密码强度验证 */
+  passwordStrength?: {
+    minLength?: number;
+    requireUppercase?: boolean;
+    requireLowercase?: boolean;
+    requireNumbers?: boolean;
+    requireSymbols?: boolean;
+  };
 }
 
 /**
@@ -1071,6 +1142,245 @@ export abstract class MongoModel {
       }
     }
 
+    // 数值验证增强
+    if (typeof value === "number") {
+      // 整数验证
+      if (rule?.integer && !Number.isInteger(value)) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} must be an integer`,
+        );
+      }
+
+      // 正数验证
+      if (rule?.positive && value <= 0) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} must be positive`,
+        );
+      }
+
+      // 负数验证
+      if (rule?.negative && value >= 0) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} must be negative`,
+        );
+      }
+
+      // 倍数验证
+      if (rule?.multipleOf !== undefined) {
+        if (value % rule.multipleOf !== 0) {
+          throw new ValidationError(
+            fieldName,
+            rule.message ||
+              `${fieldName} must be a multiple of ${rule.multipleOf}`,
+          );
+        }
+      }
+
+      // 范围验证
+      if (rule?.range) {
+        const [min, max] = rule.range;
+        if (value < min || value > max) {
+          throw new ValidationError(
+            fieldName,
+            rule.message || `${fieldName} must be between ${min} and ${max}`,
+          );
+        }
+      }
+    }
+
+    // 字符串验证增强
+    if (typeof value === "string") {
+      // 字符类型验证
+      if (rule?.alphanumeric && !/^[a-zA-Z0-9]+$/.test(value)) {
+        throw new ValidationError(
+          fieldName,
+          rule.message ||
+            `${fieldName} must contain only alphanumeric characters`,
+        );
+      }
+
+      if (rule?.numeric && !/^[0-9]+$/.test(value)) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} must contain only numbers`,
+        );
+      }
+
+      if (rule?.alpha && !/^[a-zA-Z]+$/.test(value)) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} must contain only letters`,
+        );
+      }
+
+      // 大小写验证
+      if (rule?.lowercase && value !== value.toLowerCase()) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} must be lowercase`,
+        );
+      }
+
+      if (rule?.uppercase && value !== value.toUpperCase()) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} must be uppercase`,
+        );
+      }
+
+      // 字符串包含验证
+      if (
+        rule?.startsWith !== undefined && !value.startsWith(rule.startsWith)
+      ) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} must start with "${rule.startsWith}"`,
+        );
+      }
+
+      if (rule?.endsWith !== undefined && !value.endsWith(rule.endsWith)) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} must end with "${rule.endsWith}"`,
+        );
+      }
+
+      if (rule?.contains !== undefined && !value.includes(rule.contains)) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} must contain "${rule.contains}"`,
+        );
+      }
+
+      // 字符串处理（自动转换，修改 allValues）
+      if (rule?.trim) {
+        allValues[fieldName] = value.trim();
+      }
+      if (rule?.toLowerCase) {
+        allValues[fieldName] = value.toLowerCase();
+      }
+      if (rule?.toUpperCase) {
+        allValues[fieldName] = value.toUpperCase();
+      }
+    }
+
+    // 日期/时间验证增强
+    if (value instanceof Date || typeof value === "string") {
+      let dateValue: Date | null = null;
+      if (value instanceof Date) {
+        dateValue = value;
+      } else if (typeof value === "string") {
+        // 尝试解析日期字符串
+        const parsed = new Date(value);
+        if (!isNaN(parsed.getTime())) {
+          dateValue = parsed;
+        }
+      }
+
+      if (dateValue) {
+        // 日期比较
+        if (rule?.before !== undefined) {
+          const beforeDate = rule.before instanceof Date
+            ? rule.before
+            : new Date(rule.before);
+          if (dateValue >= beforeDate) {
+            throw new ValidationError(
+              fieldName,
+              rule.message || `${fieldName} must be before ${rule.before}`,
+            );
+          }
+        }
+
+        if (rule?.after !== undefined) {
+          const afterDate = rule.after instanceof Date
+            ? rule.after
+            : new Date(rule.after);
+          if (dateValue <= afterDate) {
+            throw new ValidationError(
+              fieldName,
+              rule.message || `${fieldName} must be after ${rule.after}`,
+            );
+          }
+        }
+
+        // 时间比较（只比较时间部分，忽略日期）
+        if (rule?.beforeTime !== undefined) {
+          const timeValue = dateValue.getHours() * 3600 +
+            dateValue.getMinutes() * 60 +
+            dateValue.getSeconds();
+          const [hours, minutes, seconds] = rule.beforeTime.split(":").map(
+            Number,
+          );
+          const beforeTimeValue = (hours || 0) * 3600 + (minutes || 0) * 60 +
+            (seconds || 0);
+          if (timeValue >= beforeTimeValue) {
+            throw new ValidationError(
+              fieldName,
+              rule.message || `${fieldName} must be before ${rule.beforeTime}`,
+            );
+          }
+        }
+
+        if (rule?.afterTime !== undefined) {
+          const timeValue = dateValue.getHours() * 3600 +
+            dateValue.getMinutes() * 60 +
+            dateValue.getSeconds();
+          const [hours, minutes, seconds] = rule.afterTime.split(":").map(
+            Number,
+          );
+          const afterTimeValue = (hours || 0) * 3600 + (minutes || 0) * 60 +
+            (seconds || 0);
+          if (timeValue <= afterTimeValue) {
+            throw new ValidationError(
+              fieldName,
+              rule.message || `${fieldName} must be after ${rule.afterTime}`,
+            );
+          }
+        }
+      }
+    }
+
+    // 密码强度验证
+    if (rule?.passwordStrength && typeof value === "string") {
+      const options = rule.passwordStrength;
+      if (options.minLength && value.length < options.minLength) {
+        throw new ValidationError(
+          fieldName,
+          rule.message ||
+            `${fieldName} must be at least ${options.minLength} characters`,
+        );
+      }
+      if (options.requireUppercase && !/[A-Z]/.test(value)) {
+        throw new ValidationError(
+          fieldName,
+          rule.message ||
+            `${fieldName} must contain at least one uppercase letter`,
+        );
+      }
+      if (options.requireLowercase && !/[a-z]/.test(value)) {
+        throw new ValidationError(
+          fieldName,
+          rule.message ||
+            `${fieldName} must contain at least one lowercase letter`,
+        );
+      }
+      if (options.requireNumbers && !/[0-9]/.test(value)) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} must contain at least one number`,
+        );
+      }
+      if (options.requireSymbols && !/[^a-zA-Z0-9]/.test(value)) {
+        throw new ValidationError(
+          fieldName,
+          rule.message || `${fieldName} must contain at least one symbol`,
+        );
+      }
+    }
+
     // 跨字段验证：equals（与另一个字段值相等）
     if (rule?.equals) {
       const otherValue = allValues[rule.equals];
@@ -1174,6 +1484,17 @@ export abstract class MongoModel {
         fieldName,
         value,
         rule.notExists === true ? {} : rule.notExists,
+      );
+    }
+
+    // 跨表/跨字段值比较验证（compareValue）
+    if (rule.compareValue) {
+      await this.validateCompareValue(
+        fieldName,
+        value,
+        rule.compareValue,
+        instanceId,
+        _allValues,
       );
     }
 
@@ -1307,6 +1628,7 @@ export abstract class MongoModel {
       max?: number;
       length?: number;
       items?: ValidationRule;
+      uniqueItems?: boolean;
     },
     allValues: Record<string, any>,
   ): void {
@@ -1337,6 +1659,25 @@ export abstract class MongoModel {
         fieldName,
         `${fieldName} array length must be at most ${arrayRule.max}`,
       );
+    }
+
+    // 数组元素唯一性验证
+    if (arrayRule.uniqueItems) {
+      const seen = new Set();
+      for (let i = 0; i < value.length; i++) {
+        const item = value[i];
+        // 使用 JSON.stringify 来比较对象和数组
+        const key = typeof item === "object" && item !== null
+          ? JSON.stringify(item)
+          : String(item);
+        if (seen.has(key)) {
+          throw new ValidationError(
+            fieldName,
+            `${fieldName} array items must be unique, duplicate found`,
+          );
+        }
+        seen.add(key);
+      }
     }
 
     // 数组元素验证
@@ -1506,6 +1847,108 @@ export abstract class MongoModel {
       throw new ValidationError(
         fieldName,
         `${fieldName} already exists in collection`,
+      );
+    }
+  }
+
+  /**
+   * 验证跨表/跨字段值比较
+   */
+  private static async validateCompareValue(
+    fieldName: string,
+    value: any,
+    options: {
+      targetField: string;
+      targetModel?: typeof MongoModel;
+      compare?: "=" | ">" | "<" | ">=" | "<=";
+      where?: Record<string, any>;
+    },
+    instanceId?: any,
+    allValues?: Record<string, any>,
+  ): Promise<void> {
+    await this.ensureAdapter();
+
+    // 确定目标模型（如果未指定，使用当前模型）
+    const TargetModel = (options.targetModel || this) as typeof MongoModel;
+    await TargetModel.ensureAdapter();
+
+    let targetValue: any;
+
+    // 如果是同表比较（未指定 targetModel）且是创建新记录（instanceId 为空），从 allValues 中获取
+    if (!options.targetModel && !instanceId && allValues) {
+      targetValue = allValues[options.targetField];
+      if (targetValue === undefined) {
+        throw new ValidationError(
+          fieldName,
+          `${fieldName} 验证失败：未找到目标字段 ${options.targetField}`,
+        );
+      }
+    } else {
+      // 构建查询条件
+      const where: Record<string, any> = {
+        ...(options.where || {}),
+      };
+
+      // 如果是同表比较且是更新记录，使用 instanceId 作为查询条件
+      if (!options.targetModel && instanceId) {
+        where[this.primaryKey] = instanceId;
+      }
+
+      // 查询目标字段的值
+      const targetRecord = await TargetModel.query()
+        .where(where)
+        .fields([options.targetField])
+        .findOne();
+
+      if (!targetRecord) {
+        throw new ValidationError(
+          fieldName,
+          `${fieldName} 验证失败：未找到目标记录`,
+        );
+      }
+
+      targetValue = (targetRecord as any)[options.targetField];
+    }
+
+    // 根据比较操作符进行验证
+    const compare = options.compare || "=";
+    let isValid = false;
+
+    // 对于相等比较，如果值可以转换为字符串，则进行字符串比较（处理 ObjectId 等情况）
+    if (compare === "=") {
+      // 尝试转换为字符串进行比较（处理 ObjectId 等类型）
+      const valueStr = value?.toString();
+      const targetStr = targetValue?.toString();
+      isValid = value === targetValue || valueStr === targetStr;
+    } else {
+      // 对于其他比较操作符，直接比较
+      switch (compare) {
+        case ">":
+          isValid = value > targetValue;
+          break;
+        case "<":
+          isValid = value < targetValue;
+          break;
+        case ">=":
+          isValid = value >= targetValue;
+          break;
+        case "<=":
+          isValid = value <= targetValue;
+          break;
+      }
+    }
+
+    if (!isValid) {
+      const operatorText = {
+        "=": "等于",
+        ">": "大于",
+        "<": "小于",
+        ">=": "大于等于",
+        "<=": "小于等于",
+      }[compare];
+      throw new ValidationError(
+        fieldName,
+        `${fieldName} 必须${operatorText} ${options.targetField} (${targetValue})`,
       );
     }
   }
@@ -1743,12 +2186,16 @@ export abstract class MongoModel {
    * @param data 要验证的数据
    * @param instanceId 实例 ID（用于唯一性验证时排除当前记录）
    * @param groups 验证组（可选，只验证指定组的字段）
+   * @param onlyValidateProvidedFields 是否只验证 data 中提供的字段（用于更新操作）
+   * @param providedFields 提供的字段集合（当 onlyValidateProvidedFields 为 true 时使用）
    * @throws ValidationError 验证失败时抛出
    */
   static async validate(
     data: Record<string, any>,
     instanceId?: any,
     groups?: string[],
+    onlyValidateProvidedFields?: boolean,
+    providedFields?: Set<string>,
   ): Promise<void> {
     const schema = this.schema;
     if (!schema) {
@@ -1764,6 +2211,21 @@ export abstract class MongoModel {
     for (const fieldName of schemaKeys) {
       const fieldDef = schema[fieldName];
       const value = data[fieldName];
+
+      // 如果只验证提供的字段，且该字段不在提供的字段集合中，跳过验证
+      // 注意：processFields 会将所有 schema 字段添加到 processed 中（即使值为 undefined）
+      // 所以需要使用 providedFields 来判断哪些字段是用户实际提供的
+      if (onlyValidateProvidedFields) {
+        // 如果提供了字段集合，使用它；否则回退到检查字段是否在 data 中
+        if (providedFields) {
+          if (!providedFields.has(fieldName)) {
+            continue;
+          }
+        } else if (!(fieldName in data) || value === undefined) {
+          // 回退逻辑：如果字段不在 data 中，或者值为 undefined，跳过验证
+          continue;
+        }
+      }
 
       // 检查验证组
       if (groups && fieldDef.validate?.groups) {
@@ -2430,6 +2892,8 @@ export abstract class MongoModel {
         skip?: number;
         limit?: number;
       },
+      includeTrashed?: boolean,
+      onlyTrashed?: boolean,
     ) => Promise<InstanceType<T>[]>;
     find: <T extends typeof MongoModel>(
       condition?: MongoWhereCondition | string,
@@ -2455,11 +2919,15 @@ export abstract class MongoModel {
           skip?: number;
           limit?: number;
         },
+        includeTrashed: boolean = false,
+        onlyTrashed: boolean = false,
       ): Promise<InstanceType<T>[]> => {
         return await Model.findAll(
           { ...scopeCondition, ...condition },
           fields,
           options,
+          includeTrashed,
+          onlyTrashed,
         ) as InstanceType<T>[];
       },
       find: async <T extends typeof MongoModel>(
@@ -2641,6 +3109,7 @@ export abstract class MongoModel {
     data: Record<string, any>,
     returnLatest: boolean,
     options?: {
+      skipPreQuery?: boolean; // 统一接口：与 SQLModel 保持一致
       enableHooks?: boolean;
       enableValidation?: boolean;
       useUpdateMany?: boolean;
@@ -2652,6 +3121,7 @@ export abstract class MongoModel {
     data: Record<string, any>,
     returnLatest: boolean = false,
     options?: {
+      skipPreQuery?: boolean; // 统一接口：与 SQLModel 保持一致
       enableHooks?: boolean;
       enableValidation?: boolean;
       useUpdateMany?: boolean;
@@ -2680,12 +3150,14 @@ export abstract class MongoModel {
       this.afterUpdate ||
       this.afterSave
     );
+    // 检查是否可以跳过预查询（性能优化）
+    const skipPreQuery = options?.skipPreQuery === true;
     // 只有在启用钩子或验证时才需要预查询
     const needsPreQuery = (enableHooks && hasHooks) || enableValidation;
 
     // 先查找要更新的记录（如果不需要钩子且不需要验证，可以跳过）
     let existingInstance: InstanceType<typeof MongoModel> | null = null;
-    if (needsPreQuery || returnLatest) {
+    if (!skipPreQuery && (needsPreQuery || returnLatest)) {
       // 需要预查询：有钩子、需要验证、需要返回最新记录
       if (typeof condition === "string") {
         existingInstance = await this.find(condition);
@@ -2780,7 +3252,29 @@ export abstract class MongoModel {
           : undefined;
         // 如果跳过预查询，instanceId 为 undefined，唯一性验证可能不准确
         // 因此建议在跳过预查询时确保没有唯一性验证
-        await this.validate(processedData, instanceId);
+        // 在更新操作中，只验证被更新的字段（原始 data 中的字段）
+        // 对于不在原始 data 中的字段，使用现有值（从 existingInstance 获取）
+        // 构建完整的验证数据：合并 existingInstance 和 processedData
+        const validationData: Record<string, any> = {};
+        if (existingInstance) {
+          // 先复制现有实例的所有字段（包括所有属性，不仅仅是数据库字段）
+          for (const key in existingInstance) {
+            validationData[key] = (existingInstance as any)[key];
+          }
+        }
+        // 然后用 processedData 覆盖（只覆盖被更新的字段）
+        Object.assign(validationData, processedData);
+        // 只验证原始 data 中提供的字段（更新操作）
+        // 注意：使用原始 data 的键来判断哪些字段需要验证
+        // 因为 processFields 会将所有 schema 字段添加到 processedData 中（即使值为 undefined）
+        const originalDataKeys = new Set(Object.keys(data));
+        await this.validate(
+          validationData,
+          instanceId,
+          undefined,
+          true,
+          originalDataKeys,
+        );
       }
 
       // afterValidate 钩子
@@ -2909,11 +3403,17 @@ export abstract class MongoModel {
       const opts: any = { returnDocument: "after" };
       // 排除 _id 字段和主键字段，MongoDB 不允许更新 _id
       // 注意：MongoDB 内部使用 _id 作为主键，但用户可能定义 primaryKey 为其他字段名
+      // 同时排除 undefined 值，避免将未提供的字段设置为 undefined
       const updateData: Record<string, any> = {};
       const primaryKeyField = this.primaryKey || "_id";
       for (const key in processedData) {
         // 排除 MongoDB 系统字段 _id 和用户定义的主键字段
-        if (key !== "_id" && key !== primaryKeyField) {
+        // 同时排除 undefined 值（这些是 processFields 添加的未提供字段）
+        if (
+          key !== "_id" &&
+          key !== primaryKeyField &&
+          processedData[key] !== undefined
+        ) {
           updateData[key] = processedData[key];
         }
       }
@@ -2943,11 +3443,17 @@ export abstract class MongoModel {
     } else {
       // 排除 _id 字段和主键字段，MongoDB 不允许更新 _id
       // 注意：MongoDB 内部使用 _id 作为主键，但用户可能定义 primaryKey 为其他字段名
+      // 同时排除 undefined 值，避免将未提供的字段设置为 undefined
       const updateData: Record<string, any> = {};
       const primaryKeyField = this.primaryKey || "_id";
       for (const key in processedData) {
         // 排除 MongoDB 系统字段 _id 和用户定义的主键字段
-        if (key !== "_id" && key !== primaryKeyField) {
+        // 同时排除 undefined 值（这些是 processFields 添加的未提供字段）
+        if (
+          key !== "_id" &&
+          key !== primaryKeyField &&
+          processedData[key] !== undefined
+        ) {
           updateData[key] = processedData[key];
         }
       }
@@ -3907,21 +4413,25 @@ export abstract class MongoModel {
   /**
    * 增加字段值
    * @param condition 查询条件（可以是 ID、条件对象）
-   * @param field 要增加的字段名
-   * @param amount 增加的数量（默认为 1）
-   * @returns 更新的记录数
+   * @param fieldOrMap 要增加的字段名或字段-增量映射对象
+   * @param amountOrReturnLatest 增加的数量（当提供单个字段名时生效，默认为 1）或 returnLatest 标志
+   * @param returnLatest 是否返回更新后的记录（默认 false）
+   * @returns 更新的记录数或更新后的模型实例
    *
    * @example
+   * // 单个字段
    * await User.increment('507f1f77bcf86cd799439011', 'views', 1);
    * await User.increment({ status: 'active' }, 'score', 10);
+   * // 对象格式（批量自增）
+   * await User.increment('507f1f77bcf86cd799439011', { views: 1, likes: 2 });
+   * await User.increment({ status: 'active' }, { score: 10, level: 1 }, true);
    */
   static async increment<T extends typeof MongoModel>(
     this: T,
     condition: MongoWhereCondition | string,
-    field: string,
-    amount: number = 1,
-    returnLatest: boolean = false,
-    fields?: string[],
+    fieldOrMap: string | Record<string, number>,
+    amountOrReturnLatest?: number | boolean,
+    returnLatest?: boolean,
   ): Promise<number | InstanceType<T>> {
     // 自动初始化（懒加载）
     await this.ensureAdapter();
@@ -3946,17 +4456,36 @@ export abstract class MongoModel {
       throw new Error("Database not connected");
     }
 
+    // 处理参数：支持两种调用方式
+    // 1. increment(condition, field, amount, returnLatest)
+    // 2. increment(condition, fields, returnLatest)
+    let incUpdate: Record<string, number>;
+    let shouldReturnLatest: boolean = false;
+
+    if (typeof fieldOrMap === "string") {
+      // 单个字段格式：increment(condition, field, amount?, returnLatest?)
+      const amount = typeof amountOrReturnLatest === "number"
+        ? amountOrReturnLatest
+        : 1;
+      shouldReturnLatest = typeof amountOrReturnLatest === "boolean"
+        ? amountOrReturnLatest
+        : (returnLatest === true);
+      incUpdate = { [fieldOrMap]: amount };
+    } else {
+      // 对象格式：increment(condition, fields, returnLatest?)
+      shouldReturnLatest = typeof amountOrReturnLatest === "boolean"
+        ? amountOrReturnLatest
+        : (returnLatest === true);
+      incUpdate = fieldOrMap;
+    }
+
     try {
-      if (returnLatest) {
-        const projection = this.buildProjection(fields);
+      if (shouldReturnLatest) {
         const opts: any = { returnDocument: "after" };
-        if (Object.keys(projection).length > 0) {
-          opts.projection = projection;
-        }
         const result = await db.collection(this.collectionName)
           .findOneAndUpdate(
             filter,
-            { $inc: { [field]: amount } },
+            { $inc: incUpdate },
             opts,
           );
         if (!result) {
@@ -3974,7 +4503,7 @@ export abstract class MongoModel {
       } else {
         const result = await db.collection(this.collectionName).updateOne(
           filter,
-          { $inc: { [field]: amount } },
+          { $inc: incUpdate },
         );
         const modifiedCount = result.modifiedCount || 0;
 
@@ -3995,29 +4524,56 @@ export abstract class MongoModel {
   /**
    * 减少字段值
    * @param condition 查询条件（可以是 ID、条件对象）
-   * @param field 要减少的字段名
-   * @param amount 减少的数量（默认为 1）
-   * @returns 更新的记录数
+   * @param fieldOrMap 要减少的字段名或字段-减量映射对象
+   * @param amount 减少的数量（当提供单个字段名时生效，默认为 1）
+   * @param returnLatest 是否返回更新后的记录（默认 false）
+   * @returns 更新的记录数或更新后的模型实例
    *
    * @example
+   * // 单个字段
    * await User.decrement('507f1f77bcf86cd799439011', 'views', 1);
    * await User.decrement({ status: 'active' }, 'score', 10);
+   * // 对象格式（批量自减）
+   * await User.decrement('507f1f77bcf86cd799439011', { views: 1, likes: 2 });
+   * await User.decrement({ status: 'active' }, { score: 10, level: 1 });
    */
   static async decrement<T extends typeof MongoModel>(
     this: T,
     condition: MongoWhereCondition | string,
-    field: string,
-    amount: number = 1,
-    returnLatest: boolean = false,
-    fields?: string[],
+    fieldOrMap: string | Record<string, number>,
+    amountOrReturnLatest?: number | boolean,
+    returnLatest?: boolean,
   ): Promise<number | InstanceType<T>> {
-    return await this.increment(
-      condition,
-      field,
-      -amount,
-      returnLatest,
-      fields,
-    );
+    // 如果是对象格式，将所有的值取反
+    if (typeof fieldOrMap === "object" && !Array.isArray(fieldOrMap)) {
+      const negatedMap: Record<string, number> = {};
+      for (const [key, value] of Object.entries(fieldOrMap)) {
+        negatedMap[key] = -value;
+      }
+      // 对象格式：decrement(condition, fields, returnLatest?)
+      const shouldReturnLatest = typeof amountOrReturnLatest === "boolean"
+        ? amountOrReturnLatest
+        : (returnLatest === true);
+      return await this.increment(
+        condition,
+        negatedMap,
+        shouldReturnLatest,
+      );
+    } else {
+      // 单个字段格式：decrement(condition, field, amount?, returnLatest?)
+      const amount = typeof amountOrReturnLatest === "number"
+        ? -amountOrReturnLatest
+        : -1;
+      const shouldReturnLatest = typeof amountOrReturnLatest === "boolean"
+        ? amountOrReturnLatest
+        : (returnLatest === true);
+      return await this.increment(
+        condition,
+        fieldOrMap,
+        amount,
+        shouldReturnLatest,
+      );
+    }
   }
 
   /**
@@ -4202,7 +4758,6 @@ export abstract class MongoModel {
     data: Record<string, any>,
     returnLatest: boolean = true,
     resurrect: boolean = false,
-    fields?: string[],
   ): Promise<InstanceType<T>> {
     // 自动初始化（懒加载）
     await this.ensureAdapter();
@@ -4227,14 +4782,10 @@ export abstract class MongoModel {
     }
 
     try {
-      const projection = this.buildProjection(fields);
       const opts: any = {
         upsert: true,
         returnDocument: returnLatest ? "after" : "before",
       };
-      if (Object.keys(projection).length > 0) {
-        opts.projection = projection;
-      }
       const result = await db.collection(this.collectionName).findOneAndUpdate(
         filter,
         {
@@ -5004,7 +5555,6 @@ export abstract class MongoModel {
           field,
           amount,
           returnLatest,
-          _fields,
         );
       },
       decrement: async (
@@ -5017,7 +5567,6 @@ export abstract class MongoModel {
           field,
           amount,
           returnLatest,
-          _fields,
         );
       },
       deleteById: async (id: string): Promise<number> => {
@@ -5100,7 +5649,6 @@ export abstract class MongoModel {
           data,
           returnLatest,
           resurrect,
-          _fields,
         );
       },
       findOrCreate: async (
@@ -5110,7 +5658,7 @@ export abstract class MongoModel {
         const cond = typeof _condition === "string"
           ? { [this.primaryKey]: _condition }
           : (_condition as any);
-        return await this.findOrCreate(cond, data, resurrect, _fields);
+        return await this.findOrCreate(cond, data, resurrect);
       },
       incrementMany: async (
         fieldOrMap: string | Record<string, number>,
@@ -5167,18 +5715,17 @@ export abstract class MongoModel {
     condition: MongoWhereCondition,
     data: Record<string, any>,
     resurrect: boolean = false,
-    fields?: string[],
   ): Promise<InstanceType<T>> {
     await this.ensureAdapter();
 
     // 先尝试查找（包含软删除的记录）
-    const existing = await this.withTrashed().find(condition, fields);
+    const existing = await this.withTrashed().find(condition);
     if (existing) {
       if (resurrect && this.softDelete) {
         const id = (existing as any)[this.primaryKey];
         if (id) {
           await this.restore(id);
-          const latest = await this.find(id, fields);
+          const latest = await this.find(id);
           if (latest) {
             return latest as InstanceType<T>;
           }

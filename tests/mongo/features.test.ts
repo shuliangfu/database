@@ -416,7 +416,7 @@ describe("MongoDB 特有功能", () => {
 
       // 创建带验证规则的集合
       try {
-        await db.createCollection("test_validation_data", {
+        await db.createCollection(COLLECTION_VALIDATION_DATA, {
           validator: {
             $jsonSchema: {
               bsonType: "object",

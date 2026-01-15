@@ -22,6 +22,11 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
+// 定义表名常量（使用目录名_文件名_作为前缀）
+const TABLE_PROCEDURE = "mysql_features_test_procedure_data";
+const TABLE_FUNCTION = "mysql_features_test_function_data";
+const TABLE_ISOLATION = "mysql_features_test_isolation_data";
+
 describe("MySQL/MariaDB 特有功能", () => {
   let adapter: DatabaseAdapter;
 
@@ -80,9 +85,9 @@ describe("MySQL/MariaDB 特有功能", () => {
 
     // 清理测试表
     try {
-      await adapter.execute("DROP TABLE IF EXISTS test_procedure_data", []);
-      await adapter.execute("DROP TABLE IF EXISTS test_function_data", []);
-      await adapter.execute("DROP TABLE IF EXISTS test_isolation_data", []);
+      await adapter.execute(`DROP TABLE IF EXISTS ${TABLE_PROCEDURE}`, []);
+      await adapter.execute(`DROP TABLE IF EXISTS ${TABLE_FUNCTION}`, []);
+      await adapter.execute(`DROP TABLE IF EXISTS ${TABLE_ISOLATION}`, []);
     } catch {
       // 忽略错误
     }
@@ -96,7 +101,7 @@ describe("MySQL/MariaDB 特有功能", () => {
       }
 
       await adapter.execute(
-        `CREATE TABLE test_procedure_data (
+        `CREATE TABLE ${TABLE_PROCEDURE} (
           id INT AUTO_INCREMENT PRIMARY KEY,
           name VARCHAR(100),
           value INT
@@ -111,7 +116,7 @@ describe("MySQL/MariaDB 特有功能", () => {
       await adapter.execute(
         `CREATE PROCEDURE test_procedure(IN p_name VARCHAR(100), IN p_value INT)
         BEGIN
-          INSERT INTO test_procedure_data (name, value) VALUES (p_name, p_value);
+          INSERT INTO ${TABLE_PROCEDURE} (name, value) VALUES (p_name, p_value);
         END`,
         [],
       );
@@ -123,7 +128,7 @@ describe("MySQL/MariaDB 特有功能", () => {
       ]);
 
       const results = await adapter.query(
-        "SELECT * FROM test_procedure_data WHERE name = ?",
+        `SELECT * FROM ${TABLE_PROCEDURE} WHERE name = ?`,
         ["Procedure User"],
       );
 
@@ -138,7 +143,7 @@ describe("MySQL/MariaDB 特有功能", () => {
       }
 
       await adapter.execute(
-        `CREATE TABLE test_procedure_data (
+        `CREATE TABLE ${TABLE_PROCEDURE} (
           id INT AUTO_INCREMENT PRIMARY KEY,
           name VARCHAR(100),
           value INT
@@ -147,7 +152,7 @@ describe("MySQL/MariaDB 特有功能", () => {
       );
 
       await adapter.execute(
-        "INSERT INTO test_procedure_data (name, value) VALUES (?, ?), (?, ?)",
+        `INSERT INTO ${TABLE_PROCEDURE} (name, value) VALUES (?, ?), (?, ?)`,
         ["User 1", 10, "User 2", 20],
       );
 
@@ -158,7 +163,7 @@ describe("MySQL/MariaDB 特有功能", () => {
       await adapter.execute(
         `CREATE PROCEDURE test_procedure(OUT total INT)
         BEGIN
-          SELECT SUM(value) INTO total FROM test_procedure_data;
+          SELECT SUM(value) INTO total FROM ${TABLE_PROCEDURE};
         END`,
         [],
       );
@@ -210,7 +215,7 @@ describe("MySQL/MariaDB 特有功能", () => {
       }
 
       await adapter.execute(
-        `CREATE TABLE test_function_data (
+        `CREATE TABLE ${TABLE_FUNCTION} (
           id INT AUTO_INCREMENT PRIMARY KEY,
           name VARCHAR(100),
           value1 INT,
@@ -220,13 +225,13 @@ describe("MySQL/MariaDB 特有功能", () => {
       );
 
       await adapter.execute(
-        "INSERT INTO test_function_data (name, value1, value2) VALUES (?, ?, ?)",
+        `INSERT INTO ${TABLE_FUNCTION} (name, value1, value2) VALUES (?, ?, ?)`,
         ["Function User", 15, 25],
       );
 
       // 在查询中使用函数
       const results = await adapter.query(
-        "SELECT name, (value1 + value2) as sum FROM test_function_data WHERE name = ?",
+        `SELECT name, (value1 + value2) as sum FROM ${TABLE_FUNCTION} WHERE name = ?`,
         ["Function User"],
       );
 
@@ -295,7 +300,7 @@ describe("MySQL/MariaDB 特有功能", () => {
       }
 
       await adapter.execute(
-        `CREATE TABLE test_isolation_data (
+        `CREATE TABLE ${TABLE_ISOLATION} (
           id INT AUTO_INCREMENT PRIMARY KEY,
           name VARCHAR(100),
           value INT
@@ -311,13 +316,13 @@ describe("MySQL/MariaDB 特有功能", () => {
         );
 
         await db1.execute(
-          "INSERT INTO test_isolation_data (name, value) VALUES (?, ?)",
+          `INSERT INTO ${TABLE_ISOLATION} (name, value) VALUES (?, ?)`,
           ["Isolation User", 100],
         );
 
         // 在另一个连接中查询（应该能看到未提交的数据，取决于隔离级别）
         const results = await adapter.query(
-          "SELECT * FROM test_isolation_data WHERE name = ?",
+          `SELECT * FROM ${TABLE_ISOLATION} WHERE name = ?`,
           ["Isolation User"],
         );
 
@@ -334,7 +339,7 @@ describe("MySQL/MariaDB 特有功能", () => {
       }
 
       await adapter.execute(
-        `CREATE TABLE test_isolation_data (
+        `CREATE TABLE ${TABLE_ISOLATION} (
           id INT AUTO_INCREMENT PRIMARY KEY,
           name VARCHAR(100),
           value INT
@@ -366,7 +371,7 @@ describe("MySQL/MariaDB 特有功能", () => {
         expect(levelValue.includes("REPEATABLE")).toBe(true);
 
         await db.execute(
-          "INSERT INTO test_isolation_data (name, value) VALUES (?, ?)",
+          `INSERT INTO ${TABLE_ISOLATION} (name, value) VALUES (?, ?)`,
           ["Repeatable User", 200],
         );
       });

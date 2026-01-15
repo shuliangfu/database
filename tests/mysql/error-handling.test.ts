@@ -23,6 +23,11 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
+// 定义表名常量（使用目录名_文件名_作为前缀）
+const TABLE_ERROR = "mysql_error_handling_test_error_table";
+const TABLE_CONSTRAINT = "mysql_error_handling_test_constraint_table";
+const TABLE_TX = "mysql_error_handling_test_tx_error";
+
 describe("MySQL/MariaDB 错误处理", () => {
   let adapter: DatabaseAdapter;
 
@@ -162,7 +167,7 @@ describe("MySQL/MariaDB 错误处理", () => {
       }
 
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_error_table (
+        `CREATE TABLE IF NOT EXISTS ${TABLE_ERROR} (
           id INT AUTO_INCREMENT PRIMARY KEY,
           name VARCHAR(100)
         )`,
@@ -172,14 +177,14 @@ describe("MySQL/MariaDB 错误处理", () => {
       await assertRejects(
         async () => {
           await adapter.query(
-            "SELECT nonexistent_column FROM test_error_table",
+            `SELECT nonexistent_column FROM ${TABLE_ERROR}`,
             [],
           );
         },
         Error,
       );
 
-      await adapter.execute("DROP TABLE IF EXISTS test_error_table", []);
+      await adapter.execute(`DROP TABLE IF EXISTS ${TABLE_ERROR}`, []);
     }, { sanitizeOps: false, sanitizeResources: false });
   });
 
@@ -191,7 +196,7 @@ describe("MySQL/MariaDB 错误处理", () => {
       }
 
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_constraint_table (
+        `CREATE TABLE IF NOT EXISTS ${TABLE_CONSTRAINT} (
           id INT AUTO_INCREMENT PRIMARY KEY,
           email VARCHAR(100) UNIQUE NOT NULL
         )`,
@@ -199,7 +204,7 @@ describe("MySQL/MariaDB 错误处理", () => {
       );
 
       await adapter.execute(
-        "INSERT INTO test_constraint_table (email) VALUES (?)",
+        `INSERT INTO ${TABLE_CONSTRAINT} (email) VALUES (?)`,
         ["unique@test.com"],
       );
 
@@ -207,14 +212,14 @@ describe("MySQL/MariaDB 错误处理", () => {
       await assertRejects(
         async () => {
           await adapter.execute(
-            "INSERT INTO test_constraint_table (email) VALUES (?)",
+            `INSERT INTO ${TABLE_CONSTRAINT} (email) VALUES (?)`,
             ["unique@test.com"],
           );
         },
         Error,
       );
 
-      await adapter.execute("DROP TABLE IF EXISTS test_constraint_table", []);
+      await adapter.execute(`DROP TABLE IF EXISTS ${TABLE_CONSTRAINT}`, []);
     }, { sanitizeOps: false, sanitizeResources: false });
   });
 
@@ -240,7 +245,7 @@ describe("MySQL/MariaDB 错误处理", () => {
       }
 
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_tx_error (
+        `CREATE TABLE IF NOT EXISTS ${TABLE_TX} (
           id INT AUTO_INCREMENT PRIMARY KEY,
           name VARCHAR(100)
         )`,
@@ -251,7 +256,7 @@ describe("MySQL/MariaDB 错误处理", () => {
         async () => {
           await adapter.transaction(async (db) => {
             await db.execute(
-              "INSERT INTO test_tx_error (name) VALUES (?)",
+              `INSERT INTO ${TABLE_TX} (name) VALUES (?)`,
               ["TX User"],
             );
             // 故意抛出错误
@@ -263,12 +268,12 @@ describe("MySQL/MariaDB 错误处理", () => {
 
       // 验证数据已回滚
       const results = await adapter.query(
-        "SELECT * FROM test_tx_error WHERE name = ?",
+        `SELECT * FROM ${TABLE_TX} WHERE name = ?`,
         ["TX User"],
       );
       expect(results.length).toBe(0);
 
-      await adapter.execute("DROP TABLE IF EXISTS test_tx_error", []);
+      await adapter.execute(`DROP TABLE IF EXISTS ${TABLE_TX}`, []);
     }, { sanitizeOps: false, sanitizeResources: false });
   });
 

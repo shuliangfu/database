@@ -14,6 +14,9 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
+// 定义表名常量（使用目录名_文件名_作为前缀）
+const TABLE_ACCOUNTS = "mysql_transaction_accounts";
+
 describe("事务测试", () => {
   let adapter: DatabaseAdapter;
 
@@ -44,7 +47,7 @@ describe("事务测试", () => {
 
       // 创建测试表
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS accounts (
+        `CREATE TABLE IF NOT EXISTS ${TABLE_ACCOUNTS} (
           id INT AUTO_INCREMENT PRIMARY KEY,
           name VARCHAR(100) NOT NULL,
           balance INT NOT NULL DEFAULT 0
@@ -53,7 +56,7 @@ describe("事务测试", () => {
       );
 
       // 清空表
-      await adapter.execute("TRUNCATE TABLE accounts", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_ACCOUNTS}`, []);
     } catch (error) {
       // MySQL 不可用，跳过测试
       const errorMessage = error instanceof Error
@@ -78,7 +81,7 @@ describe("事务测试", () => {
         // 先尝试清理表（如果连接正常）
         if (adapter.isConnected()) {
           try {
-            await adapter.execute("DROP TABLE IF EXISTS accounts", []);
+            await adapter.execute(`DROP TABLE IF EXISTS ${TABLE_ACCOUNTS}`, []);
           } catch {
             // 忽略错误
           }
@@ -103,24 +106,24 @@ describe("事务测试", () => {
       }
 
       await adapter.execute(
-        "INSERT INTO accounts (name, balance) VALUES (?, ?)",
+        `INSERT INTO ${TABLE_ACCOUNTS} (name, balance) VALUES (?, ?)`,
         ["Alice", 1000],
       );
 
       await adapter.transaction(async (db) => {
         await db.execute(
-          "UPDATE accounts SET balance = balance - ? WHERE name = ?",
+          `UPDATE ${TABLE_ACCOUNTS} SET balance = balance - ? WHERE name = ?`,
           [100, "Alice"],
         );
         await db.execute(
-          "INSERT INTO accounts (name, balance) VALUES (?, ?)",
+          `INSERT INTO ${TABLE_ACCOUNTS} (name, balance) VALUES (?, ?)`,
           ["Bob", 100],
         );
       });
 
       // 验证事务已提交
       const accounts = await adapter.query(
-        "SELECT * FROM accounts ORDER BY name",
+        `SELECT * FROM ${TABLE_ACCOUNTS} ORDER BY name`,
         [],
       );
       expect(accounts.length).toBe(2);
@@ -135,14 +138,14 @@ describe("事务测试", () => {
       if (!adapter) return;
 
       await adapter.execute(
-        "INSERT INTO accounts (name, balance) VALUES (?, ?)",
+        `INSERT INTO ${TABLE_ACCOUNTS} (name, balance) VALUES (?, ?)`,
         ["Alice", 1000],
       );
 
       try {
         await adapter.transaction(async (db) => {
           await db.execute(
-            "UPDATE accounts SET balance = balance - ? WHERE name = ?",
+            `UPDATE ${TABLE_ACCOUNTS} SET balance = balance - ? WHERE name = ?`,
             [100, "Alice"],
           );
           throw new Error("Transaction error");
@@ -153,7 +156,7 @@ describe("事务测试", () => {
 
       // 验证事务已回滚
       const alice = await adapter.query(
-        "SELECT * FROM accounts WHERE name = ?",
+        `SELECT * FROM ${TABLE_ACCOUNTS} WHERE name = ?`,
         ["Alice"],
       );
       expect(alice[0].balance).toBe(1000); // 余额未改变
@@ -171,35 +174,35 @@ describe("事务测试", () => {
       }
 
       await adapter.execute(
-        "INSERT INTO accounts (name, balance) VALUES (?, ?)",
+        `INSERT INTO ${TABLE_ACCOUNTS} (name, balance) VALUES (?, ?)`,
         ["Alice", 1000],
       );
 
       await adapter.transaction(async (outerTx) => {
         // 外层事务操作
         await outerTx.execute(
-          "UPDATE accounts SET balance = balance - ? WHERE name = ?",
+          `UPDATE ${TABLE_ACCOUNTS} SET balance = balance - ? WHERE name = ?`,
           [100, "Alice"],
         );
 
         // 嵌套事务（使用保存点）
         await outerTx.transaction(async (innerTx) => {
           await innerTx.execute(
-            "INSERT INTO accounts (name, balance) VALUES (?, ?)",
+            `INSERT INTO ${TABLE_ACCOUNTS} (name, balance) VALUES (?, ?)`,
             ["Bob", 100],
           );
         });
 
         // 外层事务继续
         await outerTx.execute(
-          "INSERT INTO accounts (name, balance) VALUES (?, ?)",
+          `INSERT INTO ${TABLE_ACCOUNTS} (name, balance) VALUES (?, ?)`,
           ["Charlie", 50],
         );
       });
 
       // 验证所有操作都已提交
       const accounts = await adapter.query(
-        "SELECT * FROM accounts ORDER BY name",
+        `SELECT * FROM ${TABLE_ACCOUNTS} ORDER BY name`,
         [],
       );
       expect(accounts.length).toBe(3);
@@ -215,14 +218,14 @@ describe("事务测试", () => {
       if (!adapter) return;
 
       await adapter.execute(
-        "INSERT INTO accounts (name, balance) VALUES (?, ?)",
+        `INSERT INTO ${TABLE_ACCOUNTS} (name, balance) VALUES (?, ?)`,
         ["Alice", 1000],
       );
 
       await adapter.transaction(async (outerTx) => {
         // 外层事务操作
         await outerTx.execute(
-          "UPDATE accounts SET balance = balance - ? WHERE name = ?",
+          `UPDATE ${TABLE_ACCOUNTS} SET balance = balance - ? WHERE name = ?`,
           [100, "Alice"],
         );
 
@@ -230,7 +233,7 @@ describe("事务测试", () => {
         try {
           await outerTx.transaction(async (innerTx) => {
             await innerTx.execute(
-              "INSERT INTO accounts (name, balance) VALUES (?, ?)",
+              `INSERT INTO ${TABLE_ACCOUNTS} (name, balance) VALUES (?, ?)`,
               ["Bob", 100],
             );
             throw new Error("Inner transaction error");
@@ -241,14 +244,14 @@ describe("事务测试", () => {
 
         // 外层事务继续
         await outerTx.execute(
-          "INSERT INTO accounts (name, balance) VALUES (?, ?)",
+          `INSERT INTO ${TABLE_ACCOUNTS} (name, balance) VALUES (?, ?)`,
           ["Charlie", 50],
         );
       });
 
       // 验证：外层操作已提交，内层操作已回滚
       const accounts = await adapter.query(
-        "SELECT * FROM accounts ORDER BY name",
+        `SELECT * FROM ${TABLE_ACCOUNTS} ORDER BY name`,
         [],
       );
       expect(accounts.length).toBe(2);
@@ -264,7 +267,7 @@ describe("事务测试", () => {
       if (!adapter) return;
 
       await adapter.execute(
-        "INSERT INTO accounts (name, balance) VALUES (?, ?)",
+        `INSERT INTO ${TABLE_ACCOUNTS} (name, balance) VALUES (?, ?)`,
         ["Alice", 1000],
       );
 
@@ -273,7 +276,7 @@ describe("事务测试", () => {
         await tx.createSavepoint("sp1");
 
         await tx.execute(
-          "UPDATE accounts SET balance = balance - ? WHERE name = ?",
+          `UPDATE ${TABLE_ACCOUNTS} SET balance = balance - ? WHERE name = ?`,
           [100, "Alice"],
         );
 
@@ -282,14 +285,14 @@ describe("事务测试", () => {
 
         // 验证回滚成功
         const alice = await tx.query(
-          "SELECT * FROM accounts WHERE name = ?",
+          `SELECT * FROM ${TABLE_ACCOUNTS} WHERE name = ?`,
           ["Alice"],
         );
         expect(alice[0].balance).toBe(1000); // 余额未改变
 
         // 再次操作
         await tx.execute(
-          "UPDATE accounts SET balance = balance - ? WHERE name = ?",
+          `UPDATE ${TABLE_ACCOUNTS} SET balance = balance - ? WHERE name = ?`,
           [50, "Alice"],
         );
 
@@ -299,7 +302,7 @@ describe("事务测试", () => {
 
       // 验证最终状态
       const alice = await adapter.query(
-        "SELECT * FROM accounts WHERE name = ?",
+        `SELECT * FROM ${TABLE_ACCOUNTS} WHERE name = ?`,
         ["Alice"],
       );
       expect(alice[0].balance).toBe(950);

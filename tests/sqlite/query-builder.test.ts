@@ -8,8 +8,9 @@ import { SQLQueryBuilder } from "../../src/query/sql-builder.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
 
 // 定义表名常量（使用目录名_文件名_作为前缀）
-const TABLE_USERS = "sqlite_query_builder_users";
-const TABLE_POSTS = "sqlite_query_builder_posts";
+// 注意：SQLite 不允许表名以 sqlite_ 开头，因此使用 test_sqlite_ 前缀
+const TABLE_USERS = "test_sqlite_query_builder_users";
+const TABLE_POSTS = "test_sqlite_query_builder_posts";
 
 describe("SQLQueryBuilder", () => {
   let adapter: DatabaseAdapter;

@@ -33,6 +33,11 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
+// 定义表名常量（使用目录名_文件名_作为前缀）
+const TABLE_TEST = "mysql_migration_test_table";
+const TABLE_ROLLBACK = "mysql_migration_rollback_table";
+const TABLE_STATUS = "mysql_migration_status_table1";
+
 describe("MigrationManager", () => {
   const testMigrationsDir = join(cwd(), "tests", "data", "test_migrations");
   let mysqlAdapter: DatabaseAdapter;
@@ -224,11 +229,11 @@ export default class TestMigration implements Migration {
   name = '${migrationName}';
 
   async up(db: DatabaseAdapter): Promise<void> {
-    await db.execute('CREATE TABLE IF NOT EXISTS test_table (id INT AUTO_INCREMENT PRIMARY KEY)', []);
+    await db.execute('CREATE TABLE IF NOT EXISTS ${TABLE_TEST} (id INT AUTO_INCREMENT PRIMARY KEY)', []);
   }
 
   async down(db: DatabaseAdapter): Promise<void> {
-    await db.execute('DROP TABLE IF EXISTS test_table', []);
+    await db.execute('DROP TABLE IF EXISTS ${TABLE_TEST}', []);
   }
 }`;
 
@@ -247,7 +252,7 @@ export default class TestMigration implements Migration {
 
       // 验证表已创建
       const tables = await mysqlAdapter.query(
-        "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'test_table'",
+        `SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '${TABLE_TEST}'`,
         [],
       );
       expect(tables.length).toBe(1);
@@ -280,11 +285,11 @@ export default class RollbackTest implements Migration {
   name = '${migrationName}';
 
   async up(db: DatabaseAdapter): Promise<void> {
-    await db.execute('CREATE TABLE IF NOT EXISTS rollback_table (id INT AUTO_INCREMENT PRIMARY KEY)', []);
+    await db.execute('CREATE TABLE IF NOT EXISTS ${TABLE_ROLLBACK} (id INT AUTO_INCREMENT PRIMARY KEY)', []);
   }
 
   async down(db: DatabaseAdapter): Promise<void> {
-    await db.execute('DROP TABLE IF EXISTS rollback_table', []);
+    await db.execute('DROP TABLE IF EXISTS ${TABLE_ROLLBACK}', []);
   }
 }`;
 
@@ -296,7 +301,7 @@ export default class RollbackTest implements Migration {
 
       // 验证表已创建
       const tablesBefore = await mysqlAdapter.query(
-        "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'rollback_table'",
+        `SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '${TABLE_ROLLBACK}'`,
         [],
       );
       expect(tablesBefore.length).toBe(1);
@@ -306,7 +311,7 @@ export default class RollbackTest implements Migration {
 
       // 验证表已被删除
       const tablesAfter = await mysqlAdapter.query(
-        "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'rollback_table'",
+        `SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '${TABLE_ROLLBACK}'`,
         [],
       );
       expect(tablesAfter.length).toBe(0);
@@ -351,10 +356,10 @@ import type { DatabaseAdapter } from '@dreamer/database';
 export default class StatusTest1 implements Migration {
   name = '${migration1Name}';
   async up(db: DatabaseAdapter): Promise<void> {
-    await db.execute('CREATE TABLE IF NOT EXISTS status_table1 (id INT AUTO_INCREMENT PRIMARY KEY)', []);
+    await db.execute('CREATE TABLE IF NOT EXISTS ${TABLE_STATUS} (id INT AUTO_INCREMENT PRIMARY KEY)', []);
   }
   async down(db: DatabaseAdapter): Promise<void> {
-    await db.execute('DROP TABLE IF EXISTS status_table1', []);
+    await db.execute('DROP TABLE IF EXISTS ${TABLE_STATUS}', []);
   }
 }`;
       await writeTextFile(migration1File, migration1Content);

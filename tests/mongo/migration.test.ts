@@ -87,7 +87,9 @@ describe("MigrationManager", () => {
         // 获取所有集合名
         const collections = await db.listCollections().toArray();
         for (const coll of collections) {
-          if (coll.name !== COLLECTION_MIGRATIONS && coll.name !== "migrations") {
+          if (
+            coll.name !== COLLECTION_MIGRATIONS && coll.name !== "migrations"
+          ) {
             try {
               await db.collection(coll.name).drop();
             } catch {
@@ -150,6 +152,7 @@ describe("MigrationManager", () => {
 
       // 检查文件内容
       const content = await readTextFile(filepath);
+
       expect(content).toContain("createCollection");
       expect(content).toContain("dropCollection");
     }, {
@@ -186,11 +189,11 @@ export default class MongoTest implements Migration {
   async up(db: DatabaseAdapter): Promise<void> {
     // 使用 MongoDB 适配器的 getDatabase 方法
     const mongoDb = (db as any).getDatabase();
-    await mongoDb.createCollection(COLLECTION_TEST);
+    await mongoDb.createCollection('${COLLECTION_TEST}');
   }
   async down(db: DatabaseAdapter): Promise<void> {
     const mongoDb = (db as any).getDatabase();
-    await mongoDb.collection(COLLECTION_TEST).drop();
+    await mongoDb.collection('${COLLECTION_TEST}').drop();
   }
 }`;
       await writeTextFile(migrationFile, migrationContent);

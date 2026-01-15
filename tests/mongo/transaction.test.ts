@@ -141,7 +141,7 @@ describe("事务测试", () => {
         });
 
         // 插入新数据
-        await db.execute("insert", "transaction_accounts", {
+        await db.execute("insert", COLLECTION_ACCOUNTS, {
           name: "Bob",
           balance: 100,
         });
@@ -209,7 +209,7 @@ describe("事务测试", () => {
       }
 
       // 验证事务已回滚
-      const accounts = await adapter.query("transaction_accounts", { name: "Alice" });
+      const accounts = await adapter.query(COLLECTION_ACCOUNTS, { name: "Alice" });
       expect(accounts.length).toBe(1);
       expect(accounts[0].balance).toBe(1000); // 余额未改变
     }, {

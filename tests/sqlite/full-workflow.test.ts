@@ -9,11 +9,15 @@ import { closeDatabase } from "../../src/init-database.ts";
 import { SQLModel } from "../../src/orm/sql-model.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
 
+// 定义表名常量（使用目录名_文件名_作为前缀）
+// 注意：SQLite 不允许表名以 sqlite_ 开头，因此使用 test_sqlite_ 前缀
+const TABLE_NAME = "test_sqlite_full_workflow_integration_users";
+
 /**
  * 测试用户模型
  */
 class User extends SQLModel {
-  static override tableName = "sqlite_integration_users";
+  static override tableName = TABLE_NAME;
   static override primaryKey = "id";
 }
 
@@ -39,7 +43,7 @@ describe("SQLite 完整工作流程集成测试", () => {
 
     // 创建测试表
     await adapter.execute(
-      `CREATE TABLE IF NOT EXISTS integration_users (
+      `CREATE TABLE IF NOT EXISTS ${TABLE_NAME} (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         email TEXT UNIQUE NOT NULL,
@@ -53,7 +57,7 @@ describe("SQLite 完整工作流程集成测试", () => {
     );
 
     // 清空测试数据
-    await adapter.execute("DELETE FROM sqlite_integration_users", []);
+    await adapter.execute(`DELETE FROM ${TABLE_NAME}`, []);
   });
 
   // 每个测试前确保适配器已连接并设置给模型
@@ -79,7 +83,7 @@ describe("SQLite 完整工作流程集成测试", () => {
       }
       // 重新创建表
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS integration_users (
+        `CREATE TABLE IF NOT EXISTS ${TABLE_NAME} (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           email TEXT UNIQUE NOT NULL,

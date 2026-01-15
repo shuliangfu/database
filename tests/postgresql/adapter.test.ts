@@ -24,6 +24,10 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
+// 定义表名常量（使用目录名_文件名_作为前缀）
+const TABLE_NAME = "postgresql_adapter_test_users";
+const TABLE_ORDERS = "postgresql_adapter_test_orders";
+
 describe("PostgreSQLAdapter", () => {
   let adapter: DatabaseAdapter;
 
@@ -91,7 +95,7 @@ describe("PostgreSQLAdapter", () => {
     // 创建测试表
     try {
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS postgresql_test_users (
+        `CREATE TABLE IF NOT EXISTS ${TABLE_NAME} (
           id SERIAL PRIMARY KEY,
           name VARCHAR(100) NOT NULL,
           email VARCHAR(100) UNIQUE,
@@ -99,7 +103,7 @@ describe("PostgreSQLAdapter", () => {
         )`,
         [],
       );
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
     } catch {
       // 表可能已存在，忽略错误
     }
@@ -152,12 +156,12 @@ describe("PostgreSQLAdapter", () => {
       }
 
       await adapter.execute(
-        "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
         ["Alice", "alice@example.com", 25],
       );
 
       const results = await adapter.query(
-        "SELECT * FROM postgresql_test_users WHERE name = $1",
+        `SELECT * FROM ${TABLE_NAME} WHERE name = $1`,
         ["Alice"],
       );
 
@@ -174,12 +178,12 @@ describe("PostgreSQLAdapter", () => {
       }
 
       await adapter.execute(
-        "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
         ["Bob", "bob@example.com", 30],
       );
 
       const results = await adapter.query(
-        "SELECT * FROM postgresql_test_users WHERE age > $1",
+        `SELECT * FROM ${TABLE_NAME} WHERE age > $1`,
         [20],
       );
 
@@ -193,7 +197,7 @@ describe("PostgreSQLAdapter", () => {
       }
 
       const results = await adapter.query(
-        "SELECT * FROM postgresql_test_users WHERE email = $1",
+        `SELECT * FROM ${TABLE_NAME} WHERE email = $1`,
         ["nonexistent@example.com"],
       );
 
@@ -205,7 +209,7 @@ describe("PostgreSQLAdapter", () => {
 
       try {
         await assertRejects(
-          () => newAdapter.query("SELECT * FROM postgresql_test_users", []),
+          () => newAdapter.query(`SELECT * FROM ${TABLE_NAME}`, []),
           Error,
         );
       } finally {
@@ -241,7 +245,7 @@ describe("PostgreSQLAdapter", () => {
       }
 
       const result = await adapter.execute(
-        "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3) RETURNING id",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3) RETURNING id`,
         ["Charlie", "charlie@example.com", 35],
       );
 
@@ -259,12 +263,12 @@ describe("PostgreSQLAdapter", () => {
       }
 
       await adapter.execute(
-        "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
         ["David", "david@example.com", 40],
       );
 
       const result = await adapter.execute(
-        "UPDATE postgresql_test_users SET age = $1 WHERE name = $2",
+        `UPDATE ${TABLE_NAME} SET age = $1 WHERE name = $2`,
         [45, "David"],
       );
 
@@ -278,12 +282,12 @@ describe("PostgreSQLAdapter", () => {
       }
 
       await adapter.execute(
-        "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
         ["Eve", "eve@example.com", 28],
       );
 
       const result = await adapter.execute(
-        "DELETE FROM postgresql_test_users WHERE name = $1",
+        `DELETE FROM ${TABLE_NAME} WHERE name = $1`,
         ["Eve"],
       );
 
@@ -312,7 +316,7 @@ describe("PostgreSQLAdapter", () => {
       try {
         await assertRejects(
           () =>
-            newAdapter.execute("INSERT INTO test_users (name) VALUES ($1)", [
+            newAdapter.execute(`INSERT INTO ${TABLE_NAME} (name) VALUES ($1)`, [
               "Alice",
             ]),
           Error,
@@ -504,21 +508,21 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+          `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
           ["Transaction User 1", "trans1@test.com", 25],
         );
         await db.execute(
-          "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+          `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
           ["Transaction User 2", "trans2@test.com", 30],
         );
       });
 
       const users = await adapter.query(
-        "SELECT * FROM postgresql_test_users WHERE email IN ($1, $2)",
+        `SELECT * FROM ${TABLE_NAME} WHERE email IN ($1, $2)`,
         ["trans1@test.com", "trans2@test.com"],
       );
       expect(users.length).toBe(2);
@@ -530,18 +534,18 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await assertRejects(
         async () => {
           await adapter.transaction(async (db: DatabaseAdapter) => {
             await db.execute(
-              "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+              `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
               ["Transaction User", "trans@test.com", 25],
             );
             // 故意触发错误（违反唯一约束）
             await db.execute(
-              "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+              `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
               ["Transaction User 2", "trans@test.com", 30], // 重复的 email
             );
           });
@@ -550,7 +554,7 @@ describe("PostgreSQLAdapter", () => {
       );
 
       const users = await adapter.query(
-        "SELECT * FROM postgresql_test_users WHERE email = $1",
+        `SELECT * FROM ${TABLE_NAME} WHERE email = $1`,
         ["trans@test.com"],
       );
       expect(users.length).toBe(0); // 事务应该回滚，没有数据
@@ -564,23 +568,23 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+          `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
           ["Savepoint User", "savepoint@test.com", 25],
         );
 
         await db.createSavepoint("sp1");
 
         await db.execute(
-          "UPDATE postgresql_test_users SET age = $1 WHERE email = $2",
+          `UPDATE ${TABLE_NAME} SET age = $1 WHERE email = $2`,
           [30, "savepoint@test.com"],
         );
 
         const user = await db.query(
-          "SELECT * FROM postgresql_test_users WHERE email = $1",
+          `SELECT * FROM ${TABLE_NAME} WHERE email = $1`,
           ["savepoint@test.com"],
         );
         expect(user[0].age).toBe(30);
@@ -588,14 +592,14 @@ describe("PostgreSQLAdapter", () => {
         await db.rollbackToSavepoint("sp1");
 
         const userAfterRollback = await db.query(
-          "SELECT * FROM postgresql_test_users WHERE email = $1",
+          `SELECT * FROM ${TABLE_NAME} WHERE email = $1`,
           ["savepoint@test.com"],
         );
         expect(userAfterRollback[0].age).toBe(25);
       });
 
       const finalUser = await adapter.query(
-        "SELECT * FROM postgresql_test_users WHERE email = $1",
+        `SELECT * FROM ${TABLE_NAME} WHERE email = $1`,
         ["savepoint@test.com"],
       );
       expect(finalUser.length).toBe(1);
@@ -608,11 +612,11 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+          `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
           ["Release User", "release@test.com", 25],
         );
 
@@ -827,16 +831,16 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+          `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
           ["Transaction User", "tx@test.com", 25],
         );
 
         const users = await db.query(
-          "SELECT * FROM postgresql_test_users WHERE email = $1",
+          `SELECT * FROM ${TABLE_NAME} WHERE email = $1`,
           ["tx@test.com"],
         );
         expect(users.length).toBe(1);
@@ -850,22 +854,22 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+          `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
           ["Update User", "update@test.com", 25],
         );
 
         const result = await db.execute(
-          "UPDATE postgresql_test_users SET age = $1 WHERE email = $2",
+          `UPDATE ${TABLE_NAME} SET age = $1 WHERE email = $2`,
           [30, "update@test.com"],
         );
         expect(result.affectedRows).toBe(1);
 
         const users = await db.query(
-          "SELECT * FROM postgresql_test_users WHERE email = $1",
+          `SELECT * FROM ${TABLE_NAME} WHERE email = $1`,
           ["update@test.com"],
         );
         expect(users[0].age).toBe(30);
@@ -923,32 +927,32 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+          `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
           ["Conflict User", "conflict@test.com", 25],
         );
 
         // 创建第一个保存点
         await db.createSavepoint("sp1");
         await db.execute(
-          "UPDATE postgresql_test_users SET age = $1 WHERE email = $2",
+          `UPDATE ${TABLE_NAME} SET age = $1 WHERE email = $2`,
           [30, "conflict@test.com"],
         );
 
         // 创建第二个同名保存点（应该使用不同的内部名称）
         await db.createSavepoint("sp1");
         await db.execute(
-          "UPDATE postgresql_test_users SET age = $1 WHERE email = $2",
+          `UPDATE ${TABLE_NAME} SET age = $1 WHERE email = $2`,
           [35, "conflict@test.com"],
         );
 
         // 回滚到最后一个匹配的保存点（最新的 sp1，即第二个 sp1 创建时的状态，age=30）
         await db.rollbackToSavepoint("sp1");
         const user = await db.query(
-          "SELECT * FROM postgresql_test_users WHERE email = $1",
+          `SELECT * FROM ${TABLE_NAME} WHERE email = $1`,
           ["conflict@test.com"],
         );
         // 回滚到最后一个匹配的保存点（第二个 sp1 创建时的状态），age 应该是 30
@@ -962,7 +966,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await assertRejects(
         async () => {
@@ -980,29 +984,29 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+          `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
           ["Multi User", "multi@test.com", 10],
         );
 
         await db.createSavepoint("sp1");
         await db.execute(
-          "UPDATE postgresql_test_users SET age = $1 WHERE email = $2",
+          `UPDATE ${TABLE_NAME} SET age = $1 WHERE email = $2`,
           [20, "multi@test.com"],
         );
 
         await db.createSavepoint("sp2");
         await db.execute(
-          "UPDATE postgresql_test_users SET age = $1 WHERE email = $2",
+          `UPDATE ${TABLE_NAME} SET age = $1 WHERE email = $2`,
           [30, "multi@test.com"],
         );
 
         await db.createSavepoint("sp3");
         await db.execute(
-          "UPDATE postgresql_test_users SET age = $1 WHERE email = $2",
+          `UPDATE ${TABLE_NAME} SET age = $1 WHERE email = $2`,
           [40, "multi@test.com"],
         );
 
@@ -1011,7 +1015,7 @@ describe("PostgreSQLAdapter", () => {
         // sp2 创建时 age=20，所以回滚后 age 应该是 20
         await db.rollbackToSavepoint("sp2");
         const user = await db.query(
-          "SELECT * FROM postgresql_test_users WHERE email = $1",
+          `SELECT * FROM ${TABLE_NAME} WHERE email = $1`,
           ["multi@test.com"],
         );
         // 回滚到 sp2 创建时的状态（age=20），而不是更新后的状态（age=30）
@@ -1027,9 +1031,9 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_orders (
+        `CREATE TABLE IF NOT EXISTS ${TABLE_ORDERS} (
           id SERIAL PRIMARY KEY,
           user_id INTEGER,
           product TEXT,
@@ -1039,25 +1043,25 @@ describe("PostgreSQLAdapter", () => {
       );
 
       await adapter.execute(
-        "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
         ["Join User", "join@test.com", 25],
       );
 
       const users = await adapter.query(
-        "SELECT id FROM test_users WHERE email = $1",
+        `SELECT id FROM ${TABLE_NAME} WHERE email = $1`,
         ["join@test.com"],
       );
       const userId = users[0].id;
 
       await adapter.execute(
-        "INSERT INTO test_orders (user_id, product, price) VALUES ($1, $2, $3)",
+        `INSERT INTO ${TABLE_ORDERS} (user_id, product, price) VALUES ($1, $2, $3)`,
         [userId, "Product A", 100.50],
       );
 
       const results = await adapter.query(
         `SELECT u.name, u.email, o.product, o.price
-         FROM test_users u
-         JOIN test_orders o ON u.id = o.user_id
+         FROM ${TABLE_NAME} u
+         JOIN ${TABLE_ORDERS} o ON u.id = o.user_id
          WHERE u.email = $1`,
         ["join@test.com"],
       );
@@ -1066,7 +1070,7 @@ describe("PostgreSQLAdapter", () => {
       expect(results[0].name).toBe("Join User");
       expect(results[0].product).toBe("Product A");
 
-      await adapter.execute("DROP TABLE IF EXISTS test_orders", []);
+      await adapter.execute(`DROP TABLE IF EXISTS ${TABLE_ORDERS}`, []);
     }, { sanitizeOps: false, sanitizeResources: false });
 
     it("应该支持聚合函数", async () => {
@@ -1075,10 +1079,10 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3), ($4, $5, $6), ($7, $8, $9)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3), ($4, $5, $6), ($7, $8, $9)`,
         [
           "User 1",
           "user1@test.com",
@@ -1093,7 +1097,7 @@ describe("PostgreSQLAdapter", () => {
       );
 
       const result = await adapter.query(
-        "SELECT COUNT(*) as count, AVG(age) as avg_age, MAX(age) as max_age, MIN(age) as min_age FROM test_users",
+        `SELECT COUNT(*) as count, AVG(age) as avg_age, MAX(age) as max_age, MIN(age) as min_age FROM ${TABLE_NAME}`,
         [],
       );
 
@@ -1112,15 +1116,15 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3), ($4, $5, $6)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3), ($4, $5, $6)`,
         ["Young User", "young@test.com", 20, "Old User", "old@test.com", 50],
       );
 
       const results = await adapter.query(
-        "SELECT * FROM postgresql_test_users WHERE age > (SELECT AVG(age) FROM test_users)",
+        `SELECT * FROM ${TABLE_NAME} WHERE age > (SELECT AVG(age) FROM ${TABLE_NAME})`,
         [],
       );
 
@@ -1136,19 +1140,19 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         for (let i = 1; i <= 5; i++) {
           await db.execute(
-            "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+            `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
             [`Batch User ${i}`, `batch${i}@test.com`, 20 + i],
           );
         }
       });
 
       const count = await adapter.query(
-        "SELECT COUNT(*) as count FROM test_users",
+        `SELECT COUNT(*) as count FROM ${TABLE_NAME}`,
         [],
       );
       expect(parseInt(count[0].count)).toBe(5);
@@ -1160,10 +1164,10 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3), ($4, $5, $6), ($7, $8, $9)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3), ($4, $5, $6), ($7, $8, $9)`,
         [
           "User 1",
           "user1@test.com",
@@ -1178,14 +1182,14 @@ describe("PostgreSQLAdapter", () => {
       );
 
       const result = await adapter.execute(
-        "UPDATE postgresql_test_users SET age = $1 WHERE age = $2",
+        `UPDATE ${TABLE_NAME} SET age = $1 WHERE age = $2`,
         [30, 20],
       );
 
       expect(result.affectedRows).toBe(3);
 
       const users = await adapter.query(
-        "SELECT * FROM postgresql_test_users WHERE age = $1",
+        `SELECT * FROM ${TABLE_NAME} WHERE age = $1`,
         [30],
       );
       expect(users.length).toBe(3);
@@ -1197,10 +1201,10 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3), ($4, $5, $6), ($7, $8, $9)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3), ($4, $5, $6), ($7, $8, $9)`,
         [
           "User 1",
           "user1@test.com",
@@ -1215,13 +1219,13 @@ describe("PostgreSQLAdapter", () => {
       );
 
       const result = await adapter.execute(
-        "DELETE FROM postgresql_test_users WHERE age < $1",
+        `DELETE FROM ${TABLE_NAME} WHERE age < $1`,
         [35],
       );
 
       expect(result.affectedRows).toBe(2);
 
-      const users = await adapter.query("SELECT * FROM test_users", []);
+      const users = await adapter.query(`SELECT * FROM ${TABLE_NAME}`, []);
       expect(users.length).toBe(1);
     }, { sanitizeOps: false, sanitizeResources: false });
   });
@@ -1254,9 +1258,9 @@ describe("PostgreSQLAdapter", () => {
       const logger = new QueryLogger({ enabled: true, logLevel: "all" });
       (adapter as any).setQueryLogger(logger);
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
       await adapter.execute(
-        "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
         ["Log User", "log@test.com", 25],
       );
 
@@ -1304,15 +1308,15 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.execute(
-        "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
         ["Null User", null, null],
       );
 
       const users = await adapter.query(
-        "SELECT * FROM postgresql_test_users WHERE name = $1",
+        `SELECT * FROM ${TABLE_NAME} WHERE name = $1`,
         ["Null User"],
       );
       expect(users.length).toBe(1);
@@ -1326,16 +1330,16 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       const specialName = 'User\'s Name & "Special" <Chars>';
       await adapter.execute(
-        "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
         [specialName, "special@test.com", 25],
       );
 
       const users = await adapter.query(
-        "SELECT * FROM postgresql_test_users WHERE email = $1",
+        `SELECT * FROM ${TABLE_NAME} WHERE email = $1`,
         ["special@test.com"],
       );
       expect(users.length).toBe(1);
@@ -1348,17 +1352,17 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       // 尝试SQL注入
       const maliciousInput = "'; DROP TABLE test_users; --";
       await adapter.execute(
-        "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
         [maliciousInput, "inject@test.com", 25],
       );
 
       // 表应该仍然存在
-      const users = await adapter.query("SELECT * FROM test_users", []);
+      const users = await adapter.query(`SELECT * FROM ${TABLE_NAME}`, []);
       expect(users.length).toBe(1);
       expect(users[0].name).toBe(maliciousInput);
     }, { sanitizeOps: false, sanitizeResources: false });
@@ -1454,7 +1458,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       // 修复 SQL 语法：使用 VALUES 子句，因为不需要从表查询
       const result = await adapter.query(
@@ -1541,30 +1545,30 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.transaction(async (db1: DatabaseAdapter) => {
         await db1.execute(
-          "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+          `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
           ["Nested User", "nested@test.com", 25],
         );
 
         await db1.transaction(async (db2: DatabaseAdapter) => {
           await db2.execute(
-            "UPDATE postgresql_test_users SET age = $1 WHERE email = $2",
+            `UPDATE ${TABLE_NAME} SET age = $1 WHERE email = $2`,
             [30, "nested@test.com"],
           );
 
           await db2.transaction(async (db3: DatabaseAdapter) => {
             await db3.execute(
-              "UPDATE postgresql_test_users SET age = $1 WHERE email = $2",
+              `UPDATE ${TABLE_NAME} SET age = $1 WHERE email = $2`,
               [35, "nested@test.com"],
             );
           });
         });
 
         const users = await db1.query(
-          "SELECT * FROM postgresql_test_users WHERE email = $1",
+          `SELECT * FROM ${TABLE_NAME} WHERE email = $1`,
           ["nested@test.com"],
         );
         expect(users[0].age).toBe(35);
@@ -1577,19 +1581,19 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await assertRejects(
         async () => {
           await adapter.transaction(async (db1: DatabaseAdapter) => {
             await db1.execute(
-              "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+              `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
               ["Nested Rollback User", "nested_rollback@test.com", 25],
             );
 
             await db1.transaction(async (db2: DatabaseAdapter) => {
               await db2.execute(
-                "UPDATE postgresql_test_users SET age = $1 WHERE email = $2",
+                `UPDATE ${TABLE_NAME} SET age = $1 WHERE email = $2`,
                 [30, "nested_rollback@test.com"],
               );
 
@@ -1602,7 +1606,7 @@ describe("PostgreSQLAdapter", () => {
 
       // 验证整个事务已回滚
       const users = await adapter.query(
-        "SELECT * FROM postgresql_test_users WHERE email = $1",
+        `SELECT * FROM ${TABLE_NAME} WHERE email = $1`,
         ["nested_rollback@test.com"],
       );
       expect(users.length).toBe(0);
@@ -1616,12 +1620,12 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       // 插入测试数据
       for (let i = 1; i <= 10; i++) {
         await adapter.execute(
-          "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+          `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
           [`Concurrent User ${i}`, `concurrent${i}@test.com`, 20 + i],
         );
       }
@@ -1629,7 +1633,7 @@ describe("PostgreSQLAdapter", () => {
       // 并发查询
       const promises = Array.from({ length: 10 }, (_, i) =>
         adapter.query(
-          "SELECT * FROM postgresql_test_users WHERE email = $1",
+          `SELECT * FROM ${TABLE_NAME} WHERE email = $1`,
           [`concurrent${i + 1}@test.com`],
         ));
 
@@ -1647,7 +1651,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       // 并发事务
       const promises = Array.from(
@@ -1655,7 +1659,7 @@ describe("PostgreSQLAdapter", () => {
         (_, i) =>
           adapter.transaction(async (db: DatabaseAdapter) => {
             await db.execute(
-              "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+              `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
               [`Concurrent TX User ${i}`, `concurrent_tx${i}@test.com`, 20 + i],
             );
             return i;
@@ -1667,7 +1671,7 @@ describe("PostgreSQLAdapter", () => {
 
       // 验证所有数据都已插入
       const count = await adapter.query(
-        "SELECT COUNT(*) as count FROM test_users",
+        `SELECT COUNT(*) as count FROM ${TABLE_NAME}`,
         [],
       );
       expect(parseInt(count[0].count)).toBe(5);
@@ -1702,13 +1706,13 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       const logger = new QueryLogger({ enabled: true, logLevel: "all" });
       (adapter as any).setQueryLogger(logger);
 
       await adapter.execute(
-        "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES ($1, $2, $3)`,
         ["Log Detail User", "log_detail@test.com", 25],
       );
 

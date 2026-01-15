@@ -22,6 +22,9 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
+// 定义表名常量（使用目录名_文件名_作为前缀）
+const TABLE_NAME = "mysql_performance_test_perf_data";
+
 describe("MySQL/MariaDB 性能测试", () => {
   let adapter: DatabaseAdapter;
 
@@ -70,9 +73,9 @@ describe("MySQL/MariaDB 性能测试", () => {
     if (!adapter) return;
 
     try {
-      await adapter.execute("DROP TABLE IF EXISTS test_perf_data", []);
+      await adapter.execute(`DROP TABLE IF EXISTS ${TABLE_NAME}`, []);
       await adapter.execute(
-        `CREATE TABLE test_perf_data (
+        `CREATE TABLE ${TABLE_NAME} (
           id INT AUTO_INCREMENT PRIMARY KEY,
           name VARCHAR(100),
           email VARCHAR(100),
@@ -95,7 +98,7 @@ describe("MySQL/MariaDB 性能测试", () => {
       // 插入测试数据
       for (let i = 1; i <= 100; i++) {
         await adapter.execute(
-          "INSERT INTO test_perf_data (name, email, value) VALUES (?, ?, ?)",
+          `INSERT INTO ${TABLE_NAME} (name, email, value) VALUES (?, ?, ?)`,
           [`User ${i}`, `user${i}@test.com`, i],
         );
       }
@@ -104,7 +107,7 @@ describe("MySQL/MariaDB 性能测试", () => {
       const startTime = Date.now();
       const promises = Array.from({ length: 100 }, (_, i) =>
         adapter.query(
-          "SELECT * FROM test_perf_data WHERE id = ?",
+          `SELECT * FROM ${TABLE_NAME} WHERE id = ?`,
           [i + 1],
         ));
 
@@ -150,7 +153,7 @@ describe("MySQL/MariaDB 性能测试", () => {
       for (let i = 0; i < iterations; i++) {
         await adapter.transaction(async (db) => {
           await db.execute(
-            "INSERT INTO test_perf_data (name, email, value) VALUES (?, ?, ?)",
+            `INSERT INTO ${TABLE_NAME} (name, email, value) VALUES (?, ?, ?)`,
             [`TX User ${i}`, `tx${i}@test.com`, i],
           );
         });
@@ -176,7 +179,7 @@ describe("MySQL/MariaDB 性能测试", () => {
       await adapter.transaction(async (db) => {
         for (let i = 1; i <= batchSize; i++) {
           await db.execute(
-            "INSERT INTO test_perf_data (name, email, value) VALUES (?, ?, ?)",
+            `INSERT INTO ${TABLE_NAME} (name, email, value) VALUES (?, ?, ?)`,
             [`Batch User ${i}`, `batch${i}@test.com`, i],
           );
         }
@@ -185,7 +188,7 @@ describe("MySQL/MariaDB 性能测试", () => {
       const duration = Date.now() - startTime;
 
       const count = await adapter.query(
-        "SELECT COUNT(*) as count FROM test_perf_data",
+        `SELECT COUNT(*) as count FROM ${TABLE_NAME}`,
         [],
       );
 
@@ -203,7 +206,7 @@ describe("MySQL/MariaDB 性能测试", () => {
       await adapter.transaction(async (db) => {
         for (let i = 1; i <= 5000; i++) {
           await db.execute(
-            "INSERT INTO test_perf_data (name, email, value) VALUES (?, ?, ?)",
+            `INSERT INTO ${TABLE_NAME} (name, email, value) VALUES (?, ?, ?)`,
             [`Query User ${i}`, `query${i}@test.com`, i],
           );
         }
@@ -211,7 +214,7 @@ describe("MySQL/MariaDB 性能测试", () => {
 
       const startTime = Date.now();
       const results = await adapter.query(
-        "SELECT * FROM test_perf_data WHERE value > ? AND value < ?",
+        `SELECT * FROM ${TABLE_NAME} WHERE value > ? AND value < ?`,
         [1000, 2000],
       );
       const duration = Date.now() - startTime;

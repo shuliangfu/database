@@ -17,11 +17,14 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
+// 定义表名常量（使用目录名_文件名_作为前缀）
+const TABLE_NAME = "postgresql_full_workflow_integration_users";
+
 /**
  * 测试用户模型
  */
 class User extends SQLModel {
-  static override tableName = "postgresql_integration_users";
+  static override tableName = TABLE_NAME;
   static override primaryKey = "id";
 }
 
@@ -62,7 +65,7 @@ describe("PostgreSQL 完整工作流程集成测试", () => {
 
     // 创建测试表
     await adapter.execute(
-      `CREATE TABLE IF NOT EXISTS integration_users (
+      `CREATE TABLE IF NOT EXISTS ${TABLE_NAME} (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         email VARCHAR(255) UNIQUE NOT NULL,
@@ -76,7 +79,7 @@ describe("PostgreSQL 完整工作流程集成测试", () => {
     );
 
     // 清空测试数据
-    await adapter.execute("TRUNCATE TABLE integration_users RESTART IDENTITY", []);
+    await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME} RESTART IDENTITY`, []);
 
     // 设置模型适配器
     User.setAdapter(adapter);

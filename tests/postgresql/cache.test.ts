@@ -12,11 +12,14 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
+// 定义表名常量（使用目录名_文件名_作为前缀）
+const TABLE_NAME = "postgresql_cache_test_users";
+
 /**
  * 测试用户模型（用于缓存测试）
  */
 class CacheTestUser extends SQLModel {
-  static override tableName = "postgresql_cache_test_users";
+  static override tableName = TABLE_NAME;
   static schema = {
     id: { type: "integer", primaryKey: true, autoIncrement: true },
     name: { type: "string", required: true },
@@ -52,7 +55,7 @@ describe("缓存机制测试", () => {
 
     // 创建测试表（使用 PostgreSQL 语法）
     await adapter.execute(
-      `CREATE TABLE IF NOT EXISTS postgresql_cache_test_users (
+      `CREATE TABLE IF NOT EXISTS ${TABLE_NAME} (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         email VARCHAR(255) NOT NULL,

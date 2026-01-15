@@ -23,6 +23,10 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
+// 定义表名常量（使用目录名_文件名_作为前缀）
+const TABLE_NAME = "mysql_adapter_test_users";
+const TABLE_ORDERS = "mysql_adapter_test_orders";
+
 describe("MySQLAdapter", () => {
   let adapter: DatabaseAdapter;
 
@@ -73,7 +77,7 @@ describe("MySQLAdapter", () => {
     // 创建测试表
     try {
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS mysql_test_users (
+        `CREATE TABLE IF NOT EXISTS ${TABLE_NAME} (
           id INT AUTO_INCREMENT PRIMARY KEY,
           name VARCHAR(100) NOT NULL,
           email VARCHAR(100) UNIQUE,
@@ -81,7 +85,7 @@ describe("MySQLAdapter", () => {
         )`,
         [],
       );
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
     } catch {
       // 表可能已存在，忽略错误
     }
@@ -125,12 +129,12 @@ describe("MySQLAdapter", () => {
       }
 
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
         ["Alice", "alice@example.com", 25],
       );
 
       const results = await adapter.query(
-        "SELECT * FROM test_users WHERE name = ?",
+        `SELECT * FROM ${TABLE_NAME} WHERE name = ?`,
         ["Alice"],
       );
 
@@ -147,12 +151,12 @@ describe("MySQLAdapter", () => {
       }
 
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
         ["Bob", "bob@example.com", 30],
       );
 
       const results = await adapter.query(
-        "SELECT * FROM test_users WHERE age > ?",
+        `SELECT * FROM ${TABLE_NAME} WHERE age > ?`,
         [20],
       );
 
@@ -166,7 +170,7 @@ describe("MySQLAdapter", () => {
       }
 
       const results = await adapter.query(
-        "SELECT * FROM test_users WHERE email = ?",
+        `SELECT * FROM ${TABLE_NAME} WHERE email = ?`,
         ["nonexistent@example.com"],
       );
 
@@ -177,7 +181,7 @@ describe("MySQLAdapter", () => {
       const newAdapter = new MySQLAdapter();
 
       await assertRejects(
-        () => newAdapter.query("SELECT * FROM test_users", []),
+        () => newAdapter.query(`SELECT * FROM ${TABLE_NAME}`, []),
         Error,
       );
     }, { sanitizeOps: false, sanitizeResources: false });
@@ -205,7 +209,7 @@ describe("MySQLAdapter", () => {
       }
 
       const result = await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
         ["Charlie", "charlie@example.com", 35],
       );
 
@@ -220,12 +224,12 @@ describe("MySQLAdapter", () => {
       }
 
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
         ["David", "david@example.com", 40],
       );
 
       const result = await adapter.execute(
-        "UPDATE test_users SET age = ? WHERE name = ?",
+        `UPDATE ${TABLE_NAME} SET age = ? WHERE name = ?`,
         [45, "David"],
       );
 
@@ -239,12 +243,12 @@ describe("MySQLAdapter", () => {
       }
 
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
         ["Eve", "eve@example.com", 28],
       );
 
       const result = await adapter.execute(
-        "DELETE FROM test_users WHERE name = ?",
+        `DELETE FROM ${TABLE_NAME} WHERE name = ?`,
         ["Eve"],
       );
 
@@ -272,7 +276,7 @@ describe("MySQLAdapter", () => {
 
       await assertRejects(
         () =>
-          newAdapter.execute("INSERT INTO test_users (name) VALUES (?)", [
+          newAdapter.execute(`INSERT INTO ${TABLE_NAME} (name) VALUES (?)`, [
             "Alice",
           ]),
         Error,
@@ -434,21 +438,21 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+          `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
           ["Transaction User 1", "trans1@test.com", 25],
         );
         await db.execute(
-          "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+          `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
           ["Transaction User 2", "trans2@test.com", 30],
         );
       });
 
       const users = await adapter.query(
-        "SELECT * FROM test_users WHERE email IN (?, ?)",
+        `SELECT * FROM ${TABLE_NAME} WHERE email IN (?, ?)`,
         ["trans1@test.com", "trans2@test.com"],
       );
       expect(users.length).toBe(2);
@@ -460,18 +464,18 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await assertRejects(
         async () => {
           await adapter.transaction(async (db: DatabaseAdapter) => {
             await db.execute(
-              "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+              `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
               ["Transaction User", "trans@test.com", 25],
             );
             // 故意触发错误（违反唯一约束）
             await db.execute(
-              "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+              `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
               ["Transaction User 2", "trans@test.com", 30], // 重复的 email
             );
           });
@@ -480,7 +484,7 @@ describe("MySQLAdapter", () => {
       );
 
       const users = await adapter.query(
-        "SELECT * FROM test_users WHERE email = ?",
+        `SELECT * FROM ${TABLE_NAME} WHERE email = ?`,
         ["trans@test.com"],
       );
       expect(users.length).toBe(0); // 事务应该回滚，没有数据
@@ -494,23 +498,23 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+          `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
           ["Savepoint User", "savepoint@test.com", 25],
         );
 
         await db.createSavepoint("sp1");
 
         await db.execute(
-          "UPDATE test_users SET age = ? WHERE email = ?",
+          `UPDATE ${TABLE_NAME} SET age = ? WHERE email = ?`,
           [30, "savepoint@test.com"],
         );
 
         const user = await db.query(
-          "SELECT * FROM test_users WHERE email = ?",
+          `SELECT * FROM ${TABLE_NAME} WHERE email = ?`,
           ["savepoint@test.com"],
         );
         expect(user[0].age).toBe(30);
@@ -518,14 +522,14 @@ describe("MySQLAdapter", () => {
         await db.rollbackToSavepoint("sp1");
 
         const userAfterRollback = await db.query(
-          "SELECT * FROM test_users WHERE email = ?",
+          `SELECT * FROM ${TABLE_NAME} WHERE email = ?`,
           ["savepoint@test.com"],
         );
         expect(userAfterRollback[0].age).toBe(25);
       });
 
       const finalUser = await adapter.query(
-        "SELECT * FROM test_users WHERE email = ?",
+        `SELECT * FROM ${TABLE_NAME} WHERE email = ?`,
         ["savepoint@test.com"],
       );
       expect(finalUser.length).toBe(1);
@@ -538,11 +542,11 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+          `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
           ["Release User", "release@test.com", 25],
         );
 
@@ -754,16 +758,16 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+          `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
           ["Transaction User", "tx@test.com", 25],
         );
 
         const users = await db.query(
-          "SELECT * FROM test_users WHERE email = ?",
+          `SELECT * FROM ${TABLE_NAME} WHERE email = ?`,
           ["tx@test.com"],
         );
         expect(users.length).toBe(1);
@@ -777,22 +781,22 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+          `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
           ["Update User", "update@test.com", 25],
         );
 
         const result = await db.execute(
-          "UPDATE test_users SET age = ? WHERE email = ?",
+          `UPDATE ${TABLE_NAME} SET age = ? WHERE email = ?`,
           [30, "update@test.com"],
         );
         expect(result.affectedRows).toBe(1);
 
         const users = await db.query(
-          "SELECT * FROM test_users WHERE email = ?",
+          `SELECT * FROM ${TABLE_NAME} WHERE email = ?`,
           ["update@test.com"],
         );
         expect(users[0].age).toBe(30);
@@ -850,30 +854,30 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+          `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
           ["Conflict User", "conflict@test.com", 25],
         );
 
         await db.createSavepoint("sp1");
         await db.execute(
-          "UPDATE test_users SET age = ? WHERE email = ?",
+          `UPDATE ${TABLE_NAME} SET age = ? WHERE email = ?`,
           [30, "conflict@test.com"],
         );
 
         await db.createSavepoint("sp1");
         await db.execute(
-          "UPDATE test_users SET age = ? WHERE email = ?",
+          `UPDATE ${TABLE_NAME} SET age = ? WHERE email = ?`,
           [35, "conflict@test.com"],
         );
 
         // 回滚到第二个 sp1（应该回滚到 age=30 的状态，即第二个 sp1 创建时的状态）
         await db.rollbackToSavepoint("sp1");
         const user = await db.query(
-          "SELECT * FROM test_users WHERE email = ?",
+          `SELECT * FROM ${TABLE_NAME} WHERE email = ?`,
           ["conflict@test.com"],
         );
         // 现在实现会回滚到最后一个匹配的保存点（最新的），所以应该是 30
@@ -887,7 +891,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await assertRejects(
         async () => {
@@ -905,32 +909,32 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+          `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
           ["Multi User", "multi@test.com", 10],
         );
 
         // 创建 sp1（此时 age=10）
         await db.createSavepoint("sp1");
         await db.execute(
-          "UPDATE test_users SET age = ? WHERE email = ?",
+          `UPDATE ${TABLE_NAME} SET age = ? WHERE email = ?`,
           [20, "multi@test.com"],
         );
 
         // 创建 sp2（此时 age=20）
         await db.createSavepoint("sp2");
         await db.execute(
-          "UPDATE test_users SET age = ? WHERE email = ?",
+          `UPDATE ${TABLE_NAME} SET age = ? WHERE email = ?`,
           [30, "multi@test.com"],
         );
 
         // 创建 sp3（此时 age=30）
         await db.createSavepoint("sp3");
         await db.execute(
-          "UPDATE test_users SET age = ? WHERE email = ?",
+          `UPDATE ${TABLE_NAME} SET age = ? WHERE email = ?`,
           [40, "multi@test.com"],
         );
 
@@ -940,7 +944,7 @@ describe("MySQLAdapter", () => {
         // 所以回滚到 sp2 应该回到 age=20（sp2 创建时的状态）
         await db.rollbackToSavepoint("sp2");
         const user = await db.query(
-          "SELECT * FROM test_users WHERE email = ?",
+          `SELECT * FROM ${TABLE_NAME} WHERE email = ?`,
           ["multi@test.com"],
         );
         // 修正期望值：回滚到 sp2 应该回到 sp2 创建时的状态（age=20）
@@ -956,9 +960,9 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_orders (
+        `CREATE TABLE IF NOT EXISTS ${TABLE_ORDERS} (
           id INT AUTO_INCREMENT PRIMARY KEY,
           user_id INT,
           product VARCHAR(255),
@@ -968,25 +972,25 @@ describe("MySQLAdapter", () => {
       );
 
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
         ["Join User", "join@test.com", 25],
       );
 
       const users = await adapter.query(
-        "SELECT id FROM test_users WHERE email = ?",
+        `SELECT id FROM ${TABLE_NAME} WHERE email = ?`,
         ["join@test.com"],
       );
       const userId = users[0].id;
 
       await adapter.execute(
-        "INSERT INTO test_orders (user_id, product, price) VALUES (?, ?, ?)",
+        `INSERT INTO ${TABLE_ORDERS} (user_id, product, price) VALUES (?, ?, ?)`,
         [userId, "Product A", 100.50],
       );
 
       const results = await adapter.query(
         `SELECT u.name, u.email, o.product, o.price
-         FROM test_users u
-         JOIN test_orders o ON u.id = o.user_id
+         FROM ${TABLE_NAME} u
+         JOIN ${TABLE_ORDERS} o ON u.id = o.user_id
          WHERE u.email = ?`,
         ["join@test.com"],
       );
@@ -995,7 +999,7 @@ describe("MySQLAdapter", () => {
       expect(results[0].name).toBe("Join User");
       expect(results[0].product).toBe("Product A");
 
-      await adapter.execute("DROP TABLE IF EXISTS test_orders", []);
+      await adapter.execute(`DROP TABLE IF EXISTS ${TABLE_ORDERS}`, []);
     }, { sanitizeOps: false, sanitizeResources: false });
 
     it("应该支持聚合函数", async () => {
@@ -1004,10 +1008,10 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?)`,
         [
           "User 1",
           "user1@test.com",
@@ -1022,7 +1026,7 @@ describe("MySQLAdapter", () => {
       );
 
       const result = await adapter.query(
-        "SELECT COUNT(*) as count, AVG(age) as avg_age, MAX(age) as max_age, MIN(age) as min_age FROM test_users",
+        `SELECT COUNT(*) as count, AVG(age) as avg_age, MAX(age) as max_age, MIN(age) as min_age FROM ${TABLE_NAME}`,
         [],
       );
 
@@ -1040,15 +1044,15 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?), (?, ?, ?)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?), (?, ?, ?)`,
         ["Young User", "young@test.com", 20, "Old User", "old@test.com", 50],
       );
 
       const results = await adapter.query(
-        "SELECT * FROM test_users WHERE age > (SELECT AVG(age) FROM test_users)",
+        `SELECT * FROM ${TABLE_NAME} WHERE age > (SELECT AVG(age) FROM ${TABLE_NAME})`,
         [],
       );
 
@@ -1064,19 +1068,19 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         for (let i = 1; i <= 5; i++) {
           await db.execute(
-            "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+            `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
             [`Batch User ${i}`, `batch${i}@test.com`, 20 + i],
           );
         }
       });
 
       const count = await adapter.query(
-        "SELECT COUNT(*) as count FROM test_users",
+        `SELECT COUNT(*) as count FROM ${TABLE_NAME}`,
         [],
       );
       expect(parseInt(count[0].count)).toBe(5);
@@ -1088,10 +1092,10 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?)`,
         [
           "User 1",
           "user1@test.com",
@@ -1106,14 +1110,14 @@ describe("MySQLAdapter", () => {
       );
 
       const result = await adapter.execute(
-        "UPDATE test_users SET age = ? WHERE age = ?",
+        `UPDATE ${TABLE_NAME} SET age = ? WHERE age = ?`,
         [30, 20],
       );
 
       expect(result.affectedRows).toBe(3);
 
       const users = await adapter.query(
-        "SELECT * FROM test_users WHERE age = ?",
+        `SELECT * FROM ${TABLE_NAME} WHERE age = ?`,
         [30],
       );
       expect(users.length).toBe(3);
@@ -1125,10 +1129,10 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?)`,
         [
           "User 1",
           "user1@test.com",
@@ -1143,13 +1147,13 @@ describe("MySQLAdapter", () => {
       );
 
       const result = await adapter.execute(
-        "DELETE FROM test_users WHERE age < ?",
+        `DELETE FROM ${TABLE_NAME} WHERE age < ?`,
         [35],
       );
 
       expect(result.affectedRows).toBe(2);
 
-      const users = await adapter.query("SELECT * FROM test_users", []);
+      const users = await adapter.query(`SELECT * FROM ${TABLE_NAME}`, []);
       expect(users.length).toBe(1);
     }, { sanitizeOps: false, sanitizeResources: false });
 
@@ -1159,10 +1163,10 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       const result = await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
         ["ID User", "id@test.com", 25],
       );
 
@@ -1198,9 +1202,9 @@ describe("MySQLAdapter", () => {
       const logger = new QueryLogger({ enabled: true, logLevel: "all" });
       adapter.setQueryLogger(logger);
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
         ["Log User", "log@test.com", 25],
       );
 
@@ -1247,15 +1251,15 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
         ["Null User", null, null],
       );
 
       const users = await adapter.query(
-        "SELECT * FROM test_users WHERE name = ?",
+        `SELECT * FROM ${TABLE_NAME} WHERE name = ?`,
         ["Null User"],
       );
       expect(users.length).toBe(1);
@@ -1269,16 +1273,16 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       const specialName = 'User\'s Name & "Special" <Chars>';
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
         [specialName, "special@test.com", 25],
       );
 
       const users = await adapter.query(
-        "SELECT * FROM test_users WHERE email = ?",
+        `SELECT * FROM ${TABLE_NAME} WHERE email = ?`,
         ["special@test.com"],
       );
       expect(users.length).toBe(1);
@@ -1291,15 +1295,15 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
-      const maliciousInput = "'; DROP TABLE test_users; --";
+      const maliciousInput = `'; DROP TABLE ${TABLE_NAME}; --`;
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
         [maliciousInput, "inject@test.com", 25],
       );
 
-      const users = await adapter.query("SELECT * FROM test_users", []);
+      const users = await adapter.query(`SELECT * FROM ${TABLE_NAME}`, []);
       expect(users.length).toBe(1);
       expect(users[0].name).toBe(maliciousInput);
     }, { sanitizeOps: false, sanitizeResources: false });
@@ -1438,30 +1442,30 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await adapter.transaction(async (db1: DatabaseAdapter) => {
         await db1.execute(
-          "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+          `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
           ["Nested User", "nested@test.com", 25],
         );
 
         await db1.transaction(async (db2: DatabaseAdapter) => {
           await db2.execute(
-            "UPDATE test_users SET age = ? WHERE email = ?",
+            `UPDATE ${TABLE_NAME} SET age = ? WHERE email = ?`,
             [30, "nested@test.com"],
           );
 
           await db2.transaction(async (db3: DatabaseAdapter) => {
             await db3.execute(
-              "UPDATE test_users SET age = ? WHERE email = ?",
+              `UPDATE ${TABLE_NAME} SET age = ? WHERE email = ?`,
               [35, "nested@test.com"],
             );
           });
         });
 
         const users = await db1.query(
-          "SELECT * FROM test_users WHERE email = ?",
+          `SELECT * FROM ${TABLE_NAME} WHERE email = ?`,
           ["nested@test.com"],
         );
         expect(users[0].age).toBe(35);
@@ -1474,19 +1478,19 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       await assertRejects(
         async () => {
           await adapter.transaction(async (db1: DatabaseAdapter) => {
             await db1.execute(
-              "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+              `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
               ["Nested Rollback User", "nested_rollback@test.com", 25],
             );
 
             await db1.transaction(async (db2: DatabaseAdapter) => {
               await db2.execute(
-                "UPDATE test_users SET age = ? WHERE email = ?",
+                `UPDATE ${TABLE_NAME} SET age = ? WHERE email = ?`,
                 [30, "nested_rollback@test.com"],
               );
 
@@ -1498,7 +1502,7 @@ describe("MySQLAdapter", () => {
       );
 
       const users = await adapter.query(
-        "SELECT * FROM test_users WHERE email = ?",
+        `SELECT * FROM ${TABLE_NAME} WHERE email = ?`,
         ["nested_rollback@test.com"],
       );
       expect(users.length).toBe(0);
@@ -1512,18 +1516,18 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       for (let i = 1; i <= 10; i++) {
         await adapter.execute(
-          "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+          `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
           [`Concurrent User ${i}`, `concurrent${i}@test.com`, 20 + i],
         );
       }
 
       const promises = Array.from({ length: 10 }, (_, i) =>
         adapter.query(
-          "SELECT * FROM test_users WHERE email = ?",
+          `SELECT * FROM ${TABLE_NAME} WHERE email = ?`,
           [`concurrent${i + 1}@test.com`],
         ));
 
@@ -1541,14 +1545,14 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       const promises = Array.from(
         { length: 5 },
         (_, i) =>
           adapter.transaction(async (db: DatabaseAdapter) => {
             await db.execute(
-              "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+              `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
               [`Concurrent TX User ${i}`, `concurrent_tx${i}@test.com`, 20 + i],
             );
             return i;
@@ -1559,7 +1563,7 @@ describe("MySQLAdapter", () => {
       expect(results.length).toBe(5);
 
       const count = await adapter.query(
-        "SELECT COUNT(*) as count FROM test_users",
+        `SELECT COUNT(*) as count FROM ${TABLE_NAME}`,
         [],
       );
       expect(parseInt(count[0].count)).toBe(5);
@@ -1594,13 +1598,13 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
+      await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
 
       const logger = new QueryLogger({ enabled: true, logLevel: "all" });
       adapter.setQueryLogger(logger);
 
       await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+        `INSERT INTO ${TABLE_NAME} (name, email, age) VALUES (?, ?, ?)`,
         ["Log Detail User", "log_detail@test.com", 25],
       );
 

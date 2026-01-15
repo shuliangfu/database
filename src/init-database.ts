@@ -168,4 +168,6 @@ export async function closeDatabase(): Promise<void> {
     await dbManager.closeAll();
     dbManager = null;
   }
+  // 清理配置加载器，避免测试之间的状态污染
+  configLoader = null;
 }

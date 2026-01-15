@@ -25,6 +25,15 @@ import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { MigrationManager } from "../../src/migration/manager.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
 
+// 定义表名常量（使用目录名_文件名_作为前缀）
+// 注意：SQLite 不允许表名以 sqlite_ 开头，因此使用 test_sqlite_ 前缀
+const TABLE_TEST = "test_sqlite_migration_test_table";
+const TABLE_ROLLBACK = "test_sqlite_migration_rollback_table";
+const TABLE_STATUS = "test_sqlite_migration_status_table1";
+const TABLE_1 = "test_sqlite_migration_table1";
+const TABLE_2 = "test_sqlite_migration_table2";
+const TABLE_3 = "test_sqlite_migration_table3";
+
 describe("MigrationManager", () => {
   const testMigrationsDir = join(cwd(), "tests", "data", "test_migrations");
   let sqliteAdapter: DatabaseAdapter;
@@ -189,11 +198,11 @@ export default class TestMigration implements Migration {
   name = '${migrationName}';
 
   async up(db: DatabaseAdapter): Promise<void> {
-    await db.execute('CREATE TABLE IF NOT EXISTS test_table (id INTEGER PRIMARY KEY)', []);
+    await db.execute('CREATE TABLE IF NOT EXISTS ${TABLE_TEST} (id INTEGER PRIMARY KEY)', []);
   }
 
   async down(db: DatabaseAdapter): Promise<void> {
-    await db.execute('DROP TABLE IF EXISTS test_table', []);
+    await db.execute('DROP TABLE IF EXISTS ${TABLE_TEST}', []);
   }
 }`;
 
@@ -215,7 +224,7 @@ export default class TestMigration implements Migration {
 
       // 验证表已创建
       const tables = await sqliteAdapter.query(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='test_table'",
+        `SELECT name FROM sqlite_master WHERE type='table' AND name='${TABLE_TEST}'`,
         [],
       );
       expect(tables.length).toBe(1);
@@ -253,10 +262,10 @@ import type { DatabaseAdapter } from '@dreamer/database';
 export default class Migration3 implements Migration {
   name = '${migration3Name}';
   async up(db: DatabaseAdapter): Promise<void> {
-    await db.execute('CREATE TABLE IF NOT EXISTS table3 (id INTEGER PRIMARY KEY)', []);
+    await db.execute('CREATE TABLE IF NOT EXISTS ${TABLE_3} (id INTEGER PRIMARY KEY)', []);
   }
   async down(db: DatabaseAdapter): Promise<void> {
-    await db.execute('DROP TABLE IF EXISTS table3', []);
+    await db.execute('DROP TABLE IF EXISTS ${TABLE_3}', []);
   }
 }`;
       await writeTextFile(migration3File, migration3Content);
@@ -269,10 +278,10 @@ import type { DatabaseAdapter } from '@dreamer/database';
 export default class Migration1 implements Migration {
   name = '${migration1Name}';
   async up(db: DatabaseAdapter): Promise<void> {
-    await db.execute('CREATE TABLE IF NOT EXISTS table1 (id INTEGER PRIMARY KEY)', []);
+    await db.execute('CREATE TABLE IF NOT EXISTS ${TABLE_1} (id INTEGER PRIMARY KEY)', []);
   }
   async down(db: DatabaseAdapter): Promise<void> {
-    await db.execute('DROP TABLE IF EXISTS table1', []);
+    await db.execute('DROP TABLE IF EXISTS ${TABLE_1}', []);
   }
 }`;
       const migration2Content =
@@ -282,10 +291,10 @@ import type { DatabaseAdapter } from '@dreamer/database';
 export default class Migration2 implements Migration {
   name = '${migration2Name}';
   async up(db: DatabaseAdapter): Promise<void> {
-    await db.execute('CREATE TABLE IF NOT EXISTS table2 (id INTEGER PRIMARY KEY)', []);
+    await db.execute('CREATE TABLE IF NOT EXISTS ${TABLE_2} (id INTEGER PRIMARY KEY)', []);
   }
   async down(db: DatabaseAdapter): Promise<void> {
-    await db.execute('DROP TABLE IF EXISTS table2', []);
+    await db.execute('DROP TABLE IF EXISTS ${TABLE_2}', []);
   }
 }`;
       await writeTextFile(migration1File, migration1Content);
@@ -331,10 +340,10 @@ import type { DatabaseAdapter } from '@dreamer/database';
 export default class TestMigration implements Migration {
   name = '${migrationName}';
   async up(db: DatabaseAdapter): Promise<void> {
-    await db.execute('CREATE TABLE IF NOT EXISTS test_table (id INTEGER PRIMARY KEY)', []);
+    await db.execute('CREATE TABLE IF NOT EXISTS ${TABLE_TEST} (id INTEGER PRIMARY KEY)', []);
   }
   async down(db: DatabaseAdapter): Promise<void> {
-    await db.execute('DROP TABLE IF EXISTS test_table', []);
+    await db.execute('DROP TABLE IF EXISTS ${TABLE_TEST}', []);
   }
 }`;
       await writeTextFile(migrationFile, migrationContent);
@@ -386,11 +395,11 @@ export default class RollbackTest implements Migration {
   name = '${migrationName}';
 
   async up(db: DatabaseAdapter): Promise<void> {
-    await db.execute('CREATE TABLE IF NOT EXISTS rollback_table (id INTEGER)', []);
+    await db.execute('CREATE TABLE IF NOT EXISTS ${TABLE_ROLLBACK} (id INTEGER)', []);
   }
 
   async down(db: DatabaseAdapter): Promise<void> {
-    await db.execute('DROP TABLE IF EXISTS rollback_table', []);
+    await db.execute('DROP TABLE IF EXISTS ${TABLE_ROLLBACK}', []);
   }
 }`;
 
@@ -404,7 +413,7 @@ export default class RollbackTest implements Migration {
 
       // 验证表已创建
       const tablesBefore = await sqliteAdapter.query(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='rollback_table'",
+        `SELECT name FROM sqlite_master WHERE type='table' AND name='${TABLE_ROLLBACK}'`,
         [],
       );
       expect(tablesBefore.length).toBe(1);
@@ -414,7 +423,7 @@ export default class RollbackTest implements Migration {
 
       // 验证表已被删除
       const tablesAfter = await sqliteAdapter.query(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='rollback_table'",
+        `SELECT name FROM sqlite_master WHERE type='table' AND name='${TABLE_ROLLBACK}'`,
         [],
       );
       expect(tablesAfter.length).toBe(0);
@@ -464,10 +473,10 @@ import type { DatabaseAdapter } from '@dreamer/database';
 export default class Migration1 implements Migration {
   name = '${migration1Name}';
   async up(db: DatabaseAdapter): Promise<void> {
-    await db.execute('CREATE TABLE IF NOT EXISTS table1 (id INTEGER PRIMARY KEY)', []);
+    await db.execute('CREATE TABLE IF NOT EXISTS ${TABLE_1} (id INTEGER PRIMARY KEY)', []);
   }
   async down(db: DatabaseAdapter): Promise<void> {
-    await db.execute('DROP TABLE IF EXISTS table1', []);
+    await db.execute('DROP TABLE IF EXISTS ${TABLE_1}', []);
   }
 }`;
       const migration2Content =
@@ -477,10 +486,10 @@ import type { DatabaseAdapter } from '@dreamer/database';
 export default class Migration2 implements Migration {
   name = '${migration2Name}';
   async up(db: DatabaseAdapter): Promise<void> {
-    await db.execute('CREATE TABLE IF NOT EXISTS table2 (id INTEGER PRIMARY KEY)', []);
+    await db.execute('CREATE TABLE IF NOT EXISTS ${TABLE_2} (id INTEGER PRIMARY KEY)', []);
   }
   async down(db: DatabaseAdapter): Promise<void> {
-    await db.execute('DROP TABLE IF EXISTS table2', []);
+    await db.execute('DROP TABLE IF EXISTS ${TABLE_2}', []);
   }
 }`;
       const migration3Content =
@@ -490,10 +499,10 @@ import type { DatabaseAdapter } from '@dreamer/database';
 export default class Migration3 implements Migration {
   name = '${migration3Name}';
   async up(db: DatabaseAdapter): Promise<void> {
-    await db.execute('CREATE TABLE IF NOT EXISTS table3 (id INTEGER PRIMARY KEY)', []);
+    await db.execute('CREATE TABLE IF NOT EXISTS ${TABLE_3} (id INTEGER PRIMARY KEY)', []);
   }
   async down(db: DatabaseAdapter): Promise<void> {
-    await db.execute('DROP TABLE IF EXISTS table3', []);
+    await db.execute('DROP TABLE IF EXISTS ${TABLE_3}', []);
   }
 }`;
       await writeTextFile(migration1File, migration1Content);
@@ -509,7 +518,7 @@ export default class Migration3 implements Migration {
 
       // 验证所有表已创建
       const tablesBefore = await sqliteAdapter.query(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('table1', 'table2', 'table3')",
+        `SELECT name FROM sqlite_master WHERE type='table' AND name IN ('${TABLE_1}', '${TABLE_2}', '${TABLE_3}')`,
         [],
       );
       expect(tablesBefore.length).toBe(3);
@@ -520,7 +529,7 @@ export default class Migration3 implements Migration {
       // 验证只保留了 1 个表
       // 注意：回滚是从最新的开始（按时间戳降序），所以回滚2个会删除 migration_3 和 migration_2
       const tablesAfter = await sqliteAdapter.query(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('table1', 'table2', 'table3')",
+        `SELECT name FROM sqlite_master WHERE type='table' AND name IN ('${TABLE_1}', '${TABLE_2}', '${TABLE_3}')`,
         [],
       );
       expect(tablesAfter.length).toBe(1);
@@ -541,7 +550,7 @@ export default class Migration3 implements Migration {
 
       // 验证剩余的是 migration1，并且对应的表是 table1
       expect(remainingName).toBe(migration1Name);
-      expect(tablesAfter[0].name).toBe("table1");
+      expect(tablesAfter[0].name).toBe(TABLE_1);
     }, {
       sanitizeOps: false,
       sanitizeResources: false,
@@ -599,10 +608,10 @@ import type { DatabaseAdapter } from '@dreamer/database';
 export default class StatusTest1 implements Migration {
   name = '${migration1Name}';
   async up(db: DatabaseAdapter): Promise<void> {
-    await db.execute('CREATE TABLE IF NOT EXISTS status_table1 (id INTEGER PRIMARY KEY)', []);
+    await db.execute('CREATE TABLE IF NOT EXISTS ${TABLE_STATUS} (id INTEGER PRIMARY KEY)', []);
   }
   async down(db: DatabaseAdapter): Promise<void> {
-    await db.execute('DROP TABLE IF EXISTS status_table1', []);
+    await db.execute('DROP TABLE IF EXISTS ${TABLE_STATUS}', []);
   }
 }`;
       await writeTextFile(migration1File, migration1Content);
@@ -654,10 +663,10 @@ import type { DatabaseAdapter } from '@dreamer/database';
 export default class StatusTest1 implements Migration {
   name = '${migrationName}';
   async up(db: DatabaseAdapter): Promise<void> {
-    await db.execute('CREATE TABLE IF NOT EXISTS status_table1 (id INTEGER PRIMARY KEY)', []);
+    await db.execute('CREATE TABLE IF NOT EXISTS ${TABLE_STATUS} (id INTEGER PRIMARY KEY)', []);
   }
   async down(db: DatabaseAdapter): Promise<void> {
-    await db.execute('DROP TABLE IF EXISTS status_table1', []);
+    await db.execute('DROP TABLE IF EXISTS ${TABLE_STATUS}', []);
   }
 }`;
       await writeTextFile(migrationFile, migrationContent);

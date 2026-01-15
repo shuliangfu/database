@@ -21,6 +21,9 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
+// 定义表名常量（使用目录名_文件名_作为前缀）
+const TABLE_NAME = "mysql_fault_recovery_fault_recovery_test";
+
 describe("MySQL 故障恢复集成测试", () => {
   let adapter: DatabaseAdapter;
 
@@ -52,7 +55,7 @@ describe("MySQL 故障恢复集成测试", () => {
 
     // 创建测试表
     await adapter.execute(
-      `CREATE TABLE IF NOT EXISTS fault_recovery_test (
+      `CREATE TABLE IF NOT EXISTS ${TABLE_NAME} (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255),
         value INT
@@ -60,7 +63,7 @@ describe("MySQL 故障恢复集成测试", () => {
       [],
     );
 
-    await adapter.execute("TRUNCATE TABLE fault_recovery_test", []);
+    await adapter.execute(`TRUNCATE TABLE ${TABLE_NAME}`, []);
   });
 
   afterAll(async () => {
@@ -135,7 +138,7 @@ describe("MySQL 故障恢复集成测试", () => {
     try {
       await adapter.transaction(async (db) => {
         await db.execute(
-          "INSERT INTO fault_recovery_test (name, value) VALUES (?, ?)",
+          `INSERT INTO ${TABLE_NAME} (name, value) VALUES (?, ?)`,
           ["Test", 1],
         );
         // 故意抛出错误

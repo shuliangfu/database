@@ -26,6 +26,9 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
 // 定义集合名常量（使用目录名_文件名_作为前缀）
 const COLLECTION_VIRTUALS = "mongo_model_advanced_users_virtuals";
 const COLLECTION_SCOPES = "mongo_model_advanced_users_scopes";
+const COLLECTION_SCOPES_SINGLE = "mongo_model_advanced_users_scopes_single";
+const COLLECTION_SCOPES_COMBINE = "mongo_model_advanced_users_scopes_combine";
+const COLLECTION_SCOPES_COUNT = "mongo_model_advanced_users_scopes_count";
 
 /**
  * 创建 MongoDB 配置
@@ -131,6 +134,15 @@ describe("MongoModel 高级功能", () => {
             () => {},
           );
           await db.collection(COLLECTION_SCOPES).drop().catch(
+            () => {},
+          );
+          await db.collection(COLLECTION_SCOPES_SINGLE).drop().catch(
+            () => {},
+          );
+          await db.collection(COLLECTION_SCOPES_COMBINE).drop().catch(
+            () => {},
+          );
+          await db.collection(COLLECTION_SCOPES_COUNT).drop().catch(
             () => {},
           );
         }
@@ -281,20 +293,43 @@ describe("MongoModel 高级功能", () => {
         return;
       }
 
-      await UserWithScopes.create({
+      // 使用独立的集合，避免并发测试时的数据污染
+      class UserWithScopesSingle extends MongoModel {
+        static override collectionName = COLLECTION_SCOPES_SINGLE;
+        static override primaryKey = "_id";
+        static override scopes = {
+          active: () => ({ status: "active" }),
+        };
+      }
+      UserWithScopesSingle.setAdapter(adapter);
+
+      // 清理独立集合
+      const db = adapter.getDatabase();
+      if (db) {
+        await db.collection(COLLECTION_SCOPES_SINGLE).deleteMany({});
+      }
+
+      await UserWithScopesSingle.create({
         name: "Active User",
         age: 25,
         status: "active",
       });
 
-      await UserWithScopes.create({
+      await UserWithScopesSingle.create({
         name: "Inactive User",
         age: 30,
         status: "inactive",
       });
 
       // 使用作用域查询
-      const activeUsers = await UserWithScopes.scope("active").findAll();
+      // 明确传递 includeTrashed 和 onlyTrashed 参数，确保查询行为一致
+      const activeUsers = await UserWithScopesSingle.scope("active").findAll(
+        {},
+        undefined,
+        undefined,
+        false,
+        false,
+      );
 
       expect(activeUsers.length).toBe(1);
       expect(activeUsers[0].name).toBe("Active User");
@@ -306,37 +341,71 @@ describe("MongoModel 高级功能", () => {
         return;
       }
 
-      // 确保测试开始时数据是干净的（防止其他测试的数据污染）
-      const db = (adapter as any).getDatabase();
+      // 使用独立的集合，避免并发测试时的数据污染
+      class UserWithScopesCombine extends MongoModel {
+        static override collectionName = COLLECTION_SCOPES_COMBINE;
+        static override primaryKey = "_id";
+        static override scopes = {
+          active: () => ({ status: "active" }),
+        };
+      }
+      UserWithScopesCombine.setAdapter(adapter);
+
+      // 清理独立集合
+      const db = adapter.getDatabase();
       if (db) {
-        await db.collection(COLLECTION_SCOPES).deleteMany({});
+        // 清除缓存
+        if (UserWithScopesCombine.cacheAdapter) {
+          UserWithScopesCombine.cacheAdapter.clear();
+        }
+        // 删除所有数据
+        await db.collection(COLLECTION_SCOPES_COMBINE).deleteMany({});
+        // 验证数据已被清理
+        const countBefore = await db.collection(COLLECTION_SCOPES_COMBINE)
+          .countDocuments({});
+        if (countBefore > 0) {
+          // 如果还有数据，再次清理
+          await db.collection(COLLECTION_SCOPES_COMBINE).deleteMany({});
+        }
       }
 
-      await UserWithScopes.create({
-        name: "Adult Active User",
+      await UserWithScopesCombine.deleteMany({});
+
+      await UserWithScopesCombine.create({
+        name: "Adult Active User 1",
         age: 25,
         status: "active",
       });
 
-      await UserWithScopes.create({
-        name: "Child Active User",
+      await UserWithScopesCombine.create({
+        name: "Child Active User 2",
         age: 15,
         status: "active",
       });
 
-      await UserWithScopes.create({
-        name: "Adult Inactive User",
+      await UserWithScopesCombine.create({
+        name: "Adult Inactive User 3",
         age: 30,
         status: "inactive",
       });
 
+      // 清除缓存，确保不会使用之前测试的缓存数据
+      if (UserWithScopesCombine.cacheAdapter) {
+        UserWithScopesCombine.cacheAdapter.clear();
+      }
+
       // 使用作用域并添加额外条件（模拟多个作用域的效果）
-      const activeUsers = await UserWithScopes.scope("active").findAll({
-        age: { $gte: 18 },
-      });
+      // 明确传递 includeTrashed 和 onlyTrashed 参数，确保查询行为一致
+      const activeUsers = await UserWithScopesCombine.scope("active").findAll(
+        { age: { $gte: 18 } },
+        undefined,
+        undefined,
+        false,
+        false,
+      );
 
       expect(activeUsers.length).toBe(1);
-      expect(activeUsers[0].name).toBe("Adult Active User");
+      expect(activeUsers[0].name).toBe("Adult Active User 1");
     }, { sanitizeOps: false, sanitizeResources: false });
 
     it("应该支持作用域与 count 组合", async () => {
@@ -345,19 +414,35 @@ describe("MongoModel 高级功能", () => {
         return;
       }
 
-      await UserWithScopes.create({
+      // 使用独立的集合，避免并发测试时的数据污染
+      class UserWithScopesCount extends MongoModel {
+        static override collectionName = COLLECTION_SCOPES_COUNT;
+        static override primaryKey = "_id";
+        static override scopes = {
+          published: () => ({ published: true }),
+        };
+      }
+      UserWithScopesCount.setAdapter(adapter);
+
+      // 清理独立集合
+      const db = adapter.getDatabase();
+      if (db) {
+        await db.collection(COLLECTION_SCOPES_COUNT).deleteMany({});
+      }
+
+      await UserWithScopesCount.create({
         name: "Published User",
         age: 25,
         published: true,
       });
 
-      await UserWithScopes.create({
+      await UserWithScopesCount.create({
         name: "Unpublished User",
         age: 30,
         published: false,
       });
 
-      const count = await UserWithScopes.scope("published").count();
+      const count = await UserWithScopesCount.scope("published").count();
 
       expect(count).toBe(1);
     }, { sanitizeOps: false, sanitizeResources: false });

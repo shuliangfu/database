@@ -81,7 +81,7 @@ describe("MongoModel 缓存机制测试", () => {
     // 清理测试数据
     const db = (adapter as any).db;
     if (db) {
-      await db.collection("cache_cache_test_mongo_users").deleteMany({});
+      await db.collection(COLLECTION_NAME).deleteMany({});
     }
     // 清除缓存适配器的缓存（如果存在）
     // 这是为了防止测试之间的状态污染
