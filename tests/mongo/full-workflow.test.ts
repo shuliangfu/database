@@ -58,8 +58,11 @@ function createMongoConfig() {
 /**
  * 测试用户模型
  */
+// 定义集合名常量（使用目录名_文件名_作为前缀）
+const COLLECTION_NAME = "mongo_full_workflow_integration_users";
+
 class User extends MongoModel {
-  static override collectionName = "full_workflow_integration_users";
+  static override collectionName = COLLECTION_NAME;
   static override primaryKey = "_id";
 }
 
@@ -84,7 +87,7 @@ describe("MongoDB 完整工作流程集成测试", () => {
       try {
         const db = (adapter as MongoDBAdapter).getDatabase();
         if (db) {
-          await db.collection("full_workflow_integration_users").deleteMany({});
+          await db.collection(COLLECTION_NAME).deleteMany({});
         }
       } catch {
         // 忽略错误
@@ -99,7 +102,7 @@ describe("MongoDB 完整工作流程集成测试", () => {
       try {
         const db = (adapter as MongoDBAdapter).getDatabase();
         if (db) {
-          await db.collection("full_workflow_integration_users").deleteMany({});
+          await db.collection(COLLECTION_NAME).deleteMany({});
         }
       } catch {
         // 忽略错误

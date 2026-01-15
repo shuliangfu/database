@@ -24,6 +24,10 @@ import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { MigrationManager } from "../../src/migration/manager.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
 
+// 定义集合名常量（使用目录名_文件名_作为前缀）
+const COLLECTION_MIGRATIONS = "mongo_migration_test_migrations";
+const COLLECTION_TEST = "mongo_migration_test_collection";
+
 describe("MigrationManager", () => {
   const testMigrationsDir = join(cwd(), "tests", "data", "test_migrations");
   let mongoAdapter: DatabaseAdapter;
@@ -83,7 +87,7 @@ describe("MigrationManager", () => {
         // 获取所有集合名
         const collections = await db.listCollections().toArray();
         for (const coll of collections) {
-          if (coll.name !== "migration_test_migrations" && coll.name !== "migrations") {
+          if (coll.name !== COLLECTION_MIGRATIONS && coll.name !== "migrations") {
             try {
               await db.collection(coll.name).drop();
             } catch {
@@ -93,7 +97,7 @@ describe("MigrationManager", () => {
         }
         // 清理迁移历史集合数据
         try {
-          await db.collection("migration_test_migrations").deleteMany({});
+          await db.collection(COLLECTION_MIGRATIONS).deleteMany({});
           await db.collection("migrations").deleteMany({});
         } catch {
           // 集合不存在，忽略
@@ -164,7 +168,7 @@ describe("MigrationManager", () => {
       const manager = new MigrationManager({
         migrationsDir: testMigrationsDir,
         adapter: mongoAdapter,
-        historyCollectionName: "migration_test_migrations",
+        historyCollectionName: COLLECTION_MIGRATIONS,
       });
 
       // 创建并执行迁移
@@ -182,11 +186,11 @@ export default class MongoTest implements Migration {
   async up(db: DatabaseAdapter): Promise<void> {
     // 使用 MongoDB 适配器的 getDatabase 方法
     const mongoDb = (db as any).getDatabase();
-    await mongoDb.createCollection('migration_test_collection');
+    await mongoDb.createCollection(COLLECTION_TEST);
   }
   async down(db: DatabaseAdapter): Promise<void> {
     const mongoDb = (db as any).getDatabase();
-    await mongoDb.collection('migration_test_collection').drop();
+    await mongoDb.collection(COLLECTION_TEST).drop();
   }
 }`;
       await writeTextFile(migrationFile, migrationContent);
@@ -201,7 +205,7 @@ export default class MongoTest implements Migration {
 
       // 验证迁移记录已创建
       const db = (mongoAdapter as any).db;
-      const migrations = await db.collection("migration_test_migrations").find({})
+      const migrations = await db.collection(COLLECTION_MIGRATIONS).find({})
         .toArray();
       expect(migrations.length).toBe(1);
       expect(migrations[0].name).toBe("mongo_test");
