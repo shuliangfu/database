@@ -1,6 +1,6 @@
 # @dreamer/database
 
-> 一个兼容 Deno 和 Bun 的数据库工具库，提供多数据库支持、查询构建器、ORM/ODM、迁移管理等功能
+> 一个兼容 Deno 和 Bun 的数据库工具库，提供统一的抽象层支持多种数据库，提供完整的 ORM/ODM、查询构建器和迁移管理功能
 
 [![JSR](https://jsr.io/badges/@dreamer/database)](https://jsr.io/@dreamer/database)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -9,54 +9,52 @@
 
 ## 🎯 功能
 
-数据库工具库，提供统一的数据库抽象层，支持多种数据库后端，用于数据持久化、ORM/ODM、数据库迁移等场景。
+一个经过性能优化的数据库工具库，通过统一的抽象层支持 PostgreSQL、MySQL、SQLite、MongoDB 等多种数据库，提供完整的 ORM/ODM、查询构建器和迁移管理功能。
 
 ---
 
 ## ✨ 特性
 
-- **多数据库适配器**：
-  - PostgreSQL 适配器（PostgreSQLAdapter）
-  - MySQL/MariaDB 适配器（MySQLAdapter）
-  - SQLite 适配器（SQLiteAdapter，支持 Bun 原生 API）
-  - MongoDB 适配器（MongoDBAdapter）
-  - 统一的数据库接口（DatabaseAdapter）
-  - 运行时切换数据库后端
-  - 多数据库实例支持（同时使用多个数据库）
+### 多数据库适配器
+- **PostgreSQL 适配器**（PostgreSQLAdapter）- 完全支持 PostgreSQL 14+
+- **MySQL/MariaDB 适配器**（MySQLAdapter）- 完全支持 MySQL 8.0+
+- **SQLite 适配器**（SQLiteAdapter）- 支持 SQLite 3.35.0+，优先使用 Bun 原生 API
+- **MongoDB 适配器**（MongoDBAdapter）- 完全支持 MongoDB 7.0+
+- **统一的数据库接口**（DatabaseAdapter）- 所有适配器实现统一接口
+- **运行时切换数据库后端** - 支持动态切换数据库
+- **多数据库实例支持** - 同时使用多个数据库连接
 
-- **ORM/ODM 功能**：
-  - SQLModel - 关系型数据库 ORM（PostgreSQL、MySQL、SQLite）
-  - MongoModel - MongoDB ODM
-  - 链式查询构建器（流畅的查询 API）
-  - 数据验证：
-    - 基础验证：required、type、min、max、length、pattern、enum、custom
-    - 跨字段验证：equals（字段相等）、notEquals（字段不相等）、compare（自定义比较函数）
-    - 数据库查询验证：unique（唯一性）、exists（存在性）、notExists（不存在性）
-  - 生命周期钩子（beforeCreate、afterCreate、beforeUpdate、afterUpdate 等）
-  - 软删除支持
-  - 查询结果缓存
-  - 关联关系（belongsTo、hasOne、hasMany）
+### ORM/ODM 功能
+- **SQLModel** - 关系型数据库 ORM（PostgreSQL、MySQL、SQLite）
+- **MongoModel** - MongoDB ODM
+- **统一接口** - SQLModel 和 MongoModel 接口完全统一（91.7% 统一率）
+- **链式查询构建器** - 流畅的查询 API
+- **数据验证** - 30+ 种验证规则（详见验证规则章节）
+- **生命周期钩子** - beforeCreate、afterCreate、beforeUpdate、afterUpdate 等
+- **软删除支持** - 完整的软删除功能
+- **查询结果缓存** - 自动缓存查询结果
+- **关联关系** - belongsTo、hasOne、hasMany
 
-- **查询构建器**：
-  - SQLQueryBuilder - 关系型数据库查询构建器
-  - MongoQueryBuilder - MongoDB 查询构建器
-  - 链式 API（流畅的链式查询语法）
-  - 类型安全（完整的 TypeScript 类型支持）
+### 查询构建器
+- **SQLQueryBuilder** - 关系型数据库查询构建器
+- **MongoQueryBuilder** - MongoDB 查询构建器
+- **链式 API** - 流畅的链式查询语法
+- **类型安全** - 完整的 TypeScript 类型支持
 
-- **迁移管理**：
-  - MigrationManager - 数据库迁移管理工具
-  - SQL 迁移支持
-  - MongoDB 迁移支持
-  - 迁移历史跟踪
-  - 迁移回滚支持
+### 迁移管理
+- **MigrationManager** - 数据库迁移管理工具
+- **SQL 迁移支持** - PostgreSQL、MySQL、SQLite
+- **MongoDB 迁移支持** - MongoDB 集合迁移
+- **迁移历史跟踪** - 自动记录迁移历史
+- **迁移回滚支持** - 支持迁移回滚
 
-- **其他功能**：
-  - 事务支持（基本事务、嵌套事务、保存点）
-  - 连接池管理
-  - 查询日志记录（支持日志级别过滤、慢查询检测）
-  - 健康检查
-  - 数据库初始化工具（支持自动初始化、配置加载）
-  - 预处理语句（防止 SQL 注入）
+### 其他功能
+- **事务支持** - 基本事务、嵌套事务、保存点
+- **连接池管理** - 自动管理数据库连接池
+- **查询日志记录** - 支持日志级别过滤、慢查询检测
+- **健康检查** - 数据库连接健康检查
+- **数据库初始化工具** - 支持自动初始化、配置加载
+- **预处理语句** - 防止 SQL 注入
 
 ---
 
@@ -116,22 +114,18 @@ bunx jsr add @dreamer/database
 ### 基础数据库操作
 
 ```typescript
-import {
-  DatabaseManager,
-  SQLiteAdapter,
-} from "jsr:@dreamer/database";
+import { initDatabase, getDatabase } from "jsr:@dreamer/database";
 
-// 创建 SQLite 适配器
-const sqliteAdapter = new SQLiteAdapter();
-await sqliteAdapter.connect({
+// 初始化 SQLite 数据库
+await initDatabase({
   type: "sqlite",
   connection: {
     filename: ":memory:", // 或文件路径
   },
 });
 
-// 创建数据库管理器
-const db = new DatabaseManager(sqliteAdapter);
+// 获取数据库适配器
+const db = getDatabase();
 
 // 执行 SQL 查询
 const users = await db.query(
@@ -139,13 +133,11 @@ const users = await db.query(
   [18]
 );
 
-// 使用查询构建器
-const result = await db.table("users")
-  .select("id", "name", "email")
-  .where("age", ">", 18)
-  .orderBy("created_at", "desc")
-  .limit(10)
-  .execute();
+// 执行更新操作
+await db.execute(
+  "INSERT INTO users (name, email) VALUES (?, ?)",
+  ["Alice", "alice@example.com"]
+);
 
 // 事务支持
 await db.transaction(async (trx) => {
@@ -158,60 +150,12 @@ await db.transaction(async (trx) => {
     100,
   ]);
 });
-
-// 嵌套事务（保存点）- 仅支持 SQLite、PostgreSQL、MySQL
-await db.transaction(async (trx) => {
-  await trx.execute("INSERT INTO users (name, email) VALUES (?, ?)", [
-    "Bob",
-    "bob@example.com",
-  ]);
-
-  // 创建保存点
-  const savepointId = await trx.createSavepoint("sp1");
-  try {
-    await trx.execute("INSERT INTO orders (user_id, amount) VALUES (?, ?)", [
-      2,
-      200,
-    ]);
-    // 释放保存点
-    await trx.releaseSavepoint(savepointId);
-  } catch (error) {
-    // 回滚到保存点
-    await trx.rollbackToSavepoint(savepointId);
-    throw error;
-  }
-});
-```
-
-### MongoDB 操作
-
-```typescript
-import { MongoDBAdapter, DatabaseManager } from "jsr:@dreamer/database";
-
-const mongoAdapter = new MongoDBAdapter();
-await mongoAdapter.connect({
-  type: "mongodb",
-  connection: {
-    host: "localhost",
-    port: 27017,
-    database: "mydb",
-  },
-});
-
-const db = new DatabaseManager(mongoAdapter);
-
-// MongoDB 查询
-const users = await db.collection("users")
-  .find({ age: { $gt: 18 } })
-  .sort({ created_at: -1 })
-  .limit(10)
-  .toArray();
 ```
 
 ### SQLModel ORM
 
 ```typescript
-import { SQLModel, SQLiteAdapter } from "jsr:@dreamer/database";
+import { SQLModel, initDatabase } from "jsr:@dreamer/database";
 
 // 定义用户模型
 class User extends SQLModel {
@@ -219,7 +163,7 @@ class User extends SQLModel {
   static override primaryKey = "id";
 
   // 定义字段和验证规则
-  static override schema: ModelSchema = {
+  static override schema = {
     name: {
       type: "string",
       validate: {
@@ -232,7 +176,7 @@ class User extends SQLModel {
       validate: {
         required: true,
         pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-        unique: true, // 邮箱必须唯一
+        unique: true,
       },
     },
     age: {
@@ -242,52 +186,17 @@ class User extends SQLModel {
         max: 150,
       },
     },
-    password: {
-      type: "string",
-      validate: {
-        required: true,
-        min: 8,
-      },
-    },
-    confirmPassword: {
-      type: "string",
-      validate: {
-        required: true,
-        equals: "password", // 必须与 password 字段相等
-      },
-    },
   };
-
-  // 生命周期钩子
-  static override beforeCreate(data: any) {
-    data.created_at = new Date();
-    return data;
-  }
 }
 
-// 方式1：先初始化数据库连接（推荐）
-import { initDatabase } from "jsr:@dreamer/database";
+// 初始化数据库
 await initDatabase({
   type: "sqlite",
   connection: { filename: ":memory:" },
 });
-// 然后初始化模型（设置适配器）
+
+// 初始化模型
 await User.init();
-
-// 方式2：使用指定连接名称
-await initDatabase({
-  type: "sqlite",
-  connection: { filename: ":memory:" },
-}, "secondary");
-await User.init("secondary");
-
-// 方式3：手动创建适配器并设置
-// const adapter = new SQLiteAdapter();
-// await adapter.connect({
-//   type: "sqlite",
-//   connection: { filename: ":memory:" },
-// });
-// User.setAdapter(adapter);
 
 // 创建用户
 const user = await User.create({
@@ -313,41 +222,37 @@ await User.deleteById(user.id);
 ### MongoModel ODM
 
 ```typescript
-import {
-  MongoModel,
-  MongoDBAdapter,
-  initDatabaseFromConfig,
-} from "jsr:@dreamer/database";
+import { MongoModel, initDatabase } from "jsr:@dreamer/database";
 
 // 定义文章模型
 class Article extends MongoModel {
   static override collectionName = "articles";
   static override primaryKey = "_id";
 
-  static override schema: ModelSchema = {
+  static override schema = {
     title: {
       type: "string",
-      required: true,
-      maxLength: 200,
+      validate: {
+        required: true,
+        max: 200,
+      },
     },
     content: {
       type: "string",
-      required: true,
+      validate: {
+        required: true,
+      },
     },
     status: {
       type: "string",
-      enum: ["draft", "published", "archived"],
+      validate: {
+        enum: ["draft", "published", "archived"],
+      },
     },
   };
-
-  // 作用域查询
-  static published() {
-    return this.query().where("status", "published");
-  }
 }
 
-// 方式1：先初始化数据库连接（推荐）
-import { initDatabase } from "jsr:@dreamer/database";
+// 初始化数据库
 await initDatabase({
   type: "mongodb",
   connection: {
@@ -356,31 +261,9 @@ await initDatabase({
     database: "mydb",
   },
 });
-// 然后初始化模型（设置适配器）
+
+// 初始化模型
 await Article.init();
-
-// 方式2：使用指定连接名称
-await initDatabase({
-  type: "mongodb",
-  connection: {
-    host: "localhost",
-    port: 27017,
-    database: "mydb",
-  },
-}, "secondary");
-await Article.init("secondary");
-
-// 方式3：手动创建适配器并设置
-// const adapter = new MongoDBAdapter();
-// await adapter.connect({
-//   type: "mongodb",
-//   connection: {
-//     host: "localhost",
-//     port: 27017,
-//     database: "mydb",
-//   },
-// });
-// Article.setAdapter(adapter);
 
 // 创建文章
 const article = await Article.create({
@@ -389,205 +272,18 @@ const article = await Article.create({
   status: "published",
 });
 
-// 使用作用域查询
-const publishedArticles = await Article.published()
+// 查询文章
+const articles = await Article.query()
+  .where("status", "published")
   .sort("created_at", -1)
   .findAll();
-
-// 批量操作
-await Article.incrementMany(
-  { status: "published" },
-  { views: 1 }
-);
-```
-
-### 迁移管理
-
-```typescript
-import {
-  MigrationManager,
-  SQLiteAdapter,
-} from "jsr:@dreamer/database";
-
-// 创建适配器
-const adapter = new SQLiteAdapter();
-await adapter.connect({
-  type: "sqlite",
-  connection: { filename: "./app.db" },
-});
-
-// 创建迁移管理器
-const manager = new MigrationManager({
-  migrationsDir: "./migrations",
-  adapter: adapter,
-});
-
-// 创建新的迁移文件
-await manager.create("create_users_table");
-
-// 执行待执行的迁移
-await manager.up();
-
-// 执行指定数量的迁移
-await manager.up(2);
-
-// 回滚最近的迁移
-await manager.down();
-
-// 回滚指定数量的迁移
-await manager.down(2);
-
-// 查看迁移状态
-const status = await manager.status();
-console.log(status);
-```
-
-### 运行时切换数据库后端
-
-```typescript
-import {
-  DatabaseManager,
-  SQLiteAdapter,
-  MongoDBAdapter,
-} from "jsr:@dreamer/database";
-
-const sqliteAdapter = new SQLiteAdapter();
-await sqliteAdapter.connect({
-  type: "sqlite",
-  connection: { filename: ":memory:" },
-});
-
-const mongoAdapter = new MongoDBAdapter();
-await mongoAdapter.connect({
-  type: "mongodb",
-  connection: {
-    host: "localhost",
-    port: 27017,
-    database: "mydb",
-  },
-});
-
-const db = new DatabaseManager(sqliteAdapter);
-
-// 使用 SQLite
-await db.query("SELECT * FROM users");
-
-// 切换到 MongoDB
-db.setAdapter(mongoAdapter);
-
-// 现在使用 MongoDB
-await db.collection("users").find({}).toArray();
 ```
 
 ---
 
 ## 📚 API 文档
 
-### 数据库适配器接口
-
-所有数据库适配器都实现统一的接口：
-
-```typescript
-interface DatabaseAdapter {
-  // 连接数据库
-  connect(config: DatabaseConfig): Promise<void>;
-
-  // 执行查询（返回结果集）
-  query(sqlOrCollection: string, paramsOrFilter?: any[] | any, options?: any): Promise<any[]>;
-
-  // 执行更新/插入/删除（返回影响行数等信息）
-  execute(sqlOrOperation: string, paramsOrCollection?: any[] | string, data?: any): Promise<any>;
-
-  // 执行事务
-  transaction<T>(callback: (db: DatabaseAdapter) => Promise<T>): Promise<T>;
-
-  // 嵌套事务（保存点）- 仅支持 SQLite、PostgreSQL、MySQL
-  createSavepoint(name: string): Promise<string>;
-  rollbackToSavepoint(savepointId: string): Promise<void>;
-  releaseSavepoint(savepointId: string): Promise<void>;
-
-  // 关闭连接
-  close(): Promise<void>;
-
-  // 检查是否已连接
-  isConnected(): boolean;
-
-  // 获取连接池状态
-  getPoolStatus(): Promise<PoolStatus>;
-
-  // 健康检查
-  healthCheck(): Promise<HealthCheckResult>;
-}
-```
-
-### PostgreSQLAdapter
-
-PostgreSQL 数据库适配器。
-
-**配置选项**：
-- `host: string`: 数据库主机
-- `port: number`: 数据库端口
-- `database: string`: 数据库名称
-- `user: string`: 用户名
-- `password: string`: 密码
-- `poolSize?: number`: 连接池大小
-
-### MySQLAdapter
-
-MySQL/MariaDB 数据库适配器。
-
-**配置选项**：
-- `host: string`: 数据库主机
-- `port: number`: 数据库端口
-- `database: string`: 数据库名称
-- `user: string`: 用户名
-- `password: string`: 密码
-- `poolSize?: number`: 连接池大小
-
-### SQLiteAdapter
-
-SQLite 数据库适配器，支持 Bun 原生 SQLite API。
-
-**配置选项**：
-- `filename: string`: SQLite 数据库文件路径（`:memory:` 表示内存数据库）
-
-### MongoDBAdapter
-
-MongoDB 数据库适配器。
-
-**配置选项**：
-- `host: string`: MongoDB 主机
-- `port: number`: MongoDB 端口
-- `database: string`: 数据库名称
-- `username?: string`: 用户名（可选）
-- `password?: string`: 密码（可选）
-- `options?: object`: MongoDB 连接选项
-
-### DatabaseManager
-
-数据库管理器，提供统一的数据库操作接口。
-
-**方法**：
-- `connect(name: string, config: DatabaseConfig): Promise<ConnectionStatus>`: 连接数据库
-- `getConnection(name?: string): DatabaseAdapter`: 获取数据库连接
-- `query(sql: string, params?: any[]): Promise<any[]>`: 执行 SQL 查询
-- `queryOne(sql: string, params?: any[]): Promise<any | null>`: 执行单条查询
-- `execute(sql: string, params?: any[]): Promise<any>`: 执行更新/插入/删除
-- `transaction<T>(callback: (trx: DatabaseAdapter) => Promise<T>): Promise<T>`: 执行事务
-- `table(name: string): SQLQueryBuilder`: 获取 SQL 查询构建器
-- `collection(name: string): MongoQueryBuilder`: 获取 MongoDB 查询构建器
-- `setAdapter(adapter: DatabaseAdapter): void`: 切换数据库适配器
-- `close(name?: string): Promise<void>`: 关闭指定连接或所有连接
-- `closeAll(): Promise<void>`: 关闭所有连接
-- `hasConnection(name?: string): boolean`: 检查连接是否存在
-- `getConnectionNames(): string[]`: 获取所有连接名称
-- `setAdapterFactory(factory: AdapterFactory): void`: 设置适配器工厂（用于测试）
-
-### 数据库初始化工具函数
-
-数据库初始化工具函数，用于简化数据库连接的初始化和访问。
-
-**主要函数**：
+### 数据库初始化
 
 #### initDatabase
 
@@ -597,48 +293,70 @@ MongoDB 数据库适配器。
 initDatabase(config: DatabaseConfig, connectionName?: string): Promise<ConnectionStatus>
 ```
 
-- `config: DatabaseConfig`: 数据库配置
-- `connectionName?: string`: 连接名称（默认为 'default'）
-- 返回: `Promise<ConnectionStatus>` 连接状态
+**参数：**
+- `config: DatabaseConfig` - 数据库配置
+- `connectionName?: string` - 连接名称（默认为 'default'）
 
-#### initDatabaseFromConfig
+**返回：** `Promise<ConnectionStatus>` - 连接状态信息
 
-从配置对象初始化数据库连接。
+**示例：**
 
 ```typescript
-initDatabaseFromConfig(config: DatabaseConfig, connectionName?: string): Promise<ConnectionStatus>
+// SQLite
+await initDatabase({
+  type: "sqlite",
+  connection: { filename: ":memory:" },
+});
+
+// PostgreSQL
+await initDatabase({
+  type: "postgresql",
+  connection: {
+    host: "localhost",
+    port: 5432,
+    database: "mydb",
+    username: "user",
+    password: "password",
+  },
+});
+
+// MySQL
+await initDatabase({
+  type: "mysql",
+  connection: {
+    host: "localhost",
+    port: 3306,
+    database: "mydb",
+    username: "user",
+    password: "password",
+  },
+});
+
+// MongoDB
+await initDatabase({
+  type: "mongodb",
+  connection: {
+    host: "localhost",
+    port: 27017,
+    database: "mydb",
+  },
+});
 ```
 
-#### autoInitDatabase
+#### getDatabase
 
-自动初始化数据库（从环境变量或配置文件加载配置）。
+同步获取数据库连接（如果未初始化会抛出错误）。
 
 ```typescript
-autoInitDatabase(connectionName?: string): Promise<ConnectionStatus>
+getDatabase(connectionName?: string): DatabaseAdapter
 ```
 
-#### getDatabaseManager
+#### getDatabaseAsync
 
-获取数据库管理器实例。
-
-```typescript
-getDatabaseManager(): DatabaseManager
-```
-
-#### isDatabaseInitialized
-
-检查数据库是否已初始化。
+异步获取数据库连接（支持自动初始化）。
 
 ```typescript
-isDatabaseInitialized(connectionName?: string): boolean
-```
-
-#### hasConnection
-
-检查指定连接是否存在。
-
-```typescript
-hasConnection(connectionName?: string): boolean
+getDatabaseAsync(connectionName?: string): Promise<DatabaseAdapter>
 ```
 
 #### closeDatabase
@@ -649,207 +367,123 @@ hasConnection(connectionName?: string): boolean
 closeDatabase(): Promise<void>
 ```
 
-#### setDatabaseConfigLoader
+---
 
-设置数据库配置加载器（用于自定义配置加载逻辑）。
+## 📖 SQLModel 详细 API
 
-```typescript
-setDatabaseConfigLoader(loader: (connectionName?: string) => Promise<DatabaseConfig>): void
-```
+SQLModel 是关系型数据库（PostgreSQL、MySQL、SQLite）的 ORM 基类，提供完整的数据库操作功能。
 
-#### setupDatabaseConfigLoader
-
-设置数据库配置加载器（便捷方法，别名）。
+### 模型定义
 
 ```typescript
-setupDatabaseConfigLoader(loader: (connectionName?: string) => Promise<DatabaseConfig>): void
+class User extends SQLModel {
+  // 必须定义表名
+  static override tableName = "users";
+
+  // 主键字段名（默认为 "id"）
+  static override primaryKey = "id";
+
+  // 字段定义和验证规则
+  static override schema = {
+    name: { type: "string", validate: { required: true } },
+    email: { type: "string", validate: { required: true, unique: true } },
+    age: { type: "number", validate: { min: 0, max: 150 } },
+  };
+
+  // 软删除支持（可选）
+  static override softDelete = true;
+  static override deletedAtField = "deleted_at";
+
+  // 时间戳字段（可选）
+  static override timestamps = true;
+  static override createdAtField = "created_at";
+  static override updatedAtField = "updated_at";
+}
 ```
 
-#### setDatabaseManager
+### 数据验证规则
 
-设置数据库管理器实例（用于测试或自定义管理器）。
+数据库模型支持丰富的数据验证规则，确保数据完整性和正确性。
 
-```typescript
-setDatabaseManager(manager: DatabaseManager): void
-```
+#### 基础验证
 
-### 数据库访问辅助函数
+- **`required: boolean`** - 必填字段
+- **`type: FieldType`** - 字段类型（string、number、boolean、date 等）
+- **`min: number`** - 最小值（数字）或最小长度（字符串）
+- **`max: number`** - 最大值（数字）或最大长度（字符串）
+- **`length: number`** - 固定长度（字符串）
+- **`pattern: RegExp | string`** - 正则表达式验证
+- **`enum: any[]`** - 枚举值验证
+- **`custom: (value: any) => boolean | string`** - 自定义验证函数
 
-数据库访问辅助函数，提供便捷的数据库连接访问方式。
+#### 跨字段验证
 
-**主要函数**：
+- **`equals: string`** - 与另一个字段值相等
+- **`notEquals: string`** - 与另一个字段值不相等
+- **`compare: (value, allValues) => boolean | string`** - 自定义字段比较函数
+- **`compareValue`** - 跨表/跨字段值比较验证（支持跨表、多种操作符）
 
-#### getDatabase
+#### 数据库查询验证（异步）
 
-同步获取数据库连接（如果未初始化会抛出错误）。
+- **`unique: boolean | object`** - 在数据表中唯一
+- **`exists: boolean | object`** - 在数据表中存在
+- **`notExists: boolean | object`** - 在数据表中不存在
 
-```typescript
-getDatabase(connectionName?: string): DatabaseAdapter
-```
+#### 高级验证功能
 
-- `connectionName?: string`: 连接名称（默认为 'default'）
-- 返回: `DatabaseAdapter` 数据库适配器实例
+- **`when`** - 条件验证（根据其他字段值决定是否验证）
+- **`requiredWhen`** - 条件必填（根据条件决定是否必填）
+- **`asyncCustom`** - 异步自定义验证（可访问数据库）
+- **`groups: string[]`** - 验证组（只在指定组中验证）
+- **`array`** - 数组验证（验证数组元素）
+- **`format`** - 内置格式验证器（email、url、uuid、date 等）
 
-#### getDatabaseAsync
+#### 数值验证增强
 
-异步获取数据库连接（支持自动初始化）。
+- **`integer: boolean`** - 整数验证
+- **`positive: boolean`** - 正数验证
+- **`negative: boolean`** - 负数验证
+- **`multipleOf: number`** - 倍数验证
+- **`range: [number, number]`** - 范围验证
 
-```typescript
-getDatabaseAsync(connectionName?: string): Promise<DatabaseAdapter>
-```
+#### 字符串验证增强
 
-- `connectionName?: string`: 连接名称（默认为 'default'）
-- 返回: `Promise<DatabaseAdapter>` 数据库适配器实例
+- **`alphanumeric: boolean`** - 字母数字验证
+- **`numeric: boolean`** - 数字字符串验证
+- **`alpha: boolean`** - 字母验证
+- **`lowercase: boolean`** - 小写验证
+- **`uppercase: boolean`** - 大写验证
+- **`startsWith: string`** - 前缀验证
+- **`endsWith: string`** - 后缀验证
+- **`contains: string`** - 包含验证
+- **`trim: boolean`** - 自动去除首尾空格
+- **`toLowerCase: boolean`** - 自动转换为小写
+- **`toUpperCase: boolean`** - 自动转换为大写
 
-**注意**：如果数据库未初始化，`getDatabaseAsync` 会尝试自动初始化（如果配置了自动初始化）。
+#### 日期时间验证增强
 
-### QueryLogger
+- **`before: string | Date`** - 早于验证
+- **`after: string | Date`** - 晚于验证
+- **`beforeTime: string`** - 早于时间验证
+- **`afterTime: string`** - 晚于时间验证
+- **`timezone: string`** - 时区验证
 
-查询日志记录器，用于记录和监控数据库查询。
+#### 密码验证
 
-**构造函数**：
+- **`passwordStrength`** - 密码强度验证（最小长度、大小写、数字、符号要求）
 
-```typescript
-new QueryLogger(options?: QueryLoggerOptions)
-```
-
-**选项**：
-- `enabled?: boolean`: 是否启用日志（默认 true）
-- `logLevel?: "all" | "error" | "slow"`: 日志级别（默认 "all"）
-- `slowQueryThreshold?: number`: 慢查询阈值（毫秒，默认 1000）
-- `maxLogs?: number`: 最大日志数量（默认 1000）
-
-**方法**：
-
-- `log(type: string, sql: string, params?: any[], duration?: number, error?: Error): void`: 记录查询日志
-- `getLogs(): QueryLogEntry[]`: 获取所有日志
-- `clear(): void`: 清空日志
-- `getLogger(): QueryLogger`: 获取 logger 实例（单例模式）
-
-### SQLModel
-
-关系型数据库 ORM 模型基类。
-
-**静态方法**：
-- `setAdapter(adapter: DatabaseAdapter): void`: 设置数据库适配器
-- `init(connectionName?: string): Promise<void>`: 初始化模型（从已初始化的数据库连接中获取适配器并设置，不负责连接数据库）
-- `create(data: any): Promise<ModelInstance>`: 创建记录
-- `createMany(data: any[]): Promise<ModelInstance[]>`: 批量创建
-- `find(conditions: WhereCondition): SQLQueryBuilder`: 查找记录（链式查询）
-- `findById(id: any): Promise<ModelInstance | null>`: 通过 ID 查找
-- `findOne(conditions: WhereCondition): Promise<ModelInstance | null>`: 查找单条记录
-- `findAll(conditions?: WhereCondition): Promise<ModelInstance[]>`: 查找多条记录
-- `update(conditions: WhereCondition, data: any): Promise<number>`: 更新记录
-- `updateById(id: any, data: any): Promise<boolean>`: 通过 ID 更新
-- `updateMany(conditions: WhereCondition, data: any): Promise<number>`: 批量更新
-- `delete(conditions: WhereCondition): Promise<number>`: 删除记录
-- `deleteById(id: any): Promise<boolean>`: 通过 ID 删除
-- `deleteMany(conditions: WhereCondition): Promise<number>`: 批量删除
-- `count(conditions?: WhereCondition): Promise<number>`: 统计记录数
-- `exists(conditions: WhereCondition): Promise<boolean>`: 检查记录是否存在
-- `paginate(page: number, perPage: number, conditions?: WhereCondition): Promise<PaginateResult>`: 分页查询
-- `increment(conditions: WhereCondition, field: string, amount?: number): Promise<number>`: 增加字段值
-- `decrement(conditions: WhereCondition, field: string, amount?: number): Promise<number>`: 减少字段值
-- `upsert(conditions: WhereCondition, data: any): Promise<ModelInstance>`: 更新或插入
-- `findOrCreate(conditions: WhereCondition, data: any): Promise<ModelInstance>`: 查找或创建
-- `distinct(field: string, conditions?: WhereCondition): Promise<any[]>`: 获取唯一值列表
-- `withTrashed(): QueryBuilder`: 包含已删除记录的查询
-- `onlyTrashed(): QueryBuilder`: 仅查询已删除记录
-- `restore(conditions: WhereCondition): Promise<number>`: 恢复软删除记录
-- `forceDelete(conditions: WhereCondition): Promise<number>`: 强制删除记录
-- `truncate(): Promise<number>`: 清空表
-- `query(): SQLQueryBuilder`: 获取链式查询构建器
-
-**链式查询构建器方法**（通过 `query()` 返回）：
-- `where(condition: WhereCondition | number | string): SQLQueryBuilder`: 添加查询条件
-- `fields(fields: string[]): SQLQueryBuilder`: 选择字段
-- `sort(sort: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc"): SQLQueryBuilder`: 排序
-- `skip(n: number): SQLQueryBuilder`: 跳过记录
-- `limit(n: number): SQLQueryBuilder`: 限制记录数
-- `includeTrashed(): SQLQueryBuilder`: 包含已删除记录
-- `onlyTrashed(): SQLQueryBuilder`: 仅查询已删除记录
-- `findAll(): Promise<ModelInstance[]>`: 执行查询并返回所有结果
-- `findOne(): Promise<ModelInstance | null>`: 执行查询并返回第一条结果
-- `one(): Promise<ModelInstance | null>`: 执行查询并返回第一条结果（别名）
-- `all(): Promise<ModelInstance[]>`: 执行查询并返回所有结果（别名）
-- `count(): Promise<number>`: 统计记录数
-- `exists(): Promise<boolean>`: 检查记录是否存在
-- `update(data: Record<string, any>): Promise<number>`: 更新记录
-- `updateMany(data: Record<string, any>): Promise<number>`: 批量更新
-- `increment(field: string, amount?: number): Promise<number>`: 增加字段值
-- `decrement(field: string, amount?: number): Promise<number>`: 减少字段值
-- `deleteMany(): Promise<number>`: 批量删除
-- `restore(options?: { returnIds?: boolean }): Promise<number | { count: number; ids: any[] }>`: 恢复软删除记录
-- `forceDelete(options?: { returnIds?: boolean }): Promise<number | { count: number; ids: any[] }>`: 强制删除记录
-- `distinct(field: string): Promise<any[]>`: 获取唯一值列表
-- `upsert(data: Record<string, any>): Promise<ModelInstance>`: 更新或插入
-- `findOrCreate(data: Record<string, any>): Promise<ModelInstance>`: 查找或创建
-- `findOneAndUpdate(data: Record<string, any>): Promise<ModelInstance | null>`: 查找并更新
-- `findOneAndDelete(): Promise<ModelInstance | null>`: 查找并删除
-
-**实例方法**：
-- `save(): Promise<this>`: 保存实例
-- `update(data: any): Promise<this>`: 更新实例
-- `delete(): Promise<boolean>`: 删除实例
-- `reload(): Promise<this>`: 重新加载实例
-- `belongsTo(Model: typeof SQLModel, foreignKey?: string, localKey?: string): Promise<ModelInstance | null>`: 属于关系
-- `hasOne(Model: typeof SQLModel, foreignKey?: string, localKey?: string): Promise<ModelInstance | null>`: 一对一关系
-- `hasMany(Model: typeof SQLModel, foreignKey?: string, localKey?: string): Promise<ModelInstance[]>`: 一对多关系
-
-**生命周期钩子**：
-- `beforeCreate(data: any): any`: 创建前钩子
-- `afterCreate(instance: any): void`: 创建后钩子
-- `beforeUpdate(data: any, conditions: any): any`: 更新前钩子
-- `afterUpdate(instance: any): void`: 更新后钩子
-- `beforeSave(data: any): any`: 保存前钩子
-- `afterSave(instance: any): void`: 保存后钩子
-- `beforeDelete(conditions: any): void`: 删除前钩子
-- `afterDelete(instance: any): void`: 删除后钩子
-- `beforeValidate(data: any): any`: 验证前钩子
-- `afterValidate(data: any): any`: 验证后钩子
-
-**数据验证规则**：
-
-基础验证：
-- `required: boolean`: 必填字段
-- `type: FieldType`: 字段类型
-- `min: number`: 最小值（数字）或最小长度（字符串）
-- `max: number`: 最大值（数字）或最大长度（字符串）
-- `length: number`: 固定长度（字符串）
-- `pattern: RegExp | string`: 正则表达式
-- `enum: any[]`: 枚举值
-- `custom: (value: any) => boolean | string`: 自定义验证函数
-
-跨字段验证：
-- `equals: string`: 与另一个字段值相等（字段名）
-- `notEquals: string`: 与另一个字段值不相等（字段名）
-- `compare: (value: any, allValues: Record<string, any>) => boolean | string`: 自定义字段比较函数
-
-数据库查询验证（异步）：
-- `unique: boolean | { exclude?: Record<string, any>, where?: Record<string, any> }`: 在数据表中唯一
-- `exists: boolean | { table?: string, where?: Record<string, any> }`: 在数据表中存在
-- `notExists: boolean | { table?: string, where?: Record<string, any> }`: 在数据表中不存在
-
-高级验证功能：
-- `when: { field: string, is?: any, isNot?: any, check?: (value, allValues) => boolean }`: 条件验证（根据其他字段值决定是否验证）
-- `requiredWhen: { field: string, is?: any, isNot?: any, check?: (value, allValues) => boolean }`: 条件必填（根据条件决定是否必填）
-- `asyncCustom: (value, allValues, context) => Promise<boolean | string>`: 异步自定义验证（可访问数据库）
-- `groups: string[]`: 验证组（只在指定组中验证）
-- `array: { type?, min?, max?, length?, items? }`: 数组验证（验证数组元素）
-- `format: "email" | "url" | "ip" | "ipv4" | "ipv6" | "uuid" | "date" | "datetime" | "time"`: 内置格式验证器
-
-**验证示例**：
+#### 验证示例
 
 ```typescript
 class User extends SQLModel {
   static override tableName = "users";
-  static override schema: ModelSchema = {
+  static override schema = {
     email: {
       type: "string",
       validate: {
         required: true,
-        pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-        unique: true, // 邮箱必须唯一
+        format: "email",
+        unique: true,
       },
     },
     password: {
@@ -857,13 +491,19 @@ class User extends SQLModel {
       validate: {
         required: true,
         min: 8,
+        passwordStrength: {
+          minLength: 8,
+          requireUppercase: true,
+          requireLowercase: true,
+          requireNumbers: true,
+        },
       },
     },
-    confirmPassword: {
-      type: "string",
+    age: {
+      type: "number",
       validate: {
-        required: true,
-        equals: "password", // 必须与 password 字段相等
+        integer: true,
+        range: [0, 150],
       },
     },
     startDate: {
@@ -876,13 +516,7 @@ class User extends SQLModel {
       type: "date",
       validate: {
         required: true,
-        compare: (value, allValues) => {
-          // 结束日期必须大于开始日期
-          if (value <= allValues.startDate) {
-            return "结束日期必须大于开始日期";
-          }
-          return true;
-        },
+        after: "startDate",
       },
     },
     categoryId: {
@@ -892,246 +526,1374 @@ class User extends SQLModel {
         exists: true, // 必须在 categories 表中存在
       },
     },
-    // 条件验证示例
-    discountCode: {
-      type: "string",
-      validate: {
-        when: {
-          field: "hasDiscount",
-          is: true, // 只有当 hasDiscount 为 true 时才验证
-        },
-        required: true,
-      },
-    },
-    // 条件必填示例
-    companyName: {
-      type: "string",
-      validate: {
-        requiredWhen: {
-          field: "userType",
-          is: "company", // 当 userType 为 "company" 时必填
-        },
-      },
-    },
-    // 数组验证示例
-    tags: {
-      type: "array",
-      validate: {
-        array: {
-          type: "string",
-          min: 1,
-          max: 10,
-          items: {
-            min: 2,
-            max: 20,
-          },
-        },
-      },
-    },
-    // 格式验证示例
-    website: {
-      type: "string",
-      validate: {
-        format: "url", // 内置 URL 格式验证
-      },
-    },
-    // 异步自定义验证示例
-    username: {
-      type: "string",
-      validate: {
-        required: true,
-        asyncCustom: async (value, allValues, context) => {
-          // 可以访问数据库进行复杂验证
-          const exists = await context.model.where({ username: value }).exists();
-          if (exists && context.instanceId !== allValues.id) {
-            return "用户名已存在";
-          }
-          return true;
-        },
-      },
-    },
-    // 验证组示例
-    password: {
-      type: "string",
-      validate: {
-        required: true,
-        min: 8,
-        groups: ["create", "update"], // 只在创建和更新时验证
-      },
-    },
   };
 }
-
-// 使用验证组
-await User.validate(userData, undefined, ["create"]); // 只验证 "create" 组的字段
 ```
 
-### MongoModel
+> 💡 **提示**：数据验证规则同时适用于 `SQLModel` 和 `MongoModel`，两者使用完全相同的验证规则。
 
-MongoDB ODM 模型基类。
+### 静态查询方法
 
-**静态方法**：
-- `setAdapter(adapter: DatabaseAdapter): void`: 设置数据库适配器
-- `init(connectionName?: string): Promise<void>`: 初始化模型（从已初始化的数据库连接中获取适配器并设置，不负责连接数据库）
-- `create(data: any): Promise<ModelInstance>`: 创建文档
-- `createMany(data: any[]): Promise<ModelInstance[]>`: 批量创建
-- `find(conditions: MongoWhereCondition): MongoQueryBuilder`: 查找文档（链式查询）
-- `findById(id: any): Promise<ModelInstance | null>`: 通过 ID 查找
-- `findOne(conditions: MongoWhereCondition): Promise<ModelInstance | null>`: 查找单条文档
-- `findAll(conditions?: MongoWhereCondition): Promise<ModelInstance[]>`: 查找多条文档
-- `update(conditions: MongoWhereCondition, data: any): Promise<number>`: 更新文档
-- `updateById(id: any, data: any): Promise<boolean>`: 通过 ID 更新
-- `updateMany(conditions: MongoWhereCondition, data: any): Promise<number>`: 批量更新
-- `delete(conditions: MongoWhereCondition): Promise<number>`: 删除文档
-- `deleteById(id: any): Promise<boolean>`: 通过 ID 删除
-- `deleteMany(conditions: MongoWhereCondition): Promise<number>`: 批量删除
-- `count(conditions?: MongoWhereCondition): Promise<number>`: 统计文档数
-- `exists(conditions: MongoWhereCondition): Promise<boolean>`: 检查文档是否存在
-- `paginate(page: number, perPage: number, conditions?: MongoWhereCondition): Promise<PaginateResult>`: 分页查询
-- `increment(conditions: MongoWhereCondition, field: string, amount?: number): Promise<number>`: 增加字段值
-- `decrement(conditions: MongoWhereCondition, field: string, amount?: number): Promise<number>`: 减少字段值
-- `incrementMany(conditions: MongoWhereCondition, fieldOrMap: string | Record<string, number>, amount?: number): Promise<number>`: 批量增加字段值
-- `decrementMany(conditions: MongoWhereCondition, fieldOrMap: string | Record<string, number>, amount?: number): Promise<number>`: 批量减少字段值
-- `upsert(conditions: MongoWhereCondition, data: any): Promise<ModelInstance>`: 更新或插入
-- `findOneAndUpdate(conditions: MongoWhereCondition, data: any): Promise<ModelInstance | null>`: 查找并更新
-- `findOneAndDelete(conditions: MongoWhereCondition): Promise<ModelInstance | null>`: 查找并删除
-- `findOneAndReplace(conditions: MongoWhereCondition, replacement: any): Promise<ModelInstance | null>`: 查找并替换
-- `distinct(field: string, conditions?: MongoWhereCondition): Promise<any[]>`: 获取唯一值列表
-- `aggregate(pipeline: any[]): Promise<any[]>`: 聚合查询
-- `withTrashed(): QueryBuilder`: 包含已删除文档的查询
-- `onlyTrashed(): QueryBuilder`: 仅查询已删除文档
-- `restore(conditions: MongoWhereCondition): Promise<number>`: 恢复软删除文档
-- `restoreById(id: string): Promise<number>`: 通过 ID 恢复软删除文档
-- `forceDelete(conditions: MongoWhereCondition): Promise<number>`: 强制删除文档
-- `forceDeleteById(id: string): Promise<number>`: 通过 ID 强制删除文档
-- `scope(name: string): QueryBuilder`: 作用域查询
-- `createIndexes(force?: boolean): Promise<string[]>`: 创建索引（根据模型定义的 indexes 创建）
-- `dropIndexes(): Promise<string[]>`: 删除所有索引（除了 _id 索引）
-- `getIndexes(): Promise<any[]>`: 获取所有索引信息
-- `query(): MongoQueryBuilder`: 获取链式查询构建器
+#### find
 
-**链式查询构建器方法**（通过 `query()` 返回）：
-- `where(condition: MongoWhereCondition | string): MongoQueryBuilder`: 添加查询条件
-- `fields(fields: string[]): MongoQueryBuilder`: 选择字段
-- `sort(sort: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc"): MongoQueryBuilder`: 排序
-- `skip(n: number): MongoQueryBuilder`: 跳过文档
-- `limit(n: number): MongoQueryBuilder`: 限制文档数
-- `includeTrashed(): MongoQueryBuilder`: 包含已删除文档
-- `onlyTrashed(): MongoQueryBuilder`: 仅查询已删除文档
-- `findAll(): Promise<ModelInstance[]>`: 执行查询并返回所有结果
-- `findOne(): Promise<ModelInstance | null>`: 执行查询并返回第一条结果
-- `one(): Promise<ModelInstance | null>`: 执行查询并返回第一条结果（别名）
-- `all(): Promise<ModelInstance[]>`: 执行查询并返回所有结果（别名）
-- `findById(id: string, fields?: string[]): Promise<ModelInstance | null>`: 通过 ID 查找
-- `count(): Promise<number>`: 统计文档数
-- `exists(): Promise<boolean>`: 检查文档是否存在
-- `update(data: Record<string, any>, returnLatest?: boolean): Promise<number | ModelInstance>`: 更新文档
-- `updateById(id: string, data: Record<string, any>, returnLatest?: boolean): Promise<number | ModelInstance>`: 通过 ID 更新
-- `updateMany(data: Record<string, any>): Promise<number>`: 批量更新
-- `increment(field: string, amount?: number): Promise<number>`: 增加字段值
-- `decrement(field: string, amount?: number): Promise<number>`: 减少字段值
-- `deleteById(id: string): Promise<number>`: 通过 ID 删除
-- `deleteMany(): Promise<number>`: 批量删除
-- `restore(options?: { returnIds?: boolean }): Promise<number | { count: number; ids: any[] }>`: 恢复软删除文档
-- `restoreById(id: string): Promise<number>`: 通过 ID 恢复软删除文档
-- `forceDelete(options?: { returnIds?: boolean }): Promise<number | { count: number; ids: any[] }>`: 强制删除文档
-- `forceDeleteById(id: string): Promise<number>`: 通过 ID 强制删除文档
-- `distinct(field: string): Promise<any[]>`: 获取唯一值列表
-- `aggregate(pipeline: any[]): Promise<any[]>`: 聚合查询
-- `findOneAndUpdate(data: Record<string, any>, options?: { returnDocument?: "before" | "after" }): Promise<ModelInstance | null>`: 查找并更新
-- `findOneAndDelete(): Promise<ModelInstance | null>`: 查找并删除
-- `findOneAndReplace(replacement: Record<string, any>, returnLatest?: boolean): Promise<ModelInstance | null>`: 查找并替换
-- `upsert(data: Record<string, any>, returnLatest?: boolean, resurrect?: boolean): Promise<ModelInstance>`: 更新或插入
-- `findOrCreate(data: Record<string, any>, resurrect?: boolean): Promise<ModelInstance>`: 查找或创建
-- `incrementMany(fieldOrMap: string | Record<string, number>, amount?: number): Promise<number>`: 批量增加字段值
-- `decrementMany(fieldOrMap: string | Record<string, number>, amount?: number): Promise<number>`: 批量减少字段值
+通过 ID 或条件查找记录。
 
-**实例方法**：
-- `save(): Promise<this>`: 保存实例
-- `update(data: any): Promise<this>`: 更新实例
-- `delete(): Promise<boolean>`: 删除实例
-- `reload(): Promise<this>`: 重新加载实例
-- `belongsTo(Model: typeof MongoModel, foreignKey?: string, localKey?: string): Promise<ModelInstance | null>`: 属于关系
-- `hasOne(Model: typeof MongoModel, foreignKey?: string, localKey?: string): Promise<ModelInstance | null>`: 一对一关系
-- `hasMany(Model: typeof MongoModel, foreignKey?: string, localKey?: string): Promise<ModelInstance[]>`: 一对多关系
+```typescript
+// 通过 ID 查找
+const user = await User.find(1);
+
+// 通过条件查找
+const user = await User.find({ email: "alice@example.com" });
+```
+
+#### findAll
+
+查找多条记录。
+
+```typescript
+// 查找所有记录
+const users = await User.findAll();
+
+// 条件查询
+const users = await User.findAll({ age: { $gt: 18 } });
+
+// 排序
+const users = await User.findAll({}, { sort: { age: "desc" } });
+
+// 分页
+const users = await User.findAll({}, { limit: 10, offset: 0 });
+```
+
+#### findOne
+
+查找单条记录。
+
+```typescript
+const user = await User.findOne({ email: "alice@example.com" });
+```
+
+#### findById
+
+通过 ID 查找记录。
+
+```typescript
+const user = await User.findById(1);
+```
+
+#### count
+
+统计记录数。
+
+```typescript
+// 统计所有记录
+const total = await User.count();
+
+// 条件统计
+const count = await User.count({ age: { $gt: 18 } });
+```
+
+#### exists
+
+检查记录是否存在。
+
+```typescript
+const exists = await User.exists({ email: "alice@example.com" });
+```
+
+#### paginate
+
+分页查询。
+
+```typescript
+const result = await User.paginate(1, 10, { age: { $gt: 18 } });
+// 返回: { data: User[], total: number, page: number, pageSize: number, totalPages: number }
+```
+
+#### distinct
+
+获取字段的唯一值列表。
+
+```typescript
+const emails = await User.distinct("email");
+```
+
+### 静态操作方法
+
+#### create
+
+创建新记录。
+
+```typescript
+const user = await User.create({
+  name: "Alice",
+  email: "alice@example.com",
+  age: 25,
+});
+```
+
+#### createMany
+
+批量创建记录。
+
+```typescript
+const users = await User.createMany([
+  { name: "Alice", email: "alice@example.com", age: 25 },
+  { name: "Bob", email: "bob@example.com", age: 30 },
+]);
+```
+
+#### update
+
+更新记录。
+
+```typescript
+// 通过条件更新
+await User.update({ age: { $lt: 18 } }, { status: "minor" });
+
+// 通过 ID 更新
+await User.update(1, { age: 26 });
+
+// 支持 returnLatest 选项返回更新后的记录
+const updated = await User.update(1, { age: 26 }, { returnLatest: true });
+```
+
+#### updateById
+
+通过 ID 更新记录。
+
+```typescript
+await User.updateById(1, { age: 26 });
+```
+
+#### updateMany
+
+批量更新记录。
+
+```typescript
+await User.updateMany({ status: "active" }, { lastLogin: new Date() });
+```
+
+#### delete
+
+删除记录（支持软删除）。
+
+```typescript
+// 通过条件删除
+await User.delete({ age: { $lt: 0 } });
+
+// 通过 ID 删除
+await User.delete(1);
+```
+
+#### deleteById
+
+通过 ID 删除记录。
+
+```typescript
+await User.deleteById(1);
+```
+
+#### deleteMany
+
+批量删除记录。
+
+```typescript
+// 返回删除的记录数
+const count = await User.deleteMany({ status: "inactive" });
+
+// 支持 returnIds 选项返回删除的记录 ID
+const result = await User.deleteMany({ status: "inactive" }, { returnIds: true });
+// 返回: { count: number, ids: any[] }
+```
+
+#### increment
+
+增加字段值。
+
+```typescript
+// 单个字段
+await User.increment(1, "age", 1);
+
+// 对象格式（批量自增）
+await User.increment(1, { age: 1, score: 10 });
+
+// 支持 returnLatest 选项返回更新后的记录
+const updated = await User.increment(1, "age", 5, true);
+```
+
+#### decrement
+
+减少字段值。
+
+```typescript
+// 单个字段
+await User.decrement(1, "age", 1);
+
+// 对象格式（批量自减）
+await User.decrement(1, { age: 1, score: 10 });
+
+// 支持 returnLatest 选项返回更新后的记录
+const updated = await User.decrement(1, "age", 5, true);
+```
+
+#### incrementMany
+
+批量自增多个字段。
+
+```typescript
+await User.incrementMany({ status: "active" }, { views: 1, likes: 1 });
+```
+
+#### decrementMany
+
+批量自减多个字段。
+
+```typescript
+await User.decrementMany({ status: "active" }, { views: 1, likes: 1 });
+```
+
+#### upsert
+
+插入或更新记录。
+
+```typescript
+// 如果记录不存在则创建，存在则更新
+const user = await User.upsert(
+  { email: "alice@example.com" },
+  { name: "Alice", age: 25 }
+);
+
+// 支持 returnLatest 选项
+const user = await User.upsert(
+  { email: "alice@example.com" },
+  { name: "Alice", age: 25 },
+  { returnLatest: true }
+);
+
+// 支持 resurrect 选项（恢复软删除的记录）
+const user = await User.upsert(
+  { email: "alice@example.com" },
+  { name: "Alice", age: 25 },
+  { returnLatest: true, resurrect: true }
+);
+```
+
+#### findOrCreate
+
+查找或创建记录。
+
+```typescript
+// 如果记录存在则返回，不存在则创建
+const user = await User.findOrCreate(
+  { email: "alice@example.com" },
+  { name: "Alice", age: 25 }
+);
+
+// 支持 resurrect 选项（恢复软删除的记录）
+const user = await User.findOrCreate(
+  { email: "alice@example.com" },
+  { name: "Alice", age: 25 },
+  true // resurrect
+);
+```
+
+#### findOneAndUpdate
+
+查找并更新记录。
+
+```typescript
+const user = await User.findOneAndUpdate(
+  { email: "alice@example.com" },
+  { age: 26 }
+);
+```
+
+#### findOneAndDelete
+
+查找并删除记录。
+
+```typescript
+const user = await User.findOneAndDelete({ email: "alice@example.com" });
+```
+
+#### findOneAndReplace
+
+查找并替换记录。
+
+```typescript
+// 返回替换后的记录
+const user = await User.findOneAndReplace(
+  { email: "alice@example.com" },
+  { name: "Alice Updated", age: 26 },
+  { returnLatest: true }
+);
+```
+
+#### truncate
+
+清空表。
+
+```typescript
+await User.truncate();
+```
+
+### 软删除相关方法
+
+#### withTrashed
+
+包含已删除记录的查询。
+
+```typescript
+const users = await User.withTrashed().findAll();
+```
+
+#### onlyTrashed
+
+仅查询已删除记录。
+
+```typescript
+const deletedUsers = await User.onlyTrashed().findAll();
+```
+
+#### restore
+
+恢复软删除记录。
+
+```typescript
+// 通过条件恢复
+await User.restore({ status: "inactive" });
+
+// 支持 returnIds 选项
+const result = await User.restore({ status: "inactive" }, { returnIds: true });
+```
+
+#### restoreById
+
+通过 ID 恢复软删除记录。
+
+```typescript
+await User.restoreById(1);
+```
+
+#### forceDelete
+
+强制删除记录（物理删除）。
+
+```typescript
+// 通过条件强制删除
+await User.forceDelete({ status: "deleted" });
+
+// 支持 returnIds 选项
+const result = await User.forceDelete({ status: "deleted" }, { returnIds: true });
+```
+
+#### forceDeleteById
+
+通过 ID 强制删除记录。
+
+```typescript
+await User.forceDeleteById(1);
+```
+
+### 链式查询构建器
+
+通过 `query()` 方法获取链式查询构建器。
+
+#### 查询方法
+
+```typescript
+// findAll - 查找所有记录
+const users = await User.query()
+  .where("age", ">", 18)
+  .sort("created_at", "desc")
+  .findAll();
+
+// findOne - 查找单条记录
+const user = await User.query()
+  .where("email", "alice@example.com")
+  .findOne();
+
+// one / all - 别名方法
+const user = await User.query().where("id", 1).one();
+const users = await User.query().where("age", ">", 18).all();
+
+// findById - 通过 ID 查找
+const user = await User.query().findById(1);
+const user = await User.query().findById(1, ["name", "email"]); // 指定字段
+
+// count - 统计记录数
+const count = await User.query().where("age", ">", 18).count();
+
+// exists - 检查记录是否存在
+const exists = await User.query().where("email", "alice@example.com").exists();
+
+// distinct - 获取唯一值列表
+const emails = await User.query().distinct("email");
+
+// paginate - 分页查询
+const result = await User.query()
+  .where("age", ">", 18)
+  .paginate(1, 10);
+```
+
+#### 操作方法
+
+```typescript
+// update - 更新记录
+await User.query()
+  .where("age", ">", 18)
+  .update({ status: "adult" });
+
+// update - 支持 returnLatest 选项
+const updated = await User.query()
+  .where("id", 1)
+  .update({ age: 26 }, true); // returnLatest
+
+// updateById - 通过 ID 更新
+await User.query().updateById(1, { age: 26 });
+
+// updateMany - 批量更新
+await User.query()
+  .where("status", "active")
+  .updateMany({ lastLogin: new Date() });
+
+// increment - 自增（支持对象格式）
+await User.query()
+  .where("id", 1)
+  .increment("age", 1);
+
+await User.query()
+  .where("id", 1)
+  .increment({ age: 1, score: 10 }, true); // returnLatest
+
+// decrement - 自减（支持对象格式）
+await User.query()
+  .where("id", 1)
+  .decrement("age", 1);
+
+await User.query()
+  .where("id", 1)
+  .decrement({ age: 1, score: 10 }, true); // returnLatest
+
+// incrementMany - 批量自增
+await User.query()
+  .where("status", "active")
+  .incrementMany({ views: 1, likes: 1 });
+
+// decrementMany - 批量自减
+await User.query()
+  .where("status", "active")
+  .decrementMany({ views: 1, likes: 1 });
+
+// deleteById - 通过 ID 删除
+await User.query().deleteById(1);
+
+// deleteMany - 批量删除
+await User.query()
+  .where("status", "inactive")
+  .deleteMany();
+
+// deleteMany - 支持 returnIds 选项
+const result = await User.query()
+  .where("status", "inactive")
+  .deleteMany({ returnIds: true });
+
+// upsert - 插入或更新
+const user = await User.query()
+  .where("email", "alice@example.com")
+  .upsert({ name: "Alice", age: 25 }, true, true); // returnLatest, resurrect
+
+// findOrCreate - 查找或创建
+const user = await User.query()
+  .where("email", "alice@example.com")
+  .findOrCreate({ name: "Alice", age: 25 }, true); // resurrect
+
+// findOneAndUpdate - 查找并更新
+const user = await User.query()
+  .where("email", "alice@example.com")
+  .findOneAndUpdate({ age: 26 });
+
+// findOneAndDelete - 查找并删除
+const user = await User.query()
+  .where("email", "alice@example.com")
+  .findOneAndDelete();
+
+// findOneAndReplace - 查找并替换
+const user = await User.query()
+  .where("email", "alice@example.com")
+  .findOneAndReplace({ name: "Alice Updated", age: 26 }, true); // returnLatest
+
+// restore - 恢复软删除记录
+await User.query()
+  .where("status", "inactive")
+  .restore();
+
+// restore - 支持 returnIds 选项
+const result = await User.query()
+  .where("status", "inactive")
+  .restore({ returnIds: true });
+
+// restoreById - 通过 ID 恢复
+await User.query().restoreById(1);
+
+// forceDelete - 强制删除
+await User.query()
+  .where("status", "deleted")
+  .forceDelete();
+
+// forceDelete - 支持 returnIds 选项
+const result = await User.query()
+  .where("status", "deleted")
+  .forceDelete({ returnIds: true });
+
+// forceDeleteById - 通过 ID 强制删除
+await User.query().forceDeleteById(1);
+```
+
+#### 链式条件构建
+
+```typescript
+// where - 添加查询条件
+const users = await User.query()
+  .where("age", ">", 18)
+  .where("status", "active")
+  .findAll();
+
+// 支持对象格式的条件
+const users = await User.query()
+  .where({ age: { $gt: 18 }, status: "active" })
+  .findAll();
+
+// fields - 选择字段
+const users = await User.query()
+  .fields(["name", "email"])
+  .findAll();
+
+// sort - 排序
+const users = await User.query()
+  .sort("created_at", "desc")
+  .findAll();
+
+// 多字段排序
+const users = await User.query()
+  .sort({ age: "desc", name: "asc" })
+  .findAll();
+
+// limit / skip - 分页
+const users = await User.query()
+  .limit(10)
+  .skip(20)
+  .findAll();
+
+// includeTrashed - 包含已删除记录
+const users = await User.query()
+  .includeTrashed()
+  .findAll();
+
+// onlyTrashed - 仅查询已删除记录
+const users = await User.query()
+  .onlyTrashed()
+  .findAll();
+
+// scope - 作用域查询
+const users = await User.scope("active").findAll();
+```
+
+### 实例方法
+
+#### save
+
+保存实例（新建或更新）。
+
+```typescript
+const user = new User();
+user.name = "Alice";
+user.email = "alice@example.com";
+await user.save(); // 新建
+
+user.age = 26;
+await user.save(); // 更新
+```
+
+#### update
+
+更新实例。
+
+```typescript
+await user.update({ age: 26 });
+```
+
+#### delete
+
+删除实例。
+
+```typescript
+await user.delete();
+```
+
+### 关联查询
+
+#### belongsTo
+
+多对一关系（当前模型属于另一个模型）。
+
+```typescript
+// 定义关联
+const author = await post.belongsTo(User, "user_id", "id");
+
+// 支持字段选择
+const author = await post.belongsTo(User, "user_id", "id", ["name", "email"]);
+
+// 支持 includeTrashed 选项
+const author = await post.belongsTo(User, "user_id", "id", undefined, { includeTrashed: true });
+```
+
+#### hasOne
+
+一对一关系（当前模型拥有一个关联模型）。
+
+```typescript
+// 定义关联
+const profile = await user.hasOne(Profile, "user_id", "id");
+
+// 支持字段选择
+const profile = await user.hasOne(Profile, "user_id", "id", ["bio", "avatar"]);
+
+// 支持 includeTrashed 选项
+const profile = await user.hasOne(Profile, "user_id", "id", undefined, { includeTrashed: true });
+```
+
+#### hasMany
+
+一对多关系（当前模型拥有多个关联模型）。
+
+```typescript
+// 定义关联
+const posts = await user.hasMany(Post, "user_id", "id");
+
+// 支持字段选择
+const posts = await user.hasMany(Post, "user_id", "id", ["title", "content"]);
+
+// 支持 options 参数（排序、分页等）
+const posts = await user.hasMany(Post, "user_id", "id", undefined, {
+  sort: { created_at: "desc" },
+  limit: 10,
+});
+
+// 支持 includeTrashed 选项
+const posts = await user.hasMany(Post, "user_id", "id", undefined, undefined, true);
+
+// 支持 onlyTrashed 选项
+const deletedPosts = await user.hasMany(Post, "user_id", "id", undefined, undefined, false, true);
+```
+
+### 生命周期钩子
+
+```typescript
+class User extends SQLModel {
+  static override tableName = "users";
+
+  // 创建前钩子
+  static override beforeCreate(data: any) {
+    data.created_at = new Date();
+    return data;
+  }
+
+  // 创建后钩子
+  static override afterCreate(instance: any) {
+    console.log("User created:", instance.id);
+  }
+
+  // 更新前钩子
+  static override beforeUpdate(data: any, conditions: any) {
+    data.updated_at = new Date();
+    return data;
+  }
+
+  // 更新后钩子
+  static override afterUpdate(instance: any) {
+    console.log("User updated:", instance.id);
+  }
+
+  // 保存前钩子（创建和更新都会调用）
+  static override beforeSave(data: any) {
+    // 处理逻辑
+    return data;
+  }
+
+  // 保存后钩子
+  static override afterSave(instance: any) {
+    console.log("User saved:", instance.id);
+  }
+
+  // 删除前钩子
+  static override beforeDelete(conditions: any) {
+    console.log("Deleting user:", conditions);
+  }
+
+  // 删除后钩子
+  static override afterDelete(instance: any) {
+    console.log("User deleted:", instance.id);
+  }
+
+  // 验证前钩子
+  static override beforeValidate(data: any) {
+    // 预处理数据
+    return data;
+  }
+
+  // 验证后钩子
+  static override afterValidate(data: any) {
+    // 后处理数据
+    return data;
+  }
+}
+```
+
+---
+
+## 📖 MongoModel 详细 API
+
+MongoModel 是 MongoDB 的 ODM 基类，提供完整的 MongoDB 操作功能。
+
+### 模型定义
+
+```typescript
+class Article extends MongoModel {
+  // 必须定义集合名
+  static override collectionName = "articles";
+
+  // 主键字段名（默认为 "_id"）
+  static override primaryKey = "_id";
+
+  // 字段定义和验证规则
+  static override schema = {
+    title: { type: "string", validate: { required: true, max: 200 } },
+    content: { type: "string", validate: { required: true } },
+    status: { type: "string", validate: { enum: ["draft", "published", "archived"] } },
+  };
+
+  // 软删除支持（可选）
+  static override softDelete = true;
+  static override deletedAtField = "deleted_at";
+
+  // 时间戳字段（可选）
+  static override timestamps = true;
+  static override createdAtField = "created_at";
+  static override updatedAtField = "updated_at";
+
+  // 索引定义（可选）
+  static override indexes = [
+    { fields: { title: 1 }, options: { unique: true } },
+    { fields: { status: 1, created_at: -1 } },
+  ];
+}
+```
+
+### 数据验证规则
+
+MongoModel 的数据验证规则与 SQLModel 完全一致，详见 [SQLModel 文档](#数据验证规则)。
+
+### 静态查询方法
+
+MongoModel 的静态查询方法与 SQLModel 完全一致，详见 [SQLModel 文档](#静态查询方法)。
+
+### 静态操作方法
+
+MongoModel 的静态操作方法与 SQLModel 完全一致，详见 [SQLModel 文档](#静态操作方法)。
+
+### 链式查询构建器
+
+MongoModel 的链式查询构建器方法与 SQLModel 完全一致，详见 [SQLModel 文档](#链式查询构建器)。
+
+### MongoModel 独有方法
+
+#### createIndexes
+
+创建索引（根据模型定义的 indexes 创建）。
+
+```typescript
+// 创建所有定义的索引
+const indexNames = await Article.createIndexes();
+
+// 强制重新创建索引（删除后重建）
+const indexNames = await Article.createIndexes(true);
+```
+
+#### dropIndexes
+
+删除所有索引（除了 _id 索引）。
+
+```typescript
+const droppedIndexes = await Article.dropIndexes();
+```
+
+#### getIndexes
+
+获取所有索引信息。
+
+```typescript
+const indexes = await Article.getIndexes();
+```
+
+#### aggregate
+
+聚合查询（MongoDB 特有功能）。
+
+```typescript
+// 静态方法
+const result = await Article.aggregate([
+  { $match: { status: "published" } },
+  { $group: { _id: "$author", count: { $sum: 1 } } },
+  { $sort: { count: -1 } },
+]);
+
+// 链式查询
+const result = await Article.query()
+  .aggregate([
+    { $match: { status: "published" } },
+    { $group: { _id: "$author", count: { $sum: 1 } } },
+  ]);
+```
+
+#### transaction
+
+MongoDB 事务（MongoModel 特有）。
+
+```typescript
+await Article.transaction(async (session) => {
+  const article1 = await Article.create({ title: "Article 1" }, { session });
+  const article2 = await Article.create({ title: "Article 2" }, { session });
+  // 如果任何操作失败，事务会自动回滚
+});
+```
+
+### 实例方法
+
+MongoModel 的实例方法与 SQLModel 完全一致，详见 [SQLModel 文档](#实例方法)。
+
+### 关联查询
+
+MongoModel 的关联查询方法与 SQLModel 完全一致，详见 [SQLModel 文档](#关联查询)。
+
+### 生命周期钩子
+
+MongoModel 的生命周期钩子与 SQLModel 完全一致，详见 [SQLModel 文档](#生命周期钩子)。
+
+---
+
+## 🔧 查询构建器详细文档
 
 ### SQLQueryBuilder
 
-SQL 查询构建器，提供链式查询 API。
+SQL 查询构建器，用于构建复杂的 SQL 查询。
 
-**方法**：
-- `select(...fields: string[]): this`: 选择字段
-- `from(table: string): this`: 指定表
-- `where(condition: string, params?: any[]): this`: 条件查询
-- `orWhere(condition: string, params?: any[]): this`: OR 条件查询
-- `join(table: string, condition: string, type?: string): this`: 连接查询
-- `leftJoin(table: string, condition: string): this`: LEFT JOIN
-- `rightJoin(table: string, condition: string): this`: RIGHT JOIN
-- `orderBy(column: string, direction?: "ASC" | "DESC"): this`: 排序
-- `limit(count: number): this`: 限制记录数
-- `offset(count: number): this`: 偏移量
-- `insert(table: string, data: Record<string, any>): this`: 插入记录
-- `update(table: string, data: Record<string, any>): this`: 更新记录
-- `delete(table: string): this`: 删除记录
-- `execute<T>(): Promise<T[]>`: 执行查询并返回所有结果
-- `executeOne<T>(): Promise<T | null>`: 执行查询并返回第一条结果
-- `executeUpdate(): Promise<any>`: 执行更新/插入/删除操作
-- `toSQL(): string`: 获取构建的 SQL 语句（用于调试）
-- `getParams(): any[]`: 获取参数数组（用于调试）
+#### 基本用法
+
+```typescript
+import { SQLQueryBuilder, getDatabase } from "jsr:@dreamer/database";
+
+const db = getDatabase();
+const builder = new SQLQueryBuilder(db);
+
+// SELECT 查询
+const users = await builder
+  .select("id", "name", "email")
+  .from("users")
+  .where("age > ?", [18])
+  .orderBy("created_at", "DESC")
+  .limit(10)
+  .execute();
+
+// INSERT 操作
+await builder
+  .insert("users")
+  .values({ name: "Alice", email: "alice@example.com", age: 25 })
+  .executeUpdate();
+
+// UPDATE 操作
+await builder
+  .update("users")
+  .set({ age: 26 })
+  .where("id = ?", [1])
+  .executeUpdate();
+
+// DELETE 操作
+await builder
+  .delete("users")
+  .where("id = ?", [1])
+  .executeUpdate();
+```
+
+#### JOIN 查询
+
+```typescript
+// INNER JOIN
+const results = await builder
+  .select("users.name", "posts.title")
+  .from("users")
+  .join("posts", "users.id = posts.user_id")
+  .execute();
+
+// LEFT JOIN
+const results = await builder
+  .select("users.name", "posts.title")
+  .from("users")
+  .leftJoin("posts", "users.id = posts.user_id")
+  .execute();
+
+// RIGHT JOIN
+const results = await builder
+  .select("users.name", "posts.title")
+  .from("users")
+  .rightJoin("posts", "users.id = posts.user_id")
+  .execute();
+```
+
+#### 复杂条件查询
+
+```typescript
+// 多个 WHERE 条件（AND）
+const users = await builder
+  .select("*")
+  .from("users")
+  .where("age > ?", [18])
+  .where("status = ?", ["active"])
+  .execute();
+
+// OR 条件
+const users = await builder
+  .select("*")
+  .from("users")
+  .where("age > ?", [18])
+  .orWhere("status = ?", ["active"])
+  .execute();
+```
 
 ### MongoQueryBuilder
 
-MongoDB 查询构建器，提供链式查询 API。
+MongoDB 查询构建器，用于构建复杂的 MongoDB 查询。
 
-**方法**：
-- `from(collection: string): this`: 指定集合（与 `collection` 方法相同）
-- `collection(name: string): this`: 指定集合
-- `find(filter?: any): this`: 查找文档
-- `where(conditions: MongoWhereCondition): this`: 条件查询
-- `eq(field: string, value: any): this`: 等于条件
-- `ne(field: string, value: any): this`: 不等于条件
-- `gt(field: string, value: any): this`: 大于条件
-- `gte(field: string, value: any): this`: 大于等于条件
-- `lt(field: string, value: any): this`: 小于条件
-- `lte(field: string, value: any): this`: 小于等于条件
-- `in(field: string, values: any[]): this`: IN 条件
-- `nin(field: string, values: any[]): this`: NOT IN 条件
-- `exists(field: string, value: boolean): this`: 存在条件
-- `regex(field: string, pattern: string | RegExp): this`: 正则表达式条件
-- `sort(sort: Record<string, 1 | -1>): this`: 排序
-- `skip(count: number): this`: 跳过文档
-- `limit(count: number): this`: 限制文档数
-- `project(fields: Record<string, 0 | 1>): this`: 字段投影
-- `query<T>(): Promise<T[]>`: 执行查询并返回数组
-- `queryOne<T>(): Promise<T | null>`: 执行查询并返回第一条结果
-- `count(): Promise<number>`: 统计文档数
-- `execute(): MongoExecutor`: 获取执行器对象（用于 insert、update、delete 等操作）
-- `getFilter(): any`: 获取查询过滤器（用于调试）
-- `getOptions(): any`: 获取查询选项（用于调试）
+#### 基本用法
 
-**MongoExecutor 方法**（通过 `execute()` 返回）：
-- `insert(data: any): Promise<any>`: 插入单个文档
-- `insertMany(data: any[]): Promise<any>`: 插入多个文档
-- `update(update: any): Promise<any>`: 更新单个文档
-- `updateMany(update: any): Promise<any>`: 更新多个文档
-- `delete(): Promise<any>`: 删除单个文档
-- `deleteMany(): Promise<any>`: 删除多个文档
+```typescript
+import { MongoQueryBuilder, getDatabase } from "jsr:@dreamer/database";
 
-### MigrationManager
+const db = getDatabase();
+const builder = new MongoQueryBuilder(db);
 
-迁移管理器，负责迁移文件的生成、执行和回滚。
+// 查询文档
+const articles = await builder
+  .collection("articles")
+  .find({ status: "published" })
+  .sort({ created_at: -1 })
+  .limit(10)
+  .query();
 
-**配置选项**：
-- `migrationsDir: string`: 迁移文件目录
-- `adapter: DatabaseAdapter`: 数据库适配器
-- `historyTableName?: string`: 迁移历史表名（SQL 数据库，默认：`migrations`）
-- `historyCollectionName?: string`: 迁移历史集合名（MongoDB，默认：`migrations`）
+// 插入文档
+await builder
+  .collection("articles")
+  .execute()
+  .insert({ title: "Hello", content: "World", status: "published" });
 
-**方法**：
-- `create(name: string): Promise<string>`: 创建迁移文件
-- `up(count?: number): Promise<void>`: 执行迁移
-- `down(count?: number): Promise<void>`: 回滚迁移
-- `status(): Promise<MigrationStatus[]>`: 获取迁移状态
+// 更新文档
+await builder
+  .collection("articles")
+  .find({ status: "draft" })
+  .execute()
+  .updateMany({ $set: { status: "published" } });
+
+// 删除文档
+await builder
+  .collection("articles")
+  .find({ status: "archived" })
+  .execute()
+  .deleteMany();
+```
+
+#### 条件查询
+
+```typescript
+// 等于
+const articles = await builder
+  .collection("articles")
+  .eq("status", "published")
+  .query();
+
+// 不等于
+const articles = await builder
+  .collection("articles")
+  .ne("status", "draft")
+  .query();
+
+// 大于/小于
+const articles = await builder
+  .collection("articles")
+  .gt("views", 100)
+  .lt("views", 1000)
+  .query();
+
+// IN / NOT IN
+const articles = await builder
+  .collection("articles")
+  .in("status", ["published", "archived"])
+  .query();
+
+// 正则表达式
+const articles = await builder
+  .collection("articles")
+  .regex("title", /hello/i)
+  .query();
+```
+
+#### 聚合查询
+
+```typescript
+const result = await builder
+  .collection("articles")
+  .aggregate([
+    { $match: { status: "published" } },
+    { $group: { _id: "$author", count: { $sum: 1 } } },
+    { $sort: { count: -1 } },
+  ]);
+```
+
+---
+
+## 🔄 事务处理
+
+### 基本事务
+
+```typescript
+import { getDatabase } from "jsr:@dreamer/database";
+
+const db = getDatabase();
+
+await db.transaction(async (trx) => {
+  await trx.execute("INSERT INTO users (name, email) VALUES (?, ?)", [
+    "Alice",
+    "alice@example.com",
+  ]);
+  await trx.execute("INSERT INTO orders (user_id, amount) VALUES (?, ?)", [
+    1,
+    100,
+  ]);
+  // 如果任何操作失败，事务会自动回滚
+});
+```
+
+### 嵌套事务（保存点）
+
+SQLite、PostgreSQL、MySQL 支持嵌套事务（通过保存点实现）。
+
+```typescript
+await db.transaction(async (trx) => {
+  await trx.execute("INSERT INTO users (name, email) VALUES (?, ?)", [
+    "Bob",
+    "bob@example.com",
+  ]);
+
+  // 创建保存点
+  const savepointId = await trx.createSavepoint("sp1");
+  try {
+    await trx.execute("INSERT INTO orders (user_id, amount) VALUES (?, ?)", [
+      2,
+      200,
+    ]);
+    // 释放保存点
+    await trx.releaseSavepoint(savepointId);
+  } catch (error) {
+    // 回滚到保存点
+    await trx.rollbackToSavepoint(savepointId);
+    throw error;
+  }
+});
+```
+
+### MongoDB 事务
+
+```typescript
+import { MongoModel } from "jsr:@dreamer/database";
+
+await Article.transaction(async (session) => {
+  const article1 = await Article.create({ title: "Article 1" }, { session });
+  const article2 = await Article.create({ title: "Article 2" }, { session });
+  // 如果任何操作失败，事务会自动回滚
+});
+```
+
+---
+
+## 🔗 关联查询详细说明
+
+### belongsTo（多对一关系）
+
+当前模型属于另一个模型。例如：Post belongsTo User（一个帖子属于一个用户）。
+
+```typescript
+class Post extends SQLModel {
+  static override tableName = "posts";
+}
+
+class User extends SQLModel {
+  static override tableName = "users";
+}
+
+// 获取帖子的作者
+const post = await Post.findById(1);
+const author = await post.belongsTo(User, "user_id", "id");
+
+// 指定字段
+const author = await post.belongsTo(User, "user_id", "id", ["name", "email"]);
+
+// 包含软删除记录
+const author = await post.belongsTo(User, "user_id", "id", undefined, {
+  includeTrashed: true,
+});
+```
+
+### hasOne（一对一关系）
+
+当前模型拥有一个关联模型。例如：User hasOne Profile（一个用户拥有一个资料）。
+
+```typescript
+class Profile extends SQLModel {
+  static override tableName = "profiles";
+}
+
+// 获取用户的资料
+const user = await User.findById(1);
+const profile = await user.hasOne(Profile, "user_id", "id");
+
+// 指定字段
+const profile = await user.hasOne(Profile, "user_id", "id", ["bio", "avatar"]);
+
+// 包含软删除记录
+const profile = await user.hasOne(Profile, "user_id", "id", undefined, {
+  includeTrashed: true,
+});
+```
+
+### hasMany（一对多关系）
+
+当前模型拥有多个关联模型。例如：User hasMany Post（一个用户拥有多个帖子）。
+
+```typescript
+// 获取用户的所有帖子
+const user = await User.findById(1);
+const posts = await user.hasMany(Post, "user_id", "id");
+
+// 指定字段
+const posts = await user.hasMany(Post, "user_id", "id", ["title", "content"]);
+
+// 支持 options 参数（排序、分页等）
+const posts = await user.hasMany(Post, "user_id", "id", undefined, {
+  sort: { created_at: "desc" },
+  limit: 10,
+  skip: 0,
+});
+
+// 包含软删除记录
+const posts = await user.hasMany(Post, "user_id", "id", undefined, undefined, true);
+
+// 仅查询已删除记录
+const deletedPosts = await user.hasMany(Post, "user_id", "id", undefined, undefined, false, true);
+```
+
+---
+
+## 📦 迁移管理
+
+### 创建迁移
+
+```typescript
+import { MigrationManager, getDatabase } from "jsr:@dreamer/database";
+
+const db = getDatabase();
+const manager = new MigrationManager({
+  migrationsDir: "./migrations",
+  adapter: db,
+});
+
+// 创建新的迁移文件
+await manager.create("create_users_table");
+```
+
+### 执行迁移
+
+```typescript
+// 执行所有待执行的迁移
+await manager.up();
+
+// 执行指定数量的迁移
+await manager.up(2);
+```
+
+### 回滚迁移
+
+```typescript
+// 回滚最近的迁移
+await manager.down();
+
+// 回滚指定数量的迁移
+await manager.down(2);
+```
+
+### 查看迁移状态
+
+```typescript
+const status = await manager.status();
+console.log(status);
+// 返回: [{ name: "migration_name", executed: true, executedAt: Date }]
+```
+
+---
+
+## 🔄 SQLModel 与 MongoModel 统一接口
+
+`SQLModel` 和 `MongoModel` 提供统一的接口，便于在不同数据库之间切换使用。
+
+### 统一接口对比
+
+> 📋 **完整对比表格请查看：** [model-api-comparison.md](./docs/model-api-comparison.md)
+
+#### 静态查询方法
+
+| 方法名 | SQLModel | MongoModel | 统一状态 |
+|--------|----------|------------|----------|
+| `find` | ✅ | ✅ | ✅ 已统一 |
+| `findAll` | ✅ | ✅ | ✅ 已统一 |
+| `findOne` | ✅ | ✅ | ✅ 已统一 |
+| `findById` | ✅ | ✅ | ✅ 已统一 |
+| `count` | ✅ | ✅ | ✅ 已统一 |
+| `exists` | ✅ | ✅ | ✅ 已统一 |
+| `paginate` | ✅ | ✅ | ✅ 已统一 |
+| `distinct` | ✅ | ✅ | ✅ 已统一 |
+| `findOrCreate` | ✅ | ✅ | ✅ 已统一 |
+| `findOneAndUpdate` | ✅ | ✅ | ✅ 已统一 |
+| `findOneAndDelete` | ✅ | ✅ | ✅ 已统一 |
+| `findOneAndReplace` | ✅ | ✅ | ✅ 已统一 |
+| `truncate` | ✅ | ✅ | ✅ 已统一 |
+| `aggregate` | ❌ | ✅ | ⚠️ 无法统一（SQL 不支持聚合管道） |
+
+#### 静态操作方法
+
+| 方法名 | SQLModel | MongoModel | 统一状态 |
+|--------|----------|------------|----------|
+| `create` | ✅ | ✅ | ✅ 已统一 |
+| `createMany` | ✅ | ✅ | ✅ 已统一 |
+| `update` | ✅ | ✅ | ✅ 已统一 |
+| `updateById` | ✅ | ✅ | ✅ 已统一 |
+| `updateMany` | ✅ | ✅ | ✅ 已统一 |
+| `delete` | ✅ | ✅ | ✅ 已统一 |
+| `deleteById` | ✅ | ✅ | ✅ 已统一 |
+| `deleteMany` | ✅ | ✅ | ✅ 已统一 |
+| `increment` | ✅ | ✅ | ✅ 已统一 |
+| `decrement` | ✅ | ✅ | ✅ 已统一 |
+| `incrementMany` | ✅ | ✅ | ✅ 已统一 |
+| `decrementMany` | ✅ | ✅ | ✅ 已统一 |
+| `upsert` | ✅ | ✅ | ✅ 已统一 |
+| `restore` | ✅ | ✅ | ✅ 已统一 |
+| `restoreById` | ✅ | ✅ | ✅ 已统一 |
+| `forceDelete` | ✅ | ✅ | ✅ 已统一 |
+| `forceDeleteById` | ✅ | ✅ | ✅ 已统一 |
+
+#### 查询构建器方法（`query()`）
+
+**查询方法：**
+
+| 方法名 | SQLModel | MongoModel | 统一状态 |
+|--------|----------|------------|----------|
+| `findAll()` | ✅ | ✅ | ✅ 已统一 |
+| `findOne()` | ✅ | ✅ | ✅ 已统一 |
+| `one()` | ✅ | ✅ | ✅ 已统一 |
+| `all()` | ✅ | ✅ | ✅ 已统一 |
+| `findById(id, fields?)` | ✅ | ✅ | ✅ 已统一 |
+| `count()` | ✅ | ✅ | ✅ 已统一 |
+| `exists()` | ✅ | ✅ | ✅ 已统一 |
+| `distinct(field)` | ✅ | ✅ | ✅ 已统一 |
+| `paginate(page, pageSize)` | ✅ | ✅ | ✅ 已统一 |
+| `aggregate(pipeline)` | ❌ | ✅ | ⚠️ 无法统一 |
+
+**操作方法：**
+
+| 方法名 | SQLModel | MongoModel | 统一状态 |
+|--------|----------|------------|----------|
+| `update(data, returnLatest?)` | ✅ | ✅ | ✅ 已统一 |
+| `updateById(id, data)` | ✅ | ✅ | ✅ 已统一 |
+| `updateMany(data)` | ✅ | ✅ | ✅ 已统一 |
+| `increment(field, amount?, returnLatest?)` | ✅ | ✅ | ✅ 已统一 |
+| `decrement(field, amount?, returnLatest?)` | ✅ | ✅ | ✅ 已统一 |
+| `deleteById(id)` | ✅ | ✅ | ✅ 已统一 |
+| `deleteMany(options?)` | ✅ | ✅ | ✅ 已统一 |
+| `restore(options?)` | ✅ | ✅ | ✅ 已统一 |
+| `restoreById(id)` | ✅ | ✅ | ✅ 已统一 |
+| `forceDelete(options?)` | ✅ | ✅ | ✅ 已统一 |
+| `forceDeleteById(id)` | ✅ | ✅ | ✅ 已统一 |
+| `upsert(data, returnLatest?, resurrect?)` | ✅ | ✅ | ✅ 已统一 |
+| `findOrCreate(data, resurrect?)` | ✅ | ✅ | ✅ 已统一 |
+| `findOneAndUpdate(data, options?)` | ✅ | ✅ | ✅ 已统一 |
+| `findOneAndDelete()` | ✅ | ✅ | ✅ 已统一 |
+| `findOneAndReplace(replacement, returnLatest?)` | ✅ | ✅ | ✅ 已统一 |
+| `incrementMany(fieldOrMap, amount?)` | ✅ | ✅ | ✅ 已统一 |
+| `decrementMany(fieldOrMap, amount?)` | ✅ | ✅ | ✅ 已统一 |
+
+#### 软删除相关方法
+
+| 方法名 | SQLModel | MongoModel | 统一状态 |
+|--------|----------|------------|----------|
+| `withTrashed()` | ✅ | ✅ | ✅ 已统一 |
+| `onlyTrashed()` | ✅ | ✅ | ✅ 已统一 |
+| `scope(scopeName)` | ✅ | ✅ | ✅ 已统一 |
+
+#### 实例方法
+
+| 方法名 | SQLModel | MongoModel | 统一状态 |
+|--------|----------|------------|----------|
+| `save()` | ✅ | ✅ | ✅ 已统一 |
+| `update(data)` | ✅ | ✅ | ✅ 已统一 |
+| `delete()` | ✅ | ✅ | ✅ 已统一 |
+| `belongsTo(...)` | ✅ | ✅ | ✅ 已统一 |
+| `hasOne(...)` | ✅ | ✅ | ✅ 已统一 |
+| `hasMany(...)` | ✅ | ✅ | ✅ 已统一 |
+
+#### MongoModel 独有方法
+
+| 方法名 | SQLModel | MongoModel | 统一状态 | 备注 |
+|--------|----------|------------|----------|------|
+| `createIndexes(force?)` | ❌ | ✅ | ⚠️ 无法统一 | MongoDB 索引管理 |
+| `dropIndexes()` | ❌ | ✅ | ⚠️ 无法统一 | MongoDB 索引管理 |
+| `getIndexes()` | ❌ | ✅ | ⚠️ 无法统一 | MongoDB 索引管理 |
+| `transaction(callback)` | ❌ | ✅ | ⚠️ 无法统一 | MongoDB 事务 |
+
+#### 统一率统计
+
+| 类别 | 总数 | 已统一 | 无法统一 | 统一率 |
+|------|------|--------|----------|--------|
+| 静态查询方法 | 14 | 13 | 1 | 92.9% |
+| 静态操作方法 | 17 | 17 | 0 | 100% |
+| 查询构建器查询方法 | 10 | 9 | 1 | 90% |
+| 查询构建器操作方法 | 18 | 18 | 0 | 100% |
+| 软删除相关方法 | 3 | 3 | 0 | 100% |
+| 实例方法 | 6 | 6 | 0 | 100% |
+| MongoModel 独有方法 | 4 | 0 | 4 | - |
+| **总计** | **72** | **66** | **6** | **91.7%** |
+
+---
+
+## 🧪 测试报告
+
+本项目包含完整的测试套件，所有测试均使用真实数据库进行测试。
+
+**测试统计：**
+- ✅ **1,575 个测试** - 全部通过
+- ✅ **80 个测试文件** - 覆盖所有核心功能
+- ✅ **100% 通过率** - 无失败测试
+- ✅ **真实数据库** - 所有测试使用真实 SQLite、PostgreSQL、MySQL 和 MongoDB 实例
+- ✅ **跨运行时** - 测试在 Deno 和 Bun 环境中都通过
+- ✅ **测试覆盖率** - 核心功能覆盖率 ~100%
+
+**详细测试报告请查看：** [TEST_REPORT.md](./TEST_REPORT.md)
 
 ---
 
@@ -1141,55 +1903,8 @@ MongoDB 查询构建器，提供链式查询 API。
 - **查询缓存**：ORM 模型支持查询结果缓存，减少数据库查询
 - **预处理语句**：所有 SQL 查询使用预处理语句，防止 SQL 注入并提高性能
 - **批量操作**：支持批量创建、更新、删除操作
-- **索引管理**：支持数据库索引创建和管理
+- **索引管理**：支持数据库索引创建和管理（MongoDB）
 - **异步操作**：所有操作都是异步的，不阻塞主线程
-
----
-
-## 🧪 测试报告
-
-本项目包含完整的测试套件，所有测试均使用真实数据库进行测试。
-
-**测试统计：**
-- ✅ **452 个测试** - 全部通过
-- ✅ **15 个测试文件** - 覆盖所有核心功能
-- ✅ **100% 通过率** - 无失败测试
-- ✅ **真实数据库** - 所有测试使用真实 SQLite、PostgreSQL、MySQL 和 MongoDB 实例
-- ✅ **跨运行时** - 测试在 Deno 和 Bun 环境中都通过
-- ✅ **测试覆盖率** - 核心功能覆盖率 ~100%，总体覆盖率 ~98%
-
-**详细测试报告请查看：** [TEST_REPORT.md](./TEST_REPORT.md)
-
-### 测试覆盖
-
-**ORM/ODM 功能：**
-- ✅ **SQLModel** - 107 个测试（核心 CRUD、查询、生命周期钩子、数据验证、软删除、关联关系）
-- ✅ **MongoModel** - 116 个测试（核心 CRUD、查询、生命周期钩子、数据验证、索引管理、关联关系）
-
-**查询构建器：**
-- ✅ **SQLQueryBuilder** - 23 个测试（SELECT、JOIN、WHERE、ORDER BY、LIMIT、INSERT、UPDATE、DELETE）
-- ✅ **MongoQueryBuilder** - 28 个测试（查询、投影、排序、聚合、更新、删除）
-
-**数据库适配器：**
-- ✅ **SQLiteAdapter** - 21 个测试（连接、查询、执行、事务、连接池、健康检查）
-- ✅ **PostgreSQLAdapter** - 15 个测试（连接、查询、执行、连接池、健康检查、参数转换）
-- ✅ **MySQLAdapter** - 14 个测试（连接、查询、执行、连接池、健康检查）
-- ✅ **MongoDBAdapter** - 18 个测试（连接、查询、执行、连接池、健康检查）
-
-**数据库管理：**
-- ✅ **DatabaseManager** - 16 个测试（多连接管理、适配器工厂、连接状态）
-- ✅ **MigrationManager** - 12 个测试（迁移创建、执行、回滚、状态跟踪）
-
-**数据库初始化与访问：**
-- ✅ **init-database** - 22 个测试（数据库初始化、配置加载、连接管理）
-- ✅ **access** - 11 个测试（数据库访问辅助函数、自动初始化）
-
-**工具与辅助功能：**
-- ✅ **QueryLogger** - 19 个测试（查询日志记录、日志级别过滤、慢查询检测）
-- ✅ **BaseAdapter** - 11 个测试（健康检查、查询日志、连接状态）
-
-**事务处理：**
-- ✅ **Transaction** - 19 个测试（基本事务、嵌套事务、保存点、多数据库支持）
 
 ---
 
@@ -1201,7 +1916,7 @@ MongoDB 查询构建器，提供链式查询 API。
 - **依赖**：需要相应的数据库驱动（PostgreSQL、MySQL、SQLite、MongoDB）
 - **跨运行时**：支持 Deno 2.6+ 和 Bun 1.3.5，代码在两个环境中都经过测试
 - **Bun 原生支持**：SQLiteAdapter 优先使用 Bun 原生 SQLite API，提供更好的性能
-- **测试覆盖**：452 个测试用例，核心功能覆盖率 ~100%，总体覆盖率 ~98%
+- **测试覆盖**：1,575 个测试用例，核心功能覆盖率 ~100%
 - **真实数据库测试**：所有测试使用真实数据库实例，确保测试的真实性和可靠性
 
 ---
