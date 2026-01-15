@@ -7,9 +7,9 @@ import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { SQLQueryBuilder } from "../../src/query/sql-builder.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
 
-// 定义表名常量（使用文件名作为前缀）
-const TABLE_USERS = "query_builder_users";
-const TABLE_POSTS = "query_builder_posts";
+// 定义表名常量（使用目录名_文件名_作为前缀）
+const TABLE_USERS = "sqlite_query_builder_users";
+const TABLE_POSTS = "sqlite_query_builder_posts";
 
 describe("SQLQueryBuilder", () => {
   let adapter: DatabaseAdapter;

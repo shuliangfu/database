@@ -15,9 +15,9 @@ import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { type ModelSchema, SQLModel } from "../../src/orm/sql-model.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
 
-// 定义表名常量（使用文件名作为前缀）
-const TABLE_NAME = "model_users";
-const TABLE_TEST = "model_test_table";
+// 定义表名常量（使用目录名_文件名_作为前缀）
+const TABLE_NAME = "sqlite_model_users";
+const TABLE_TEST = "sqlite_model_test_table";
 
 /**
  * 测试用户模型

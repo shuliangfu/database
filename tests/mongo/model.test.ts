@@ -15,11 +15,15 @@ import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { type ModelSchema, MongoModel } from "../../src/orm/mongo-model.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
 
+// 定义集合名常量（使用目录名_文件名_作为前缀）
+const COLLECTION_NAME = "mongo_model_users";
+const COLLECTION_TEST = "mongo_model_test_collection";
+
 /**
  * 测试用户模型
  */
 class User extends MongoModel {
-  static override collectionName = "model_users";
+  static override collectionName = COLLECTION_NAME;
   static override primaryKey = "_id";
 }
 

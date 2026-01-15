@@ -15,9 +15,9 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
-// 定义表名常量（使用文件名作为前缀）
-const TABLE_USERS = "query_builder_users";
-const TABLE_POSTS = "query_builder_posts";
+// 定义表名常量（使用目录名_文件名_作为前缀）
+const TABLE_USERS = "mysql_query_builder_users";
+const TABLE_POSTS = "mysql_query_builder_posts";
 
 describe("SQLQueryBuilder", () => {
   let adapter: DatabaseAdapter;

@@ -22,9 +22,9 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
-// 定义表名常量（使用文件名作为前缀）
-const TABLE_USERS = "query_builder_users";
-const TABLE_POSTS = "query_builder_posts";
+// 定义表名常量（使用目录名_文件名_作为前缀）
+const TABLE_USERS = "postgresql_query_builder_users";
+const TABLE_POSTS = "postgresql_query_builder_posts";
 
 describe("SQLQueryBuilder", () => {
   let adapter: DatabaseAdapter;
@@ -191,7 +191,9 @@ describe("SQLQueryBuilder", () => {
         .join(TABLE_POSTS, `${TABLE_USERS}.id = ${TABLE_POSTS}.user_id`);
 
       expect(builder.toSQL()).toContain(`INNER JOIN ${TABLE_POSTS}`);
-      expect(builder.toSQL()).toContain(`ON ${TABLE_USERS}.id = ${TABLE_POSTS}.user_id`);
+      expect(builder.toSQL()).toContain(
+        `ON ${TABLE_USERS}.id = ${TABLE_POSTS}.user_id`,
+      );
     });
 
     it("应该添加 LEFT JOIN", () => {
@@ -271,7 +273,9 @@ describe("SQLQueryBuilder", () => {
   describe("update", () => {
     it("应该构建 UPDATE 语句", () => {
       const builder = new SQLQueryBuilder(adapter);
-      builder.update(TABLE_USERS, { name: "Alice Updated" }).where("id = ?", [1]);
+      builder.update(TABLE_USERS, { name: "Alice Updated" }).where("id = ?", [
+        1,
+      ]);
 
       expect(builder.toSQL()).toContain(`UPDATE ${TABLE_USERS}`);
       expect(builder.toSQL()).toContain("SET name = ?");
