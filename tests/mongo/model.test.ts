@@ -2789,8 +2789,8 @@ describe("MongoModel", () => {
       // 清理测试数据
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("categories").deleteMany({});
-        await db.collection("users").deleteMany({
+        await db.collection("model_categories").deleteMany({});
+        await db.collection("model_users").deleteMany({
           categoryId: { $exists: true },
         });
       }
@@ -2866,7 +2866,7 @@ describe("MongoModel", () => {
             validate: {
               required: true,
               notExists: {
-                collection: "banned_emails",
+                collection: "model_banned_emails",
                 where: {},
               },
             },

@@ -163,7 +163,7 @@ describe("MongoDB 错误处理", () => {
 
       // MongoDB 查询语法错误（使用无效的操作符）
       try {
-        await adapter.query("test_collection", {
+        await adapter.query("error_handling_test_collection", {
           $invalidOperator: "value",
         });
         // MongoDB 可能会忽略无效操作符或抛出错误
@@ -269,7 +269,7 @@ describe("MongoDB 错误处理", () => {
       );
 
       // 验证数据已回滚（MongoDB 事务会自动回滚）
-      const results = await adapter.query("test_tx_error", {
+      const results = await adapter.query("error_handling_test_tx_error", {
         name: "TX User",
       });
       expect(results.length).toBe(0);
@@ -311,7 +311,7 @@ describe("MongoDB 错误处理", () => {
       // 关闭后应该无法查询
       await assertRejects(
         async () => {
-          await testAdapter.query("test_collection", {});
+          await testAdapter.query("error_handling_test_collection", {});
         },
         Error,
       );

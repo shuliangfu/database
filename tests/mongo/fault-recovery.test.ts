@@ -71,7 +71,7 @@ describe("MongoDB 故障恢复集成测试", () => {
       try {
         const db = (adapter as MongoDBAdapter).getDatabase();
         if (db) {
-          await db.collection("fault_recovery_test").deleteMany({});
+          await db.collection("fault_recovery_fault_recovery_test").deleteMany({});
         }
       } catch {
         // 忽略错误
@@ -151,7 +151,7 @@ describe("MongoDB 故障恢复集成测试", () => {
       await adapter.transaction(async (db) => {
         const mongoDb = (db as MongoDBAdapter).getDatabase();
         if (mongoDb) {
-          await mongoDb.collection("fault_recovery_test").insertOne({
+          await mongoDb.collection("fault_recovery_fault_recovery_test").insertOne({
             name: "Test",
             value: 1,
           });

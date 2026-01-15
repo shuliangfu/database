@@ -588,7 +588,7 @@ describe("MongoDB 特有功能", () => {
       // 注意：MongoDB 的 insertMany 默认使用 ordered: true，遇到错误会停止
       // 但在停止之前可能已经成功插入了部分文档
       try {
-        await adapter.execute("insertMany", "test_batch_insert", [
+        await adapter.execute("insertMany", "features_test_batch_insert", [
           { name: "User 2", email: "unique2@test.com", age: 30 },
           { name: "User 3", email: "duplicate@test.com", age: 35 }, // 重复
           { name: "User 4", email: "unique4@test.com", age: 40 },

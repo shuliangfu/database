@@ -75,7 +75,7 @@ describe("MongoQueryBuilder", () => {
     // 每个测试前清理数据
     const db = (adapter as any).db;
     if (db) {
-      await db.collection("users").deleteMany({});
+      await db.collection("query_builder_users").deleteMany({});
     }
   });
 

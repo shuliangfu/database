@@ -119,7 +119,7 @@ describe("资源泄漏测试", () => {
     });
 
     // 等待一小段时间让连接释放
-    
+
 
     const statusAfter = await adapter.getPoolStatus();
 
