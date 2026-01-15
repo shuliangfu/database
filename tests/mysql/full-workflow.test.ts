@@ -21,7 +21,7 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
  * 测试用户模型
  */
 class User extends SQLModel {
-  static override tableName = "integration_users";
+  static override tableName = "mysql_integration_users";
   static override primaryKey = "id";
 }
 

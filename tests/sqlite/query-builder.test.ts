@@ -45,20 +45,20 @@ describe("SQLQueryBuilder", () => {
     );
 
     // 清空测试数据
-    await adapter.execute("DELETE FROM users", []);
-    await adapter.execute("DELETE FROM posts", []);
+    await adapter.execute("DELETE FROM sqlite_users", []);
+    await adapter.execute("DELETE FROM sqlite_posts", []);
 
     // 插入测试数据
     await adapter.execute(
-      "INSERT INTO users (name, email, age) VALUES (?, ?, ?)",
+      "INSERT INTO sqlite_users (name, email, age) VALUES (?, ?, ?)",
       ["Alice", "alice@example.com", 25],
     );
     await adapter.execute(
-      "INSERT INTO users (name, email, age) VALUES (?, ?, ?)",
+      "INSERT INTO sqlite_users (name, email, age) VALUES (?, ?, ?)",
       ["Bob", "bob@example.com", 30],
     );
     await adapter.execute(
-      "INSERT INTO users (name, email, age) VALUES (?, ?, ?)",
+      "INSERT INTO sqlite_users (name, email, age) VALUES (?, ?, ?)",
       ["Charlie", "charlie@example.com", 35],
     );
   });
@@ -71,18 +71,18 @@ describe("SQLQueryBuilder", () => {
   describe("select", () => {
     it("应该构建 SELECT 查询", () => {
       const builder = new SQLQueryBuilder(adapter);
-      builder.select(["id", "name"]).from("users");
+      builder.select(["id", "name"]).from("sqlite_users");
 
       expect(builder.toSQL()).toContain("SELECT id, name");
-      expect(builder.toSQL()).toContain("FROM users");
+      expect(builder.toSQL()).toContain("FROM sqlite_users");
     });
 
     it("应该支持链式调用", () => {
       const builder = new SQLQueryBuilder(adapter);
-      builder.select(["*"]).from("users").where("age > ?", [20]);
+      builder.select(["*"]).from("sqlite_users").where("age > ?", [20]);
 
       expect(builder.toSQL()).toContain("SELECT *");
-      expect(builder.toSQL()).toContain("FROM users");
+      expect(builder.toSQL()).toContain("FROM sqlite_users");
       expect(builder.toSQL()).toContain("WHERE age > ?");
     });
   });
@@ -90,7 +90,7 @@ describe("SQLQueryBuilder", () => {
   describe("where", () => {
     it("应该添加 WHERE 条件", () => {
       const builder = new SQLQueryBuilder(adapter);
-      builder.select(["*"]).from("users").where("age > ?", [20]);
+      builder.select(["*"]).from("sqlite_users").where("age > ?", [20]);
 
       expect(builder.toSQL()).toContain("WHERE age > ?");
       expect(builder.getParams()).toEqual([20]);
@@ -100,7 +100,7 @@ describe("SQLQueryBuilder", () => {
       const builder = new SQLQueryBuilder(adapter);
       builder
         .select(["*"])
-        .from("users")
+        .from("sqlite_users")
         .where("age > ?", [20])
         .where("email LIKE ?", ["%@example.com"]);
 
@@ -115,7 +115,7 @@ describe("SQLQueryBuilder", () => {
       const builder = new SQLQueryBuilder(adapter);
       builder
         .select(["*"])
-        .from("users")
+        .from("sqlite_users")
         .where("age > ?", [30])
         .orWhere("name = ?", ["Alice"]);
 
@@ -129,7 +129,7 @@ describe("SQLQueryBuilder", () => {
       const builder = new SQLQueryBuilder(adapter);
       builder
         .select(["users.name", "posts.title"])
-        .from("users")
+        .from("sqlite_users")
         .join("posts", "users.id = posts.user_id");
 
       expect(builder.toSQL()).toContain("INNER JOIN posts");
@@ -140,7 +140,7 @@ describe("SQLQueryBuilder", () => {
       const builder = new SQLQueryBuilder(adapter);
       builder
         .select(["users.name", "posts.title"])
-        .from("users")
+        .from("sqlite_users")
         .leftJoin("posts", "users.id = posts.user_id");
 
       expect(builder.toSQL()).toContain("LEFT JOIN posts");
@@ -150,7 +150,7 @@ describe("SQLQueryBuilder", () => {
       const builder = new SQLQueryBuilder(adapter);
       builder
         .select(["users.name", "posts.title"])
-        .from("users")
+        .from("sqlite_users")
         .rightJoin("posts", "users.id = posts.user_id");
 
       expect(builder.toSQL()).toContain("RIGHT JOIN posts");
@@ -169,7 +169,7 @@ describe("SQLQueryBuilder", () => {
       const builder = new SQLQueryBuilder(adapter);
       builder
         .select(["*"])
-        .from("users")
+        .from("sqlite_users")
         .orderBy("age", "DESC")
         .orderBy("name", "ASC");
 
@@ -204,7 +204,7 @@ describe("SQLQueryBuilder", () => {
         age: 28,
       });
 
-      expect(builder.toSQL()).toContain("INSERT INTO users");
+      expect(builder.toSQL()).toContain("INSERT INTO sqlite_users");
       expect(builder.toSQL()).toContain("name, email, age");
       expect(builder.getParams()).toEqual(["David", "david@example.com", 28]);
     });
@@ -213,9 +213,9 @@ describe("SQLQueryBuilder", () => {
   describe("update", () => {
     it("应该构建 UPDATE 语句", () => {
       const builder = new SQLQueryBuilder(adapter);
-      builder.update("users", { name: "Alice Updated" }).where("id = ?", [1]);
+      builder.update("sqlite_users", { name: "Alice Updated" }).where("id = ?", [1]);
 
-      expect(builder.toSQL()).toContain("UPDATE users");
+      expect(builder.toSQL()).toContain("UPDATE sqlite_users");
       expect(builder.toSQL()).toContain("SET name = ?");
       expect(builder.toSQL()).toContain("WHERE id = ?");
       expect(builder.getParams()).toContain("Alice Updated");
@@ -228,7 +228,7 @@ describe("SQLQueryBuilder", () => {
       const builder = new SQLQueryBuilder(adapter);
       builder.delete("users").where("id = ?", [1]);
 
-      expect(builder.toSQL()).toContain("DELETE FROM users");
+      expect(builder.toSQL()).toContain("DELETE FROM sqlite_users");
       expect(builder.toSQL()).toContain("WHERE id = ?");
       expect(builder.getParams()).toEqual([1]);
     });
@@ -239,7 +239,7 @@ describe("SQLQueryBuilder", () => {
       const builder = new SQLQueryBuilder(adapter);
       const results = await builder
         .select(["*"])
-        .from("users")
+        .from("sqlite_users")
         .where("age > ?", [20])
         .execute();
 
@@ -251,7 +251,7 @@ describe("SQLQueryBuilder", () => {
       const builder = new SQLQueryBuilder(adapter);
       const result = await builder
         .select(["*"])
-        .from("users")
+        .from("sqlite_users")
         .where("age > ?", [20])
         .orderBy("age", "ASC")
         .executeOne();
@@ -264,7 +264,7 @@ describe("SQLQueryBuilder", () => {
       const builder = new SQLQueryBuilder(adapter);
       const result = await builder
         .select(["*"])
-        .from("users")
+        .from("sqlite_users")
         .where("age > ?", [100])
         .executeOne();
 
@@ -287,7 +287,7 @@ describe("SQLQueryBuilder", () => {
 
       // 验证数据已插入
       const users = await adapter.query(
-        "SELECT * FROM users WHERE email = ?",
+        "SELECT * FROM sqlite_users WHERE email = ?",
         ["test@example.com"],
       );
       expect(users.length).toBe(1);
@@ -296,13 +296,13 @@ describe("SQLQueryBuilder", () => {
     it("应该执行 UPDATE 操作", async () => {
       const builder = new SQLQueryBuilder(adapter);
       await builder
-        .update("users", { age: 26 })
+        .update("sqlite_users", { age: 26 })
         .where("email = ?", ["alice@example.com"])
         .executeUpdate();
 
       // 验证数据已更新
       const users = await adapter.query(
-        "SELECT * FROM users WHERE email = ?",
+        "SELECT * FROM sqlite_users WHERE email = ?",
         ["alice@example.com"],
       );
       expect(users[0].age).toBe(26);
@@ -311,7 +311,7 @@ describe("SQLQueryBuilder", () => {
     it("应该执行 DELETE 操作", async () => {
       // 先插入一条测试数据
       await adapter.execute(
-        "INSERT INTO users (name, email, age) VALUES (?, ?, ?)",
+        "INSERT INTO sqlite_users (name, email, age) VALUES (?, ?, ?)",
         ["Delete Test", "delete@example.com", 25],
       );
 
@@ -323,7 +323,7 @@ describe("SQLQueryBuilder", () => {
 
       // 验证数据已删除
       const users = await adapter.query(
-        "SELECT * FROM users WHERE email = ?",
+        "SELECT * FROM sqlite_users WHERE email = ?",
         ["delete@example.com"],
       );
       expect(users.length).toBe(0);
@@ -335,7 +335,7 @@ describe("SQLQueryBuilder", () => {
       const builder = new SQLQueryBuilder(adapter);
       builder
         .select(["id", "name"])
-        .from("users")
+        .from("sqlite_users")
         .where("age > ?", [20])
         .orderBy("name", "ASC")
         .limit(10);
@@ -352,7 +352,7 @@ describe("SQLQueryBuilder", () => {
       const builder = new SQLQueryBuilder(adapter);
       builder
         .select(["*"])
-        .from("users")
+        .from("sqlite_users")
         .where("age > ?", [20])
         .where("name LIKE ?", ["%Alice%"]);
 

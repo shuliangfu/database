@@ -127,11 +127,11 @@ describe("SQLiteAdapter", () => {
 
       // 插入测试数据
       await adapter.execute(
-        "INSERT INTO users (name, email, age) VALUES (?, ?, ?)",
+        "INSERT INTO sqlite_users (name, email, age) VALUES (?, ?, ?)",
         ["Alice", "alice@example.com", 25],
       );
       await adapter.execute(
-        "INSERT INTO users (name, email, age) VALUES (?, ?, ?)",
+        "INSERT INTO sqlite_users (name, email, age) VALUES (?, ?, ?)",
         ["Bob", "bob@example.com", 30],
       );
     });
@@ -142,7 +142,7 @@ describe("SQLiteAdapter", () => {
 
     it("应该执行 SELECT 查询并返回结果", async () => {
       const results = await adapter.query(
-        "SELECT * FROM users WHERE age > ?",
+        "SELECT * FROM sqlite_users WHERE age > ?",
         [20],
       );
 
@@ -153,7 +153,7 @@ describe("SQLiteAdapter", () => {
 
     it("应该支持参数化查询", async () => {
       const results = await adapter.query(
-        "SELECT * FROM users WHERE email = ?",
+        "SELECT * FROM sqlite_users WHERE email = ?",
         ["alice@example.com"],
       );
 
@@ -163,7 +163,7 @@ describe("SQLiteAdapter", () => {
 
     it("应该返回空数组当没有匹配的记录", async () => {
       const results = await adapter.query(
-        "SELECT * FROM users WHERE email = ?",
+        "SELECT * FROM sqlite_users WHERE email = ?",
         ["nonexistent@example.com"],
       );
 
@@ -224,7 +224,7 @@ describe("SQLiteAdapter", () => {
       );
 
       const result = await adapter.execute(
-        "UPDATE users SET name = ? WHERE email = ?",
+        "UPDATE sqlite_users SET name = ? WHERE email = ?",
         ["Alice Updated", "alice@example.com"],
       );
 
@@ -232,7 +232,7 @@ describe("SQLiteAdapter", () => {
 
       // 验证数据已更新
       const users = await adapter.query(
-        "SELECT * FROM users WHERE email = ?",
+        "SELECT * FROM sqlite_users WHERE email = ?",
         ["alice@example.com"],
       );
       expect(users[0].name).toBe("Alice Updated");
@@ -245,7 +245,7 @@ describe("SQLiteAdapter", () => {
       );
 
       const result = await adapter.execute(
-        "DELETE FROM users WHERE email = ?",
+        "DELETE FROM sqlite_users WHERE email = ?",
         ["alice@example.com"],
       );
 
@@ -261,7 +261,7 @@ describe("SQLiteAdapter", () => {
 
       await assertRejects(
         () =>
-          newAdapter.execute("INSERT INTO users (name) VALUES (?)", ["Alice"]),
+          newAdapter.execute("INSERT INTO sqlite_users (name) VALUES (?)", ["Alice"]),
         Error,
       );
     });
@@ -713,12 +713,12 @@ describe("SQLiteAdapter", () => {
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+          "INSERT INTO sqlite_test_users (name, email, age) VALUES (?, ?, ?)",
           ["Transaction User", "tx@test.com", 25],
         );
 
         const users = await db.query(
-          "SELECT * FROM test_users WHERE email = ?",
+          "SELECT * FROM sqlite_test_users WHERE email = ?",
           ["tx@test.com"],
         );
         expect(users.length).toBe(1);
@@ -747,18 +747,18 @@ describe("SQLiteAdapter", () => {
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+          "INSERT INTO sqlite_test_users (name, email, age) VALUES (?, ?, ?)",
           ["Update User", "update@test.com", 25],
         );
 
         const result = await db.execute(
-          "UPDATE test_users SET age = ? WHERE email = ?",
+          "UPDATE sqlite_test_users SET age = ? WHERE email = ?",
           [30, "update@test.com"],
         );
         expect(result.affectedRows).toBeGreaterThan(0);
 
         const users = await db.query(
-          "SELECT * FROM test_users WHERE email = ?",
+          "SELECT * FROM sqlite_test_users WHERE email = ?",
           ["update@test.com"],
         );
         expect(users[0].age).toBe(30);
@@ -838,19 +838,19 @@ describe("SQLiteAdapter", () => {
 
       await adapter.transaction(async (db1: DatabaseAdapter) => {
         await db1.execute(
-          "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+          "INSERT INTO sqlite_test_users (name, email, age) VALUES (?, ?, ?)",
           ["Nested User", "nested@test.com", 25],
         );
 
         await db1.transaction(async (db2: DatabaseAdapter) => {
           await db2.execute(
-            "UPDATE test_users SET age = ? WHERE email = ?",
+            "UPDATE sqlite_test_users SET age = ? WHERE email = ?",
             [30, "nested@test.com"],
           );
         });
 
         const users = await db1.query(
-          "SELECT * FROM test_users WHERE email = ?",
+          "SELECT * FROM sqlite_test_users WHERE email = ?",
           ["nested@test.com"],
         );
         expect(users[0].age).toBe(30);
@@ -880,25 +880,25 @@ describe("SQLiteAdapter", () => {
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+          "INSERT INTO sqlite_test_users (name, email, age) VALUES (?, ?, ?)",
           ["Conflict User", "conflict@test.com", 25],
         );
 
         await db.createSavepoint("sp1");
         await db.execute(
-          "UPDATE test_users SET age = ? WHERE email = ?",
+          "UPDATE sqlite_test_users SET age = ? WHERE email = ?",
           [30, "conflict@test.com"],
         );
 
         await db.createSavepoint("sp1");
         await db.execute(
-          "UPDATE test_users SET age = ? WHERE email = ?",
+          "UPDATE sqlite_test_users SET age = ? WHERE email = ?",
           [35, "conflict@test.com"],
         );
 
         await db.rollbackToSavepoint("sp1");
         const user = await db.query(
-          "SELECT * FROM test_users WHERE email = ?",
+          "SELECT * FROM sqlite_test_users WHERE email = ?",
           ["conflict@test.com"],
         );
         expect(user[0].age).toBe(30);
@@ -955,31 +955,31 @@ describe("SQLiteAdapter", () => {
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
-          "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+          "INSERT INTO sqlite_test_users (name, email, age) VALUES (?, ?, ?)",
           ["Multi User", "multi@test.com", 10],
         );
 
         await db.createSavepoint("sp1");
         await db.execute(
-          "UPDATE test_users SET age = ? WHERE email = ?",
+          "UPDATE sqlite_test_users SET age = ? WHERE email = ?",
           [20, "multi@test.com"],
         );
 
         await db.createSavepoint("sp2");
         await db.execute(
-          "UPDATE test_users SET age = ? WHERE email = ?",
+          "UPDATE sqlite_test_users SET age = ? WHERE email = ?",
           [30, "multi@test.com"],
         );
 
         await db.createSavepoint("sp3");
         await db.execute(
-          "UPDATE test_users SET age = ? WHERE email = ?",
+          "UPDATE sqlite_test_users SET age = ? WHERE email = ?",
           [40, "multi@test.com"],
         );
 
         await db.rollbackToSavepoint("sp2");
         const user = await db.query(
-          "SELECT * FROM test_users WHERE email = ?",
+          "SELECT * FROM sqlite_test_users WHERE email = ?",
           ["multi@test.com"],
         );
         // 回滚到 sp2 后，age 应该是 30（sp2 创建时的值）
@@ -1025,7 +1025,7 @@ describe("SQLiteAdapter", () => {
       );
 
       const users = await adapter.query(
-        "SELECT id FROM test_users WHERE email = ?",
+        "SELECT id FROM sqlite_test_users WHERE email = ?",
         ["join@test.com"],
       );
       const userId = users[0].id;
@@ -1037,7 +1037,7 @@ describe("SQLiteAdapter", () => {
 
       const results = await adapter.query(
         `SELECT u.name, u.email, o.product, o.price
-         FROM test_users u
+         FROM sqlite_test_users u
          JOIN test_orders o ON u.id = o.user_id
          WHERE u.email = ?`,
         ["join@test.com"],
@@ -1083,7 +1083,7 @@ describe("SQLiteAdapter", () => {
       );
 
       const result = await adapter.query(
-        "SELECT COUNT(*) as count, AVG(age) as avg_age, MAX(age) as max_age, MIN(age) as min_age FROM test_users",
+        "SELECT COUNT(*) as count, AVG(age) as avg_age, MAX(age) as max_age, MIN(age) as min_age FROM sqlite_test_users",
         [],
       );
 
@@ -1121,7 +1121,7 @@ describe("SQLiteAdapter", () => {
       );
 
       const results = await adapter.query(
-        "SELECT * FROM test_users WHERE age > (SELECT AVG(age) FROM test_users)",
+        "SELECT * FROM sqlite_test_users WHERE age > (SELECT AVG(age) FROM sqlite_test_users)",
         [],
       );
 
@@ -1153,14 +1153,14 @@ describe("SQLiteAdapter", () => {
       await adapter.transaction(async (db: DatabaseAdapter) => {
         for (let i = 1; i <= 5; i++) {
           await db.execute(
-            "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+            "INSERT INTO sqlite_test_users (name, email, age) VALUES (?, ?, ?)",
             [`Batch User ${i}`, `batch${i}@test.com`, 20 + i],
           );
         }
       });
 
       const count = await adapter.query(
-        "SELECT COUNT(*) as count FROM test_users",
+        "SELECT COUNT(*) as count FROM sqlite_test_users",
         [],
       );
       expect(count[0].count).toBe(5);
@@ -1249,13 +1249,13 @@ describe("SQLiteAdapter", () => {
       );
 
       const result = await adapter.execute(
-        "DELETE FROM test_users WHERE age < ?",
+          "DELETE FROM sqlite_test_users WHERE age < ?",
         [35],
       );
 
       expect(result.affectedRows).toBeGreaterThan(0);
 
-      const users = await adapter.query("SELECT * FROM test_users", []);
+      const users = await adapter.query("SELECT * FROM sqlite_test_users", []);
       expect(users.length).toBe(1);
 
       await adapter.close();
@@ -1471,7 +1471,7 @@ describe("SQLiteAdapter", () => {
         [maliciousInput, "inject@test.com", 25],
       );
 
-      const users = await adapter.query("SELECT * FROM test_users", []);
+      const users = await adapter.query("SELECT * FROM sqlite_test_users", []);
       expect(users.length).toBe(1);
       expect(users[0].name).toBe(maliciousInput);
 
@@ -1548,14 +1548,14 @@ describe("SQLiteAdapter", () => {
 
       for (let i = 1; i <= 10; i++) {
         await adapter.execute(
-          "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+          "INSERT INTO sqlite_test_users (name, email, age) VALUES (?, ?, ?)",
           [`Concurrent User ${i}`, `concurrent${i}@test.com`, 20 + i],
         );
       }
 
       const promises = Array.from({ length: 10 }, (_, i) =>
         adapter.query(
-          "SELECT * FROM test_users WHERE email = ?",
+          "SELECT * FROM sqlite_test_users WHERE email = ?",
           [`concurrent${i + 1}@test.com`],
         ));
 
@@ -1591,7 +1591,7 @@ describe("SQLiteAdapter", () => {
       for (let i = 0; i < 5; i++) {
         await adapter.transaction(async (db: DatabaseAdapter) => {
           await db.execute(
-            "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+            "INSERT INTO sqlite_test_users (name, email, age) VALUES (?, ?, ?)",
             [`Concurrent TX User ${i}`, `concurrent_tx${i}@test.com`, 20 + i],
           );
           return i;
@@ -1599,7 +1599,7 @@ describe("SQLiteAdapter", () => {
       }
 
       const count = await adapter.query(
-        "SELECT COUNT(*) as count FROM test_users",
+        "SELECT COUNT(*) as count FROM sqlite_test_users",
         [],
       );
       expect(count[0].count).toBe(5);

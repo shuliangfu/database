@@ -27,7 +27,7 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
  * 测试用户模型（带虚拟字段）
  */
 class UserWithVirtuals extends SQLModel {
-  static override tableName = "users_virtuals";
+  static override tableName = "mysql_users_virtuals";
   static override primaryKey = "id";
 
   // 定义虚拟字段
@@ -48,7 +48,7 @@ class UserWithVirtuals extends SQLModel {
  * 测试用户模型（带查询作用域）
  */
 class UserWithScopes extends SQLModel {
-  static override tableName = "users_scopes";
+  static override tableName = "mysql_users_scopes";
   static override primaryKey = "id";
 
   // 定义查询作用域

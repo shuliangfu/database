@@ -13,7 +13,7 @@ import type { DatabaseAdapter } from "../../src/types.ts";
  * 测试用户模型
  */
 class User extends SQLModel {
-  static override tableName = "integration_users";
+  static override tableName = "sqlite_integration_users";
   static override primaryKey = "id";
 }
 
@@ -53,7 +53,7 @@ describe("SQLite 完整工作流程集成测试", () => {
     );
 
     // 清空测试数据
-    await adapter.execute("DELETE FROM integration_users", []);
+    await adapter.execute("DELETE FROM sqlite_integration_users", []);
   });
 
   // 每个测试前确保适配器已连接并设置给模型

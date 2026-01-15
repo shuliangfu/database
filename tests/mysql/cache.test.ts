@@ -16,7 +16,7 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
  * 测试用户模型（用于缓存测试）
  */
 class CacheTestUser extends SQLModel {
-  static override tableName = "cache_test_users";
+  static override tableName = "mysql_cache_test_users";
   static schema = {
     id: { type: "integer", primaryKey: true, autoIncrement: true },
     name: { type: "string", required: true },

@@ -16,7 +16,7 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
  * 测试用户模型（用于缓存测试）
  */
 class CacheTestUser extends SQLModel {
-  static override tableName = "cache_test_users";
+  static override tableName = "postgresql_cache_test_users";
   static schema = {
     id: { type: "integer", primaryKey: true, autoIncrement: true },
     name: { type: "string", required: true },
@@ -70,7 +70,7 @@ describe("缓存机制测试", () => {
 
   afterEach(async () => {
     // 清理测试数据
-    await adapter.execute("DELETE FROM cache_test_users", []);
+    await adapter.execute("DELETE FROM postgresql_cache_test_users", []);
     // 清除缓存适配器
     CacheTestUser.cacheAdapter = undefined;
   });

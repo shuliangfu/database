@@ -19,7 +19,7 @@ import type { DatabaseAdapter } from "../../src/types.ts";
  * 测试用户模型（带虚拟字段）
  */
 class UserWithVirtuals extends SQLModel {
-  static override tableName = "users_virtuals";
+  static override tableName = "sqlite_users_virtuals";
   static override primaryKey = "id";
 
   // 定义虚拟字段
@@ -40,7 +40,7 @@ class UserWithVirtuals extends SQLModel {
  * 测试用户模型（带查询作用域）
  */
 class UserWithScopes extends SQLModel {
-  static override tableName = "users_scopes";
+  static override tableName = "sqlite_users_scopes";
   static override primaryKey = "id";
 
   // 定义查询作用域
@@ -107,8 +107,8 @@ describe("SQLModel 高级功能", () => {
 
   beforeEach(async () => {
     // 清空测试数据
-    await adapter.execute("DELETE FROM users_virtuals", []);
-    await adapter.execute("DELETE FROM users_scopes", []);
+    await adapter.execute("DELETE FROM sqlite_users_virtuals", []);
+    await adapter.execute("DELETE FROM sqlite_users_scopes", []);
   });
 
   describe("虚拟字段（virtuals）", () => {
