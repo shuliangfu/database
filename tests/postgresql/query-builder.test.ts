@@ -22,6 +22,10 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
+// 定义表名常量（使用文件名作为前缀）
+const TABLE_USERS = "query_builder_users";
+const TABLE_POSTS = "query_builder_posts";
+
 describe("SQLQueryBuilder", () => {
   let adapter: DatabaseAdapter;
 
@@ -59,7 +63,7 @@ describe("SQLQueryBuilder", () => {
 
     // 创建测试表（使用 PostgreSQL 语法）
     await adapter.execute(
-      `CREATE TABLE IF NOT EXISTS users (
+      `CREATE TABLE IF NOT EXISTS ${TABLE_USERS} (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         email VARCHAR(255) UNIQUE NOT NULL,
@@ -69,7 +73,7 @@ describe("SQLQueryBuilder", () => {
     );
 
     await adapter.execute(
-      `CREATE TABLE IF NOT EXISTS posts (
+      `CREATE TABLE IF NOT EXISTS ${TABLE_POSTS} (
         id SERIAL PRIMARY KEY,
         user_id INTEGER,
         title VARCHAR(255) NOT NULL,
@@ -79,20 +83,20 @@ describe("SQLQueryBuilder", () => {
     );
 
     // 清空测试数据
-    await adapter.execute("TRUNCATE TABLE users", []);
-    await adapter.execute("TRUNCATE TABLE posts", []);
+    await adapter.execute(`TRUNCATE TABLE ${TABLE_USERS}`, []);
+    await adapter.execute(`TRUNCATE TABLE ${TABLE_POSTS}`, []);
 
     // 插入测试数据
     await adapter.execute(
-      "INSERT INTO users (name, email, age) VALUES ($1, $2, $3)",
+      `INSERT INTO ${TABLE_USERS} (name, email, age) VALUES ($1, $2, $3)`,
       ["Alice", "alice@example.com", 25],
     );
     await adapter.execute(
-      "INSERT INTO users (name, email, age) VALUES ($1, $2, $3)",
+      `INSERT INTO ${TABLE_USERS} (name, email, age) VALUES ($1, $2, $3)`,
       ["Bob", "bob@example.com", 30],
     );
     await adapter.execute(
-      "INSERT INTO users (name, email, age) VALUES ($1, $2, $3)",
+      `INSERT INTO ${TABLE_USERS} (name, email, age) VALUES ($1, $2, $3)`,
       ["Charlie", "charlie@example.com", 35],
     );
   });
@@ -125,18 +129,18 @@ describe("SQLQueryBuilder", () => {
   describe("select", () => {
     it("应该构建 SELECT 查询", () => {
       const builder = new SQLQueryBuilder(adapter);
-      builder.select(["id", "name"]).from("users");
+      builder.select(["id", "name"]).from(TABLE_USERS);
 
       expect(builder.toSQL()).toContain("SELECT id, name");
-      expect(builder.toSQL()).toContain("FROM users");
+      expect(builder.toSQL()).toContain(`FROM ${TABLE_USERS}`);
     });
 
     it("应该支持链式调用", () => {
       const builder = new SQLQueryBuilder(adapter);
-      builder.select(["*"]).from("users").where("age > ?", [20]);
+      builder.select(["*"]).from(TABLE_USERS).where("age > ?", [20]);
 
       expect(builder.toSQL()).toContain("SELECT *");
-      expect(builder.toSQL()).toContain("FROM users");
+      expect(builder.toSQL()).toContain(`FROM ${TABLE_USERS}`);
       expect(builder.toSQL()).toContain("WHERE age > ?");
     });
   });
@@ -144,7 +148,7 @@ describe("SQLQueryBuilder", () => {
   describe("where", () => {
     it("应该添加 WHERE 条件", () => {
       const builder = new SQLQueryBuilder(adapter);
-      builder.select(["*"]).from("users").where("age > ?", [20]);
+      builder.select(["*"]).from(TABLE_USERS).where("age > ?", [20]);
 
       expect(builder.toSQL()).toContain("WHERE age > ?");
       expect(builder.getParams()).toEqual([20]);
@@ -154,7 +158,7 @@ describe("SQLQueryBuilder", () => {
       const builder = new SQLQueryBuilder(adapter);
       builder
         .select(["*"])
-        .from("users")
+        .from(TABLE_USERS)
         .where("age > ?", [20])
         .where("email LIKE ?", ["%@example.com"]);
 
@@ -182,39 +186,39 @@ describe("SQLQueryBuilder", () => {
     it("应该添加 INNER JOIN", () => {
       const builder = new SQLQueryBuilder(adapter);
       builder
-        .select(["users.name", "posts.title"])
-        .from("users")
-        .join("posts", "users.id = posts.user_id");
+        .select([`${TABLE_USERS}.name`, `${TABLE_POSTS}.title`])
+        .from(TABLE_USERS)
+        .join(TABLE_POSTS, `${TABLE_USERS}.id = ${TABLE_POSTS}.user_id`);
 
-      expect(builder.toSQL()).toContain("INNER JOIN posts");
-      expect(builder.toSQL()).toContain("ON users.id = posts.user_id");
+      expect(builder.toSQL()).toContain(`INNER JOIN ${TABLE_POSTS}`);
+      expect(builder.toSQL()).toContain(`ON ${TABLE_USERS}.id = ${TABLE_POSTS}.user_id`);
     });
 
     it("应该添加 LEFT JOIN", () => {
       const builder = new SQLQueryBuilder(adapter);
       builder
-        .select(["users.name", "posts.title"])
-        .from("users")
-        .leftJoin("posts", "users.id = posts.user_id");
+        .select([`${TABLE_USERS}.name`, `${TABLE_POSTS}.title`])
+        .from(TABLE_USERS)
+        .leftJoin(TABLE_POSTS, `${TABLE_USERS}.id = ${TABLE_POSTS}.user_id`);
 
-      expect(builder.toSQL()).toContain("LEFT JOIN posts");
+      expect(builder.toSQL()).toContain(`LEFT JOIN ${TABLE_POSTS}`);
     });
 
     it("应该添加 RIGHT JOIN", () => {
       const builder = new SQLQueryBuilder(adapter);
       builder
-        .select(["users.name", "posts.title"])
-        .from("users")
-        .rightJoin("posts", "users.id = posts.user_id");
+        .select([`${TABLE_USERS}.name`, `${TABLE_POSTS}.title`])
+        .from(TABLE_USERS)
+        .rightJoin(TABLE_POSTS, `${TABLE_USERS}.id = ${TABLE_POSTS}.user_id`);
 
-      expect(builder.toSQL()).toContain("RIGHT JOIN posts");
+      expect(builder.toSQL()).toContain(`RIGHT JOIN ${TABLE_POSTS}`);
     });
   });
 
   describe("orderBy", () => {
     it("应该添加 ORDER BY 子句", () => {
       const builder = new SQLQueryBuilder(adapter);
-      builder.select(["*"]).from("users").orderBy("age", "DESC");
+      builder.select(["*"]).from(TABLE_USERS).orderBy("age", "DESC");
 
       expect(builder.toSQL()).toContain("ORDER BY age DESC");
     });
@@ -223,7 +227,7 @@ describe("SQLQueryBuilder", () => {
       const builder = new SQLQueryBuilder(adapter);
       builder
         .select(["*"])
-        .from("users")
+        .from(TABLE_USERS)
         .orderBy("age", "DESC")
         .orderBy("name", "ASC");
 
@@ -235,14 +239,14 @@ describe("SQLQueryBuilder", () => {
   describe("limit 和 offset", () => {
     it("应该添加 LIMIT 子句", () => {
       const builder = new SQLQueryBuilder(adapter);
-      builder.select(["*"]).from("users").limit(10);
+      builder.select(["*"]).from(TABLE_USERS).limit(10);
 
       expect(builder.toSQL()).toContain("LIMIT 10");
     });
 
     it("应该添加 OFFSET 子句", () => {
       const builder = new SQLQueryBuilder(adapter);
-      builder.select(["*"]).from("users").limit(10).offset(5);
+      builder.select(["*"]).from(TABLE_USERS).limit(10).offset(5);
 
       expect(builder.toSQL()).toContain("LIMIT 10");
       expect(builder.toSQL()).toContain("OFFSET 5");
@@ -252,13 +256,13 @@ describe("SQLQueryBuilder", () => {
   describe("insert", () => {
     it("应该构建 INSERT 语句", () => {
       const builder = new SQLQueryBuilder(adapter);
-      builder.insert("users", {
+      builder.insert(TABLE_USERS, {
         name: "David",
         email: "david@example.com",
         age: 28,
       });
 
-      expect(builder.toSQL()).toContain("INSERT INTO users");
+      expect(builder.toSQL()).toContain(`INSERT INTO ${TABLE_USERS}`);
       expect(builder.toSQL()).toContain("name, email, age");
       expect(builder.getParams()).toEqual(["David", "david@example.com", 28]);
     });
@@ -267,9 +271,9 @@ describe("SQLQueryBuilder", () => {
   describe("update", () => {
     it("应该构建 UPDATE 语句", () => {
       const builder = new SQLQueryBuilder(adapter);
-      builder.update("users", { name: "Alice Updated" }).where("id = ?", [1]);
+      builder.update(TABLE_USERS, { name: "Alice Updated" }).where("id = ?", [1]);
 
-      expect(builder.toSQL()).toContain("UPDATE users");
+      expect(builder.toSQL()).toContain(`UPDATE ${TABLE_USERS}`);
       expect(builder.toSQL()).toContain("SET name = ?");
       expect(builder.toSQL()).toContain("WHERE id = ?");
       expect(builder.getParams()).toContain("Alice Updated");
@@ -280,9 +284,9 @@ describe("SQLQueryBuilder", () => {
   describe("delete", () => {
     it("应该构建 DELETE 语句", () => {
       const builder = new SQLQueryBuilder(adapter);
-      builder.delete("users").where("id = ?", [1]);
+      builder.delete(TABLE_USERS).where("id = ?", [1]);
 
-      expect(builder.toSQL()).toContain("DELETE FROM users");
+      expect(builder.toSQL()).toContain(`DELETE FROM ${TABLE_USERS}`);
       expect(builder.toSQL()).toContain("WHERE id = ?");
       expect(builder.getParams()).toEqual([1]);
     });
@@ -293,7 +297,7 @@ describe("SQLQueryBuilder", () => {
       const builder = new SQLQueryBuilder(adapter);
       const results = await builder
         .select(["*"])
-        .from("users")
+        .from(TABLE_USERS)
         .where("age > ?", [20])
         .execute();
 
@@ -305,7 +309,7 @@ describe("SQLQueryBuilder", () => {
       const builder = new SQLQueryBuilder(adapter);
       const result = await builder
         .select(["*"])
-        .from("users")
+        .from(TABLE_USERS)
         .where("age > ?", [20])
         .orderBy("age", "ASC")
         .executeOne();
@@ -318,7 +322,7 @@ describe("SQLQueryBuilder", () => {
       const builder = new SQLQueryBuilder(adapter);
       const result = await builder
         .select(["*"])
-        .from("users")
+        .from(TABLE_USERS)
         .where("age > ?", [100])
         .executeOne();
 
@@ -330,7 +334,7 @@ describe("SQLQueryBuilder", () => {
     it("应该执行 INSERT 操作", async () => {
       const builder = new SQLQueryBuilder(adapter);
       const result = await builder
-        .insert("users", {
+        .insert(TABLE_USERS, {
           name: "Test User",
           email: "test@example.com",
           age: 25,
@@ -341,7 +345,7 @@ describe("SQLQueryBuilder", () => {
 
       // 验证数据已插入
       const users = await adapter.query(
-        "SELECT * FROM users WHERE email = ?",
+        `SELECT * FROM ${TABLE_USERS} WHERE email = ?`,
         ["test@example.com"],
       );
       expect(users.length).toBe(1);
@@ -350,13 +354,13 @@ describe("SQLQueryBuilder", () => {
     it("应该执行 UPDATE 操作", async () => {
       const builder = new SQLQueryBuilder(adapter);
       await builder
-        .update("users", { age: 26 })
+        .update(TABLE_USERS, { age: 26 })
         .where("email = ?", ["alice@example.com"])
         .executeUpdate();
 
       // 验证数据已更新
       const users = await adapter.query(
-        "SELECT * FROM users WHERE email = ?",
+        `SELECT * FROM ${TABLE_USERS} WHERE email = ?`,
         ["alice@example.com"],
       );
       expect(users[0].age).toBe(26);
@@ -365,19 +369,19 @@ describe("SQLQueryBuilder", () => {
     it("应该执行 DELETE 操作", async () => {
       // 先插入一条测试数据
       await adapter.execute(
-        "INSERT INTO users (name, email, age) VALUES (?, ?, ?)",
+        `INSERT INTO ${TABLE_USERS} (name, email, age) VALUES (?, ?, ?)`,
         ["Delete Test", "delete@example.com", 25],
       );
 
       const builder = new SQLQueryBuilder(adapter);
       await builder
-        .delete("users")
+        .delete(TABLE_USERS)
         .where("email = ?", ["delete@example.com"])
         .executeUpdate();
 
       // 验证数据已删除
       const users = await adapter.query(
-        "SELECT * FROM users WHERE email = ?",
+        `SELECT * FROM ${TABLE_USERS} WHERE email = ?`,
         ["delete@example.com"],
       );
       expect(users.length).toBe(0);
@@ -389,14 +393,14 @@ describe("SQLQueryBuilder", () => {
       const builder = new SQLQueryBuilder(adapter);
       builder
         .select(["id", "name"])
-        .from("users")
+        .from(TABLE_USERS)
         .where("age > ?", [20])
         .orderBy("name", "ASC")
         .limit(10);
 
       const sql = builder.toSQL();
       expect(sql).toContain("SELECT id, name");
-      expect(sql).toContain("FROM users");
+      expect(sql).toContain(`FROM ${TABLE_USERS}`);
       expect(sql).toContain("WHERE age > ?");
       expect(sql).toContain("ORDER BY name ASC");
       expect(sql).toContain("LIMIT 10");
@@ -406,7 +410,7 @@ describe("SQLQueryBuilder", () => {
       const builder = new SQLQueryBuilder(adapter);
       builder
         .select(["*"])
-        .from("users")
+        .from(TABLE_USERS)
         .where("age > ?", [20])
         .where("name LIKE ?", ["%Alice%"]);
 
