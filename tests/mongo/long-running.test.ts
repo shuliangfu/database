@@ -127,7 +127,7 @@ describe("MongoDB 长时间运行集成测试", () => {
     // 执行大量查询
     for (let i = 0; i < 100; i++) {
       await adapter.query("find", {
-        collection: "long_running_test",
+        collection: "long_running_long_running_test",
         filter: {},
         options: { limit: 1 },
       });
@@ -152,7 +152,7 @@ describe("MongoDB 长时间运行集成测试", () => {
     // 执行一些操作
     for (let i = 0; i < 20; i++) {
       await adapter.query("find", {
-        collection: "long_running_test",
+        collection: "long_running_long_running_test",
         filter: {},
         options: { limit: 1 },
       });

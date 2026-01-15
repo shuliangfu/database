@@ -2820,7 +2820,7 @@ describe("MongoModel", () => {
             validate: {
               required: true,
               exists: {
-                collection: "categories",
+                collection: "model_categories",
                 where: { _id: null }, // 将在验证时替换为实际值
               },
             },
