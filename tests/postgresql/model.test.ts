@@ -138,7 +138,7 @@ describe("SQLModel", () => {
     await adapter.execute(
       `
       CREATE TRIGGER update_postgresql_users_updated_at
-      BEFORE UPDATE ON users
+      BEFORE UPDATE ON postgresql_users
       FOR EACH ROW
       EXECUTE FUNCTION update_updated_at_column();
     `,
@@ -238,7 +238,7 @@ describe("SQLModel", () => {
   describe("find", () => {
     beforeEach(async () => {
       // 清理并插入测试数据
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
       await User.create({ name: "Alice", email: "alice@test.com", age: 25 });
       await User.create({ name: "Bob", email: "bob@test.com", age: 30 });
     });
@@ -328,7 +328,7 @@ describe("SQLModel", () => {
 
   describe("findAll", () => {
     beforeEach(async () => {
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
       await User.create({ name: "User1", email: "user1@test.com", age: 20 });
       await User.create({ name: "User2", email: "user2@test.com", age: 25 });
       await User.create({ name: "User3", email: "user3@test.com", age: 30 });
@@ -370,7 +370,7 @@ describe("SQLModel", () => {
 
   describe("findOne", () => {
     beforeEach(async () => {
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
       await User.create({
         name: "FindOne",
         email: "findone@test.com",
@@ -392,7 +392,7 @@ describe("SQLModel", () => {
 
   describe("findById", () => {
     beforeEach(async () => {
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
       await User.create({ name: "ById", email: "byid@test.com", age: 25 });
     });
 
@@ -405,7 +405,7 @@ describe("SQLModel", () => {
 
   describe("update", () => {
     beforeEach(async () => {
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
       await User.create({ name: "Update", email: "update@test.com", age: 25 });
     });
 
@@ -431,7 +431,7 @@ describe("SQLModel", () => {
 
   describe("delete", () => {
     beforeEach(async () => {
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
       await User.create({ name: "Delete", email: "delete@test.com", age: 25 });
     });
 
@@ -454,7 +454,7 @@ describe("SQLModel", () => {
 
   describe("count", () => {
     beforeEach(async () => {
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
       await User.create({ name: "Count1", email: "count1@test.com", age: 20 });
       await User.create({ name: "Count2", email: "count2@test.com", age: 25 });
       await User.create({ name: "Count3", email: "count3@test.com", age: 30 });
@@ -473,7 +473,7 @@ describe("SQLModel", () => {
 
   describe("exists", () => {
     beforeEach(async () => {
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
       await User.create({ name: "Exists", email: "exists@test.com", age: 25 });
     });
 
@@ -490,7 +490,7 @@ describe("SQLModel", () => {
 
   describe("createMany", () => {
     beforeEach(async () => {
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
     });
 
     it("应该批量创建记录", async () => {
@@ -600,7 +600,7 @@ describe("SQLModel", () => {
 
   describe("paginate", () => {
     beforeEach(async () => {
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
       for (let i = 1; i <= 10; i++) {
         await User.create({
           name: `Page${i}`,
@@ -695,7 +695,7 @@ describe("SQLModel", () => {
     let userId: number;
 
     beforeEach(async () => {
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
       const user = await User.create({
         name: "Inc",
         email: "inc@test.com",
@@ -723,7 +723,7 @@ describe("SQLModel", () => {
 
   describe("upsert", () => {
     it("应该在记录不存在时创建", async () => {
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
 
       const user = await User.upsert(
         { email: "upsert@test.com" },
@@ -735,7 +735,7 @@ describe("SQLModel", () => {
     });
 
     it("应该在记录存在时更新", async () => {
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
       await User.create({ name: "Old", email: "upsert@test.com", age: 20 });
 
       const user = await User.upsert(
@@ -750,7 +750,7 @@ describe("SQLModel", () => {
 
   describe("distinct", () => {
     beforeEach(async () => {
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
       await User.create({ name: "User1", email: "user1@test.com", age: 20 });
       await User.create({ name: "User2", email: "user2@test.com", age: 25 });
       await User.create({ name: "User3", email: "user3@test.com", age: 20 });
@@ -766,7 +766,7 @@ describe("SQLModel", () => {
 
   describe("findOrCreate", () => {
     beforeEach(async () => {
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
     });
 
     it("应该在记录存在时返回现有记录", async () => {
@@ -798,7 +798,7 @@ describe("SQLModel", () => {
 
   describe("实例方法", () => {
     beforeEach(async () => {
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
     });
 
     describe("save", () => {
@@ -861,7 +861,7 @@ describe("SQLModel", () => {
 
   describe("软删除", () => {
     beforeEach(async () => {
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
 
       class SoftDeleteUser extends SQLModel {
         static override tableName = "postgresql_users";
@@ -896,7 +896,7 @@ describe("SQLModel", () => {
 
   describe("updateById", () => {
     beforeEach(async () => {
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
       await User.create({
         name: "UpdateById",
         email: "updatebyid@test.com",
@@ -918,7 +918,7 @@ describe("SQLModel", () => {
 
   describe("deleteById", () => {
     beforeEach(async () => {
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
       await User.create({
         name: "DeleteById",
         email: "deletebyid@test.com",
@@ -940,7 +940,7 @@ describe("SQLModel", () => {
 
   describe("updateMany", () => {
     beforeEach(async () => {
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
       await User.create({
         name: "User1",
         email: "user1@test.com",
@@ -1101,7 +1101,7 @@ describe("SQLModel", () => {
 
   describe("deleteMany", () => {
     beforeEach(async () => {
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
       await User.create({
         name: "User1",
         email: "user1@test.com",
@@ -1136,7 +1136,7 @@ describe("SQLModel", () => {
 
   describe("query 链式查询构建器", () => {
     beforeEach(async () => {
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
       for (let i = 1; i <= 10; i++) {
         await User.create({
           name: `User${i}`,
@@ -1443,7 +1443,7 @@ describe("SQLModel", () => {
 
   describe("软删除相关方法", () => {
     beforeEach(async () => {
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
     });
 
     it("应该支持 restore 恢复软删除记录", async () => {
@@ -1564,7 +1564,7 @@ describe("SQLModel", () => {
       User.cacheAdapter = cacheAdapter;
       User.cacheTTL = 60;
 
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
       await User.create({ name: "Cache", email: "cache@test.com", age: 25 });
 
       // 第一次查询应该从数据库获取
@@ -1579,7 +1579,7 @@ describe("SQLModel", () => {
 
   describe("生命周期钩子", () => {
     beforeEach(async () => {
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
     });
 
     it("应该调用 beforeCreate 钩子", async () => {
@@ -1819,7 +1819,7 @@ describe("SQLModel", () => {
 
   describe("数据验证", () => {
     beforeEach(async () => {
-      await adapter.execute("DELETE FROM users", []);
+      await adapter.execute("DELETE FROM postgresql_users", []);
     });
 
     it("应该验证必填字段", async () => {
