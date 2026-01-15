@@ -22,6 +22,9 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
+// 定义集合名常量（使用目录名_文件名_作为前缀）
+const COLLECTION_ACCOUNTS = "mongo_transaction_accounts";
+
 describe("事务测试", () => {
   let adapter: DatabaseAdapter;
 
@@ -52,7 +55,7 @@ describe("事务测试", () => {
       // 清空测试集合
       const db = (adapter as any).getDatabase();
       if (db) {
-        await db.collection("transaction_accounts").deleteMany({});
+        await db.collection(COLLECTION_ACCOUNTS).deleteMany({});
       }
     } catch (error) {
       // MongoDB 不可用，跳过测试
@@ -79,7 +82,7 @@ describe("事务测试", () => {
         const db = (adapter as any).getDatabase();
         if (db) {
           try {
-            await db.collection("transaction_accounts").deleteMany({});
+            await db.collection(COLLECTION_ACCOUNTS).deleteMany({});
           } catch {
             // 忽略错误
           }
@@ -125,14 +128,14 @@ describe("事务测试", () => {
       }
 
       // 插入初始数据
-      await adapter.execute("insert", "transaction_accounts", {
+      await adapter.execute("insert", COLLECTION_ACCOUNTS, {
         name: "Alice",
         balance: 1000,
       });
 
       await adapter.transaction(async (db) => {
         // 更新数据
-        await db.execute("update", "transaction_accounts", {
+        await db.execute("update", COLLECTION_ACCOUNTS, {
           filter: { name: "Alice" },
           update: { $inc: { balance: -100 } },
         });
@@ -145,7 +148,7 @@ describe("事务测试", () => {
       });
 
       // 验证事务已提交
-      const accounts = await adapter.query("transaction_accounts", {});
+      const accounts = await adapter.query(COLLECTION_ACCOUNTS, {});
       expect(accounts.length).toBe(2);
       const alice = accounts.find((a: any) => a.name === "Alice");
       const bob = accounts.find((a: any) => a.name === "Bob");
@@ -187,7 +190,7 @@ describe("事务测试", () => {
       }
 
       // 插入初始数据
-      await adapter.execute("insert", "transaction_accounts", {
+      await adapter.execute("insert", COLLECTION_ACCOUNTS, {
         name: "Alice",
         balance: 1000,
       });
@@ -195,7 +198,7 @@ describe("事务测试", () => {
       try {
         await adapter.transaction(async (db) => {
           // 更新数据
-          await db.execute("update", "transaction_accounts", {
+          await db.execute("update", COLLECTION_ACCOUNTS, {
             filter: { name: "Alice" },
             update: { $inc: { balance: -100 } },
           });

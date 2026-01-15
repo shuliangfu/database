@@ -22,6 +22,9 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
+// 定义集合名常量（使用目录名_文件名_作为前缀）
+const COLLECTION_NAME = "mongo_fault_recovery_fault_recovery_test";
+
 /**
  * 创建 MongoDB 配置
  */
@@ -71,7 +74,7 @@ describe("MongoDB 故障恢复集成测试", () => {
       try {
         const db = (adapter as MongoDBAdapter).getDatabase();
         if (db) {
-          await db.collection("fault_recovery_fault_recovery_test").deleteMany({});
+          await db.collection(COLLECTION_NAME).deleteMany({});
         }
       } catch {
         // 忽略错误
@@ -103,7 +106,7 @@ describe("MongoDB 故障恢复集成测试", () => {
 
     // 验证可以正常查询
     const results = await adapter.query("find", {
-      collection: "fault_recovery_fault_recovery_test",
+      collection: COLLECTION_NAME,
       filter: {},
       options: { limit: 1 },
     });
@@ -133,7 +136,7 @@ describe("MongoDB 故障恢复集成测试", () => {
 
     // 验证可以继续执行正常查询
     const results = await adapter.query("find", {
-      collection: "fault_recovery_fault_recovery_test",
+      collection: COLLECTION_NAME,
       filter: {},
       options: { limit: 1 },
     });
@@ -151,7 +154,7 @@ describe("MongoDB 故障恢复集成测试", () => {
       await adapter.transaction(async (db) => {
         const mongoDb = (db as MongoDBAdapter).getDatabase();
         if (mongoDb) {
-          await mongoDb.collection("fault_recovery_fault_recovery_test").insertOne({
+          await mongoDb.collection(COLLECTION_NAME).insertOne({
             name: "Test",
             value: 1,
           });
@@ -169,7 +172,7 @@ describe("MongoDB 故障恢复集成测试", () => {
 
     // 验证可以继续执行正常操作
     const results = await adapter.query("find", {
-      collection: "fault_recovery_fault_recovery_test",
+      collection: COLLECTION_NAME,
       filter: {},
       options: { limit: 1 },
     });
@@ -202,7 +205,7 @@ describe("MongoDB 故障恢复集成测试", () => {
 
     // 验证可以继续执行正常查询
     const results = await adapter.query("find", {
-      collection: "fault_recovery_fault_recovery_test",
+      collection: COLLECTION_NAME,
       filter: {},
       options: { limit: 1 },
     });

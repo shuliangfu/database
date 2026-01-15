@@ -23,6 +23,11 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
+// 定义集合名常量（使用目录名_文件名_作为前缀）
+const COLLECTION_NAME = "mongo_error_handling_test_collection";
+const COLLECTION_UNIQUE = "mongo_error_handling_test_unique_error";
+const COLLECTION_TX = "mongo_error_handling_test_tx_error";
+
 describe("MongoDB 错误处理", () => {
   let adapter: DatabaseAdapter;
 
@@ -163,7 +168,7 @@ describe("MongoDB 错误处理", () => {
 
       // MongoDB 查询语法错误（使用无效的操作符）
       try {
-        await adapter.query("error_handling_test_collection", {
+        await adapter.query(COLLECTION_NAME, {
           $invalidOperator: "value",
         });
         // MongoDB 可能会忽略无效操作符或抛出错误
@@ -182,7 +187,7 @@ describe("MongoDB 错误处理", () => {
 
       await assertRejects(
         async () => {
-          await adapter.execute("invalidOperation", "error_handling_test_collection", {});
+          await adapter.execute("invalidOperation", COLLECTION_NAME, {});
         },
         Error,
       );
@@ -203,7 +208,7 @@ describe("MongoDB 错误处理", () => {
 
       await assertRejects(
         async () => {
-          await adapter.execute("insert", "error_handling_test_collection", undefined);
+          await adapter.execute("insert", COLLECTION_NAME, undefined);
         },
         Error,
       );
@@ -221,13 +226,13 @@ describe("MongoDB 错误处理", () => {
         return;
       }
 
-      const collection = db.collection("error_handling_test_unique_error");
+      const collection = db.collection(COLLECTION_UNIQUE);
 
       // 创建唯一索引
       await collection.createIndex({ email: 1 }, { unique: true });
 
       // 插入第一个文档
-      await adapter.execute("insert", "error_handling_test_unique_error", {
+      await adapter.execute("insert", COLLECTION_UNIQUE, {
         name: "User 1",
         email: "unique@test.com",
       });
@@ -235,7 +240,7 @@ describe("MongoDB 错误处理", () => {
       // 尝试插入重复的 email
       await assertRejects(
         async () => {
-          await adapter.execute("insert", "error_handling_test_unique_error", {
+          await adapter.execute("insert", COLLECTION_UNIQUE, {
             name: "User 2",
             email: "unique@test.com",
           });
@@ -258,7 +263,7 @@ describe("MongoDB 错误处理", () => {
       await assertRejects(
         async () => {
           await adapter.transaction(async (db) => {
-            await db.execute("insert", "error_handling_test_tx_error", {
+            await db.execute("insert", COLLECTION_TX, {
               name: "TX User",
             });
             // 故意抛出错误
@@ -269,7 +274,7 @@ describe("MongoDB 错误处理", () => {
       );
 
       // 验证数据已回滚（MongoDB 事务会自动回滚）
-      const results = await adapter.query("error_handling_test_tx_error", {
+      const results = await adapter.query(COLLECTION_TX, {
         name: "TX User",
       });
       expect(results.length).toBe(0);
@@ -311,7 +316,7 @@ describe("MongoDB 错误处理", () => {
       // 关闭后应该无法查询
       await assertRejects(
         async () => {
-          await testAdapter.query("error_handling_test_collection", {});
+          await testAdapter.query(COLLECTION_NAME, {});
         },
         Error,
       );

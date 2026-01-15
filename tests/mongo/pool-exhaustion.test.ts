@@ -15,6 +15,9 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
+// 定义集合名常量（使用目录名_文件名_作为前缀）
+const COLLECTION_NAME = "mongo_pool_exhaustion_test_collection";
+
 /**
  * 创建 MongoDB 配置
  */
@@ -82,7 +85,7 @@ describe("MongoDB 连接池耗尽测试", () => {
     // 创建多个并发查询，超过最大连接数
     const promises = Array.from(
       { length: 5 },
-      () => adapter.query("pool_exhaustion_test_collection", {}),
+      () => adapter.query(COLLECTION_NAME, {}),
     );
 
     // 所有查询应该都能完成（连接池会排队等待）

@@ -16,6 +16,9 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
+// 定义集合名常量（使用目录名_文件名_作为前缀）
+const COLLECTION_NAME = "mongo_resource_leak_test_collection";
+
 /**
  * 创建 MongoDB 配置
  */
@@ -86,7 +89,7 @@ describe("资源泄漏测试", () => {
     await testAdapter.connect(config);
 
     // 执行一些操作
-    await testAdapter.query("resource_leak_test_collection", {});
+    await testAdapter.query(COLLECTION_NAME, {});
 
     // 关闭连接
     await testAdapter.close();
@@ -115,7 +118,7 @@ describe("资源泄漏测试", () => {
 
     // 执行事务
     await adapter.transaction(async (db) => {
-      await db.query("resource_leak_test_collection", {});
+      await db.query(COLLECTION_NAME, {});
     });
 
     // 等待一小段时间让连接释放
@@ -135,7 +138,7 @@ describe("资源泄漏测试", () => {
 
     // 执行多次查询
     for (let i = 0; i < 10; i++) {
-      await adapter.query("resource_leak_test_collection", {});
+      await adapter.query(COLLECTION_NAME, {});
     }
 
     const status = await adapter.getPoolStatus();

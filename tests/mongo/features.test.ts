@@ -362,8 +362,8 @@ describe("MongoDB 特有功能", () => {
       }
 
       // 创建一些集合
-      await db.createCollection("test_collection_ops").catch(() => {});
-      await db.collection("features_test_index_data").insertOne({}).catch(() => {});
+      await db.createCollection(COLLECTION_COLLECTION_OPS).catch(() => {});
+      await db.collection(COLLECTION_INDEX_DATA).insertOne({}).catch(() => {});
 
       // 列出所有集合
       const collections = await db.listCollections().toArray();
@@ -394,7 +394,7 @@ describe("MongoDB 特有功能", () => {
       ]);
 
       // 获取统计信息
-      const stats = await db.command({ collStats: "test_collection_ops" });
+      const stats = await db.command({ collStats: COLLECTION_COLLECTION_OPS });
 
       expect(stats).toBeTruthy();
       expect(stats.count).toBe(3);
@@ -444,7 +444,7 @@ describe("MongoDB 特有功能", () => {
         });
 
         // 插入有效数据
-        await db.collection("features_test_validation_data").insertOne({
+        await db.collection(COLLECTION_VALIDATION_DATA).insertOne({
           name: "Valid User",
           email: "valid@test.com",
           age: 25,
@@ -452,7 +452,7 @@ describe("MongoDB 特有功能", () => {
 
         // 尝试插入无效数据（缺少必需字段）
         try {
-          await db.collection("features_test_validation_data").insertOne({
+          await db.collection(COLLECTION_VALIDATION_DATA).insertOne({
             name: "Invalid User",
             // 缺少 email
           });
@@ -560,7 +560,7 @@ describe("MongoDB 特有功能", () => {
         return;
       }
 
-      const collection = db.collection("features_test_batch_insert");
+      const collection = db.collection(COLLECTION_BATCH_INSERT);
 
       // 清理之前的数据和索引
       await collection.drop().catch(() => {});
@@ -597,7 +597,7 @@ describe("MongoDB 特有功能", () => {
       // 注意：MongoDB 的 insertMany 默认使用 ordered: true，遇到错误会停止
       // 但在停止之前可能已经成功插入了部分文档
       try {
-        await adapter.execute("insertMany", "features_test_batch_insert", [
+        await adapter.execute("insertMany", COLLECTION_BATCH_INSERT, [
           { name: "User 2", email: "unique2@test.com", age: 30 },
           { name: "User 3", email: "duplicate@test.com", age: 35 }, // 重复
           { name: "User 4", email: "unique4@test.com", age: 40 },
@@ -635,7 +635,7 @@ describe("MongoDB 特有功能", () => {
         return;
       }
 
-      const collection = db.collection("features_test_batch_ordered");
+      const collection = db.collection(COLLECTION_BATCH_ORDERED);
 
       // 清理之前的数据和索引
       await collection.drop().catch(() => {});

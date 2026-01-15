@@ -16,6 +16,9 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
+// 定义集合名常量（使用目录名_文件名_作为前缀）
+const COLLECTION_NAME = "mongo_long_running_long_running_test";
+
 /**
  * 创建 MongoDB 配置
  */
@@ -65,7 +68,7 @@ describe("MongoDB 长时间运行集成测试", () => {
       try {
         const db = (adapter as MongoDBAdapter).getDatabase();
         if (db) {
-          await db.collection("long_running_long_running_test").deleteMany({});
+          await db.collection(COLLECTION_NAME).deleteMany({});
         }
       } catch {
         // 忽略错误
@@ -92,11 +95,11 @@ describe("MongoDB 长时间运行集成测试", () => {
     }
 
     // 清理之前的数据
-    await db.collection("long_running_long_running_test").deleteMany({});
+    await db.collection(COLLECTION_NAME).deleteMany({});
 
     // 执行多次操作，模拟长时间运行
     for (let i = 0; i < 50; i++) {
-      await db.collection("long_running_long_running_test").insertOne({
+      await db.collection(COLLECTION_NAME).insertOne({
         name: `Test ${i}`,
         value: i,
         created_at: new Date(),
@@ -114,7 +117,7 @@ describe("MongoDB 长时间运行集成测试", () => {
     }
 
     // 最终验证
-    const count = await db.collection("long_running_long_running_test").countDocuments();
+    const count = await db.collection(COLLECTION_NAME).countDocuments();
     expect(count).toBe(50);
   }, { sanitizeOps: false, sanitizeResources: false });
 
@@ -127,7 +130,7 @@ describe("MongoDB 长时间运行集成测试", () => {
     // 执行大量查询
     for (let i = 0; i < 100; i++) {
       await adapter.query("find", {
-        collection: "long_running_long_running_test",
+        collection: COLLECTION_NAME,
         filter: {},
         options: { limit: 1 },
       });
@@ -152,7 +155,7 @@ describe("MongoDB 长时间运行集成测试", () => {
     // 执行一些操作
     for (let i = 0; i < 20; i++) {
       await adapter.query("find", {
-        collection: "long_running_long_running_test",
+        collection: COLLECTION_NAME,
         filter: {},
         options: { limit: 1 },
       });

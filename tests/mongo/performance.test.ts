@@ -22,6 +22,9 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
+// 定义集合名常量（使用目录名_文件名_作为前缀）
+const COLLECTION_NAME = "mongo_performance_test_perf_data";
+
 describe("MongoDB 性能测试", () => {
   let adapter: DatabaseAdapter;
 
@@ -70,7 +73,7 @@ describe("MongoDB 性能测试", () => {
       try {
         const db = adapter.getDatabase();
         if (db) {
-          await db.collection("performance_test_perf_data").drop().catch(() => {});
+          await db.collection(COLLECTION_NAME).drop().catch(() => {});
         }
       } catch {
         // 忽略错误
@@ -89,7 +92,7 @@ describe("MongoDB 性能测试", () => {
 
     const db = adapter.getDatabase();
     if (db) {
-      await db.collection("performance_test_perf_data").deleteMany({});
+      await db.collection(COLLECTION_NAME).deleteMany({});
     }
   });
 
@@ -107,13 +110,13 @@ describe("MongoDB 性能测试", () => {
         value: i + 1,
       }));
 
-      await adapter.execute("insertMany", "performance_test_perf_data", documents);
+      await adapter.execute("insertMany", COLLECTION_NAME, documents);
 
       // 执行大量并发查询
       const startTime = Date.now();
       const promises = Array.from(
         { length: 100 },
-        (_, i) => adapter.query("performance_test_perf_data", { value: i + 1 }),
+        (_, i) => adapter.query(COLLECTION_NAME, { value: i + 1 }),
       );
 
       const results = await Promise.all(promises);
@@ -135,7 +138,7 @@ describe("MongoDB 性能测试", () => {
       const startTime = Date.now();
 
       for (let i = 0; i < iterations; i++) {
-        await adapter.query("performance_test_perf_data", {});
+        await adapter.query(COLLECTION_NAME, {});
       }
 
       const duration = Date.now() - startTime;
@@ -157,7 +160,7 @@ describe("MongoDB 性能测试", () => {
 
       for (let i = 0; i < iterations; i++) {
         await adapter.transaction(async (db) => {
-          await db.execute("insert", "performance_test_perf_data", {
+          await db.execute("insert", COLLECTION_NAME, {
             name: `TX User ${i}`,
             email: `tx${i}@test.com`,
             value: i,
@@ -188,11 +191,11 @@ describe("MongoDB 性能测试", () => {
         value: i + 1,
       }));
 
-      await adapter.execute("insertMany", "performance_test_perf_data", documents);
+      await adapter.execute("insertMany", COLLECTION_NAME, documents);
 
       const duration = Date.now() - startTime;
 
-      const count = await adapter.query("performance_test_perf_data", {});
+      const count = await adapter.query(COLLECTION_NAME, {});
       expect(count.length).toBeGreaterThanOrEqual(batchSize);
       expect(duration).toBeLessThan(10000); // 应该在10秒内完成
     }, { sanitizeOps: false, sanitizeResources: false });
@@ -210,10 +213,10 @@ describe("MongoDB 性能测试", () => {
         value: i + 1,
       }));
 
-      await adapter.execute("insertMany", "performance_test_perf_data", documents);
+      await adapter.execute("insertMany", COLLECTION_NAME, documents);
 
       const startTime = Date.now();
-      const results = await adapter.query("performance_test_perf_data", {
+      const results = await adapter.query(COLLECTION_NAME, {
         value: { $gt: 1000, $lt: 2000 },
       });
       const duration = Date.now() - startTime;

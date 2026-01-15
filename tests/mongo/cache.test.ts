@@ -11,11 +11,14 @@ import { getDatabaseAsync } from "../../src/access.ts";
 import { initDatabase } from "../../src/init-database.ts";
 import { type ModelSchema, MongoModel } from "../../src/orm/mongo-model.ts";
 
+// 定义集合名常量（使用目录名_文件名_作为前缀）
+const COLLECTION_NAME = "mongo_cache_cache_test_mongo_users";
+
 /**
  * 测试用户模型（用于 MongoDB 缓存测试）
  */
 class CacheTestMongoUser extends MongoModel {
-  static override collectionName = "cache_cache_test_mongo_users";
+  static override collectionName = COLLECTION_NAME;
   static override primaryKey = "_id";
   static override schema: ModelSchema = {
     _id: { type: "string" as const },
