@@ -51,7 +51,7 @@ describe("缓存机制测试", () => {
 
     // 创建测试表（使用 MySQL/MariaDB 语法）
     await adapter.execute(
-      `CREATE TABLE IF NOT EXISTS cache_test_users (
+      `CREATE TABLE IF NOT EXISTS mysql_cache_test_users (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         email VARCHAR(255) NOT NULL,

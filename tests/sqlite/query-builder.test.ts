@@ -2,7 +2,6 @@
  * @fileoverview SQLQueryBuilder 测试
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { SQLQueryBuilder } from "../../src/query/sql-builder.ts";
@@ -213,7 +212,10 @@ describe("SQLQueryBuilder", () => {
   describe("update", () => {
     it("应该构建 UPDATE 语句", () => {
       const builder = new SQLQueryBuilder(adapter);
-      builder.update("sqlite_users", { name: "Alice Updated" }).where("id = ?", [1]);
+      builder.update("sqlite_users", { name: "Alice Updated" }).where(
+        "id = ?",
+        [1],
+      );
 
       expect(builder.toSQL()).toContain("UPDATE sqlite_users");
       expect(builder.toSQL()).toContain("SET name = ?");

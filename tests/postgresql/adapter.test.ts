@@ -241,7 +241,7 @@ describe("PostgreSQLAdapter", () => {
       }
 
       const result = await adapter.execute(
-        "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3) RETURNING id",
+        "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3) RETURNING id",
         ["Charlie", "charlie@example.com", 35],
       );
 
