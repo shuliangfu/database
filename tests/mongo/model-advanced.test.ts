@@ -23,6 +23,10 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
+// 定义集合名常量（使用目录名_文件名_作为前缀）
+const COLLECTION_VIRTUALS = "mongo_model_advanced_users_virtuals";
+const COLLECTION_SCOPES = "mongo_model_advanced_users_scopes";
+
 /**
  * 创建 MongoDB 配置
  */
@@ -57,7 +61,7 @@ function createMongoConfig() {
  * 测试用户模型（带虚拟字段）
  */
 class UserWithVirtuals extends MongoModel {
-  static override collectionName = "model_advanced_users_virtuals";
+  static override collectionName = COLLECTION_VIRTUALS;
   static override primaryKey = "_id";
 
   // 定义虚拟字段
@@ -78,7 +82,7 @@ class UserWithVirtuals extends MongoModel {
  * 测试用户模型（带查询作用域）
  */
 class UserWithScopes extends MongoModel {
-  static override collectionName = "model_advanced_users_scopes";
+  static override collectionName = COLLECTION_SCOPES;
   static override primaryKey = "_id";
 
   // 定义查询作用域
@@ -123,10 +127,10 @@ describe("MongoModel 高级功能", () => {
       try {
         const db = (adapter as any).getDatabase();
         if (db) {
-          await db.collection("model_advanced_users_virtuals").drop().catch(
+          await db.collection(COLLECTION_VIRTUALS).drop().catch(
             () => {},
           );
-          await db.collection("model_advanced_users_scopes").drop().catch(
+          await db.collection(COLLECTION_SCOPES).drop().catch(
             () => {},
           );
         }
@@ -147,8 +151,8 @@ describe("MongoModel 高级功能", () => {
 
     const db = (adapter as any).getDatabase();
     if (db) {
-      await db.collection("model_advanced_users_virtuals").deleteMany({});
-      await db.collection("model_advanced_users_scopes").deleteMany({});
+      await db.collection(COLLECTION_VIRTUALS).deleteMany({});
+      await db.collection(COLLECTION_SCOPES).deleteMany({});
     }
   });
 
@@ -305,7 +309,7 @@ describe("MongoModel 高级功能", () => {
       // 确保测试开始时数据是干净的（防止其他测试的数据污染）
       const db = (adapter as any).getDatabase();
       if (db) {
-        await db.collection("model_advanced_users_scopes").deleteMany({});
+        await db.collection(COLLECTION_SCOPES).deleteMany({});
       }
 
       await UserWithScopes.create({

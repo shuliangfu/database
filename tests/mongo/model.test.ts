@@ -69,7 +69,7 @@ describe("MongoModel", () => {
       try {
         const db = (adapter as any).db;
         if (db) {
-          await db.collection("model_users").deleteMany({});
+          await db.collection(COLLECTION_NAME).deleteMany({});
         }
       } catch {
         // 忽略错误
@@ -91,7 +91,7 @@ describe("MongoModel", () => {
       }
 
       class TestModel extends MongoModel {
-        static override collectionName = "model_test_collection";
+        static override collectionName = COLLECTION_TEST;
       }
 
       TestModel.setAdapter(adapter);
@@ -111,7 +111,7 @@ describe("MongoModel", () => {
       }
 
       class TestModel extends MongoModel {
-        static override collectionName = "model_test_collection";
+        static override collectionName = COLLECTION_TEST;
       }
 
       TestModel.setAdapter(adapter);
@@ -151,7 +151,7 @@ describe("MongoModel", () => {
 
     it("应该支持时间戳自动管理", async () => {
       class TimestampModel extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override timestamps = true;
       }
       TimestampModel.setAdapter(adapter);
@@ -590,7 +590,7 @@ describe("MongoModel", () => {
       let afterSaveCalled = 0;
 
       class UserWithHooks extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
 
         static override beforeCreate(instance: any) {
@@ -641,7 +641,7 @@ describe("MongoModel", () => {
 
     it("应该支持 enableValidation 选项", async () => {
       class UserWithValidation extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           email: {
@@ -892,7 +892,7 @@ describe("MongoModel", () => {
       let afterSaveCalled = 0;
 
       class UserWithHooks extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
 
         static override beforeUpdate(instance: any) {
@@ -962,7 +962,7 @@ describe("MongoModel", () => {
 
     it("应该支持 enableValidation 选项", async () => {
       class UserWithValidation extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           email: {
@@ -1446,7 +1446,7 @@ describe("MongoModel", () => {
 
     it("应该支持链式查询 restore", async () => {
       class SoftDeleteUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override softDelete = true;
         static override deletedAtField = "deleted_at";
       }
@@ -1474,7 +1474,7 @@ describe("MongoModel", () => {
 
     it("应该支持链式查询 forceDelete", async () => {
       class SoftDeleteUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override softDelete = true;
         static override deletedAtField = "deleted_at";
       }
@@ -1506,7 +1506,7 @@ describe("MongoModel", () => {
 
     it("应该支持链式查询 restoreById", async () => {
       class SoftDeleteUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override softDelete = true;
         static override deletedAtField = "deleted_at";
       }
@@ -1532,7 +1532,7 @@ describe("MongoModel", () => {
 
     it("应该支持链式查询 forceDeleteById", async () => {
       class SoftDeleteUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override softDelete = true;
         static override deletedAtField = "deleted_at";
       }
@@ -1810,7 +1810,7 @@ describe("MongoModel", () => {
 
     it("应该调用 beforeCreate 钩子", async () => {
       class HookUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static beforeCreateCalled = false;
         static beforeCreateData: any = null;
@@ -1839,7 +1839,7 @@ describe("MongoModel", () => {
 
     it("应该调用 afterCreate 钩子", async () => {
       class HookUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static afterCreateCalled = false;
         static afterCreateData: any = null;
@@ -1867,7 +1867,7 @@ describe("MongoModel", () => {
 
     it("应该调用 beforeUpdate 钩子", async () => {
       class HookUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static beforeUpdateCalled = false;
 
@@ -1900,7 +1900,7 @@ describe("MongoModel", () => {
 
     it("应该调用 afterUpdate 钩子", async () => {
       class HookUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static afterUpdateCalled = false;
 
@@ -1926,7 +1926,7 @@ describe("MongoModel", () => {
 
     it("应该调用 beforeSave 钩子（实例方法）", async () => {
       class HookUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static beforeSaveCalled = false;
 
@@ -1952,7 +1952,7 @@ describe("MongoModel", () => {
 
     it("应该调用 afterSave 钩子（实例方法）", async () => {
       class HookUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static afterSaveCalled = false;
 
@@ -1976,7 +1976,7 @@ describe("MongoModel", () => {
 
     it("应该调用 beforeDelete 钩子", async () => {
       class HookUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static beforeDeleteCalled = false;
 
@@ -2002,7 +2002,7 @@ describe("MongoModel", () => {
 
     it("应该调用 afterDelete 钩子", async () => {
       class HookUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static afterDeleteCalled = false;
 
@@ -2028,7 +2028,7 @@ describe("MongoModel", () => {
 
     it("应该调用 beforeValidate 钩子", async () => {
       class HookUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static beforeValidateCalled = false;
 
@@ -2054,7 +2054,7 @@ describe("MongoModel", () => {
 
     it("应该调用 afterValidate 钩子", async () => {
       class HookUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static afterValidateCalled = false;
 
@@ -2156,7 +2156,7 @@ describe("MongoModel", () => {
 
     it("应该支持 restoreById", async () => {
       class SoftDeleteUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override softDelete = true;
         static override deletedAtField = "deleted_at";
@@ -2190,7 +2190,7 @@ describe("MongoModel", () => {
 
     it("应该支持 forceDeleteById", async () => {
       class SoftDeleteUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override softDelete = true;
         static override deletedAtField = "deleted_at";
@@ -2219,7 +2219,7 @@ describe("MongoModel", () => {
 
     it("应该支持 scope 作用域查询", async () => {
       class ScopedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override scopes = {
           active: () => ({ status: "active" }),
@@ -2252,7 +2252,7 @@ describe("MongoModel", () => {
 
     it("应该支持 scope 链式查询", async () => {
       class ScopedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override scopes = {
           active: () => ({ status: "active" }),
@@ -2292,7 +2292,7 @@ describe("MongoModel", () => {
 
     it("应该验证必填字段", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           name: {
@@ -2328,7 +2328,7 @@ describe("MongoModel", () => {
 
     it("应该验证字段类型", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           age: {
@@ -2365,7 +2365,7 @@ describe("MongoModel", () => {
 
     it("应该验证最小值", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           age: {
@@ -2402,7 +2402,7 @@ describe("MongoModel", () => {
 
     it("应该验证最大值", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           age: {
@@ -2439,7 +2439,7 @@ describe("MongoModel", () => {
 
     it("应该验证正则表达式", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           email: {
@@ -2476,7 +2476,7 @@ describe("MongoModel", () => {
 
     it("应该验证枚举值", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           status: {
@@ -2516,7 +2516,7 @@ describe("MongoModel", () => {
 
     it("应该验证自定义验证函数", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           age: {
@@ -2560,7 +2560,7 @@ describe("MongoModel", () => {
 
     it("应该验证跨字段相等（equals）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           password: {
@@ -2606,7 +2606,7 @@ describe("MongoModel", () => {
 
     it("应该验证跨字段不相等（notEquals）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           oldPassword: {
@@ -2652,7 +2652,7 @@ describe("MongoModel", () => {
 
     it("应该验证跨字段自定义比较（compare）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           startDate: {
@@ -2703,7 +2703,7 @@ describe("MongoModel", () => {
 
     it("应该验证唯一性（unique）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           email: {
@@ -2741,7 +2741,7 @@ describe("MongoModel", () => {
 
     it("应该验证唯一性（更新时排除当前记录）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           email: {
@@ -2816,7 +2816,7 @@ describe("MongoModel", () => {
       const category = await Category.create({ name: "Tech" });
 
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           categoryId: {
@@ -2862,7 +2862,7 @@ describe("MongoModel", () => {
 
     it("应该验证不存在性（notExists）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           email: {
@@ -2911,7 +2911,7 @@ describe("MongoModel", () => {
 
     it("应该验证条件验证（when）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           hasDiscount: {
@@ -2969,7 +2969,7 @@ describe("MongoModel", () => {
 
     it("应该验证条件必填（requiredWhen）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           userType: {
@@ -3026,7 +3026,7 @@ describe("MongoModel", () => {
 
     it("应该验证异步自定义验证（asyncCustom）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           username: {
@@ -3094,7 +3094,7 @@ describe("MongoModel", () => {
 
     it("应该验证验证组（groups）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           password: {
@@ -3148,7 +3148,7 @@ describe("MongoModel", () => {
 
     it("应该验证数组（array）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           tags: {
@@ -3231,7 +3231,7 @@ describe("MongoModel", () => {
 
     it("应该验证格式（format - email）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           email: {
@@ -3269,7 +3269,7 @@ describe("MongoModel", () => {
 
     it("应该验证格式（format - url）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           website: {
@@ -3308,7 +3308,7 @@ describe("MongoModel", () => {
 
     it("应该验证格式（format - ipv4）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           ipAddress: {
@@ -3347,7 +3347,7 @@ describe("MongoModel", () => {
 
     it("应该验证格式（format - uuid）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           uuid: {
@@ -3386,7 +3386,7 @@ describe("MongoModel", () => {
 
     it("应该验证格式（format - date）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           birthDate: {
@@ -3425,7 +3425,7 @@ describe("MongoModel", () => {
 
     it("应该验证格式（format - time）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "model_users";
+        static override collectionName = COLLECTION_NAME;
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           workTime: {

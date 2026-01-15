@@ -23,6 +23,10 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
+// 定义集合名常量（使用目录名_文件名_作为前缀）
+const COLLECTION_USERS = "mongo_adapter_test_users";
+const COLLECTION_ORDERS = "mongo_adapter_test_orders";
+
 describe("MongoDBAdapter", () => {
   let adapter: DatabaseAdapter;
 
@@ -69,7 +73,7 @@ describe("MongoDBAdapter", () => {
       try {
         const db = (adapter as any).getDatabase();
         if (db) {
-          await db.collection("adapter_test_users").deleteMany({});
+          await db.collection(COLLECTION_USERS).deleteMany({});
         }
       } catch {
         // 忽略错误
@@ -91,7 +95,7 @@ describe("MongoDBAdapter", () => {
     // 清理测试数据
     const db = (adapter as any).db;
     if (db) {
-      await db.collection("adapter_test_users").deleteMany({});
+      await db.collection(COLLECTION_USERS).deleteMany({});
     }
   });
 
@@ -142,13 +146,13 @@ describe("MongoDBAdapter", () => {
       }
 
       // 先插入测试数据
-      await adapter.execute("insert", "adapter_test_users", {
+      await adapter.execute("insert", COLLECTION_USERS, {
         name: "Alice",
         email: "alice@example.com",
         age: 25,
       });
 
-      const results = await adapter.query("adapter_test_users", {
+      const results = await adapter.query(COLLECTION_USERS, {
         name: "Alice",
       });
 
@@ -165,17 +169,17 @@ describe("MongoDBAdapter", () => {
       }
 
       // 插入多条数据
-      await adapter.execute("insert", "adapter_test_users", {
+      await adapter.execute("insert", COLLECTION_USERS, {
         name: "Bob",
         age: 30,
       });
-      await adapter.execute("insert", "adapter_test_users", {
+      await adapter.execute("insert", COLLECTION_USERS, {
         name: "Charlie",
         age: 35,
       });
 
       const results = await adapter.query(
-        "adapter_test_users",
+        COLLECTION_USERS,
         { age: { $gt: 25 } },
         { sort: { age: 1 } },
       );
@@ -189,7 +193,7 @@ describe("MongoDBAdapter", () => {
         return;
       }
 
-      const results = await adapter.query("adapter_test_users", {});
+      const results = await adapter.query(COLLECTION_USERS, {});
 
       expect(results).toEqual([]);
     }, { sanitizeOps: false, sanitizeResources: false });
@@ -470,7 +474,7 @@ describe("MongoDBAdapter", () => {
 
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("adapter_test_users").deleteMany({});
+        await db.collection(COLLECTION_USERS).deleteMany({});
       }
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
@@ -503,7 +507,7 @@ describe("MongoDBAdapter", () => {
 
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("adapter_test_users").deleteMany({});
+        await db.collection(COLLECTION_USERS).deleteMany({});
       }
 
       await assertRejects(
@@ -872,7 +876,7 @@ describe("MongoDBAdapter", () => {
       ]);
 
       // 使用聚合管道
-      const results = await adapter.query("adapter_test_users", {}, {
+      const results = await adapter.query(COLLECTION_USERS, {}, {
         pipeline: [
           { $match: { city: "Beijing" } },
           {
@@ -905,7 +909,7 @@ describe("MongoDBAdapter", () => {
       ]);
 
       // 使用 limit 和 sort
-      const results = await adapter.query("adapter_test_users", {}, {
+      const results = await adapter.query(COLLECTION_USERS, {}, {
         limit: 2,
         sort: { age: -1 },
       });
@@ -924,14 +928,14 @@ describe("MongoDBAdapter", () => {
       }
 
       // 插入测试数据
-      await adapter.execute("insert", "adapter_test_users", {
+      await adapter.execute("insert", COLLECTION_USERS, {
         name: "Projection User",
         email: "projection@test.com",
         age: 25,
       });
 
       // 只查询 name 和 age
-      const results = await adapter.query("adapter_test_users", {
+      const results = await adapter.query(COLLECTION_USERS, {
         email: "projection@test.com",
       }, {
         projection: { name: 1, age: 1, _id: 0 },
@@ -1004,7 +1008,7 @@ describe("MongoDBAdapter", () => {
       }
 
       // 插入测试数据
-      await adapter.execute("insert", "adapter_test_users", {
+      await adapter.execute("insert", COLLECTION_USERS, {
         name: "Delete User",
         email: "delete@test.com",
         age: 25,
@@ -1035,7 +1039,7 @@ describe("MongoDBAdapter", () => {
       }
 
       // 插入测试数据
-      await adapter.execute("insert", "adapter_test_users", {
+      await adapter.execute("insert", COLLECTION_USERS, {
         name: "Operator User",
         email: "operator@test.com",
         age: 25,
@@ -1096,7 +1100,7 @@ describe("MongoDBAdapter", () => {
       const logger = new QueryLogger({ enabled: true, logLevel: "all" });
       (adapter as any).setQueryLogger(logger);
 
-      await adapter.execute("insert", "adapter_test_users", {
+      await adapter.execute("insert", COLLECTION_USERS, {
         name: "Log User",
         email: "log@test.com",
         age: 25,
@@ -1137,7 +1141,7 @@ describe("MongoDBAdapter", () => {
         return;
       }
 
-      const results = await adapter.query("adapter_test_users", {});
+      const results = await adapter.query(COLLECTION_USERS, {});
       expect(Array.isArray(results)).toBe(true);
     }, { sanitizeOps: false, sanitizeResources: false });
 
@@ -1147,7 +1151,7 @@ describe("MongoDBAdapter", () => {
         return;
       }
 
-      await adapter.execute("insert", "adapter_test_users", {
+      await adapter.execute("insert", COLLECTION_USERS, {
         name: "Null User",
         email: null,
         age: null,
@@ -1169,7 +1173,7 @@ describe("MongoDBAdapter", () => {
       }
 
       const specialName = 'User\'s Name & "Special" <Chars>';
-      await adapter.execute("insert", "adapter_test_users", {
+      await adapter.execute("insert", COLLECTION_USERS, {
         name: specialName,
         email: "special@test.com",
         age: 25,
@@ -1191,7 +1195,7 @@ describe("MongoDBAdapter", () => {
         return;
       }
 
-      await adapter.execute("insert", "adapter_test_users", {
+      await adapter.execute("insert", COLLECTION_USERS, {
         name: "Nested User",
         email: "nested@test.com",
         address: {
@@ -1309,7 +1313,7 @@ describe("MongoDBAdapter", () => {
         return;
       }
 
-      await adapter.execute("insert", "adapter_test_users", {
+      await adapter.execute("insert", COLLECTION_USERS, {
         name: "Replace User",
         email: "replace@test.com",
         age: 25,
@@ -1378,7 +1382,7 @@ describe("MongoDBAdapter", () => {
         return;
       }
 
-      await adapter.execute("insert", "adapter_test_users", {
+      await adapter.execute("insert", COLLECTION_USERS, {
         name: "Operator User",
         email: "operator2@test.com",
         age: 25,
@@ -1455,7 +1459,7 @@ describe("MongoDBAdapter", () => {
       // 插入测试数据
       await adapter.execute(
         "insertMany",
-        "adapter_test_users",
+        COLLECTION_USERS,
         Array.from(
           { length: 10 },
           (_, i) => ({
@@ -1545,7 +1549,7 @@ describe("MongoDBAdapter", () => {
       const logger = new QueryLogger({ enabled: true, logLevel: "all" });
       (adapter as any).setQueryLogger(logger);
 
-      await adapter.execute("insert", "adapter_test_users", {
+      await adapter.execute("insert", COLLECTION_USERS, {
         name: "Log Detail User",
         email: "log_detail@test.com",
         age: 25,
@@ -1576,18 +1580,18 @@ describe("MongoDBAdapter", () => {
         { _id: 2, name: "User 2", city: "Shanghai" },
       ]);
 
-      await adapter.execute("insertMany", "adapter_test_orders", [
+      await adapter.execute("insertMany", COLLECTION_ORDERS, [
         { userId: 1, product: "Product A", price: 100 },
         { userId: 1, product: "Product B", price: 200 },
         { userId: 2, product: "Product C", price: 150 },
       ]);
 
       // 使用聚合管道进行 $lookup
-      const results = await adapter.query("adapter_test_users", {}, {
+      const results = await adapter.query(COLLECTION_USERS, {}, {
         pipeline: [
           {
             $lookup: {
-              from: "adapter_test_orders",
+              from: COLLECTION_ORDERS,
               localField: "_id",
               foreignField: "userId",
               as: "orders",
@@ -1600,7 +1604,7 @@ describe("MongoDBAdapter", () => {
       expect(results[0].orders).toBeTruthy();
 
       await adapter.execute("deleteMany", "adapter_test_users", {});
-      await adapter.execute("deleteMany", "adapter_test_orders", {});
+      await adapter.execute("deleteMany", COLLECTION_ORDERS, {});
     }, { sanitizeOps: false, sanitizeResources: false });
 
     it("应该支持 $group 分组聚合", async () => {
@@ -1615,7 +1619,7 @@ describe("MongoDBAdapter", () => {
         { name: "User 3", age: 40, city: "Shanghai" },
       ]);
 
-      const results = await adapter.query("adapter_test_users", {}, {
+      const results = await adapter.query(COLLECTION_USERS, {}, {
         pipeline: [
           {
             $group: {

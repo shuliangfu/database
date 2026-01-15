@@ -23,6 +23,15 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
   return getEnv(key) || defaultValue;
 }
 
+// 定义集合名常量（使用目录名_文件名_作为前缀）
+const COLLECTION_INDEX_DATA = "mongo_features_test_index_data";
+const COLLECTION_COLLECTION_OPS = "mongo_features_test_collection_ops";
+const COLLECTION_VALIDATION_DATA = "mongo_features_test_validation_data";
+const COLLECTION_INDEX_UNIQUE = "mongo_features_test_index_unique";
+const COLLECTION_INDEX_DELETE = "mongo_features_test_index_delete";
+const COLLECTION_BATCH_INSERT = "mongo_features_test_batch_insert";
+const COLLECTION_BATCH_ORDERED = "mongo_features_test_batch_ordered";
+
 describe("MongoDB 特有功能", () => {
   let adapter: DatabaseAdapter;
 
@@ -72,9 +81,9 @@ describe("MongoDB 特有功能", () => {
         const db = (adapter as any).getDatabase();
         if (db) {
           // 清理测试集合
-          await db.collection("features_test_index_data").drop().catch(() => {});
-          await db.collection("features_test_collection_ops").drop().catch(() => {});
-          await db.collection("features_test_validation_data").drop().catch(() => {});
+          await db.collection(COLLECTION_INDEX_DATA).drop().catch(() => {});
+          await db.collection(COLLECTION_COLLECTION_OPS).drop().catch(() => {});
+          await db.collection(COLLECTION_VALIDATION_DATA).drop().catch(() => {});
         }
       } catch {
         // 忽略错误
@@ -94,9 +103,9 @@ describe("MongoDB 特有功能", () => {
     const db = (adapter as any).getDatabase();
     if (db) {
       // 清理测试数据
-      await db.collection("features_test_index_data").deleteMany({});
-      await db.collection("features_test_collection_ops").deleteMany({});
-      await db.collection("features_test_validation_data").deleteMany({});
+      await db.collection(COLLECTION_INDEX_DATA).deleteMany({});
+      await db.collection(COLLECTION_COLLECTION_OPS).deleteMany({});
+      await db.collection(COLLECTION_VALIDATION_DATA).deleteMany({});
     }
   });
 
@@ -113,7 +122,7 @@ describe("MongoDB 特有功能", () => {
         return;
       }
 
-      const collection = db.collection("features_test_index_data");
+      const collection = db.collection(COLLECTION_INDEX_DATA);
 
       // 插入测试数据
       await collection.insertMany([
@@ -145,7 +154,7 @@ describe("MongoDB 特有功能", () => {
         return;
       }
 
-      const collection = db.collection("features_test_index_data");
+      const collection = db.collection(COLLECTION_INDEX_DATA);
 
       // 创建复合索引
       await collection.createIndex({ name: 1, age: -1 });
@@ -171,7 +180,7 @@ describe("MongoDB 特有功能", () => {
         return;
       }
 
-      const collection = db.collection("features_test_index_unique");
+      const collection = db.collection(COLLECTION_INDEX_UNIQUE);
 
       // 清理之前的数据和索引
       await collection.drop().catch(() => {});
@@ -225,7 +234,7 @@ describe("MongoDB 特有功能", () => {
         return;
       }
 
-      const collection = db.collection("features_test_index_delete");
+      const collection = db.collection(COLLECTION_INDEX_DELETE);
 
       // 清理之前的数据和索引
       await collection.drop().catch(() => {});
@@ -273,7 +282,7 @@ describe("MongoDB 特有功能", () => {
         return;
       }
 
-      const collection = db.collection("features_test_index_data");
+      const collection = db.collection(COLLECTION_INDEX_DATA);
 
       // 创建多个索引
       await collection.createIndex({ name: 1 });
@@ -302,12 +311,12 @@ describe("MongoDB 特有功能", () => {
       }
 
       // 创建集合
-      await db.createCollection("test_collection_ops");
+      await db.createCollection(COLLECTION_COLLECTION_OPS);
 
       // 验证集合存在
       const collections = await db.listCollections().toArray();
       const collectionExists = collections.some(
-        (c: any) => c.name === "test_collection_ops",
+        (c: any) => c.name === COLLECTION_COLLECTION_OPS,
       );
 
       expect(collectionExists).toBe(true);
@@ -326,15 +335,15 @@ describe("MongoDB 特有功能", () => {
       }
 
       // 创建集合
-      await db.createCollection("test_collection_ops");
+      await db.createCollection(COLLECTION_COLLECTION_OPS);
 
       // 删除集合
-      await db.collection("features_test_collection_ops").drop();
+      await db.collection(COLLECTION_COLLECTION_OPS).drop();
 
       // 验证集合已删除
       const collections = await db.listCollections().toArray();
       const collectionExists = collections.some(
-        (c: any) => c.name === "test_collection_ops",
+        (c: any) => c.name === COLLECTION_COLLECTION_OPS,
       );
 
       expect(collectionExists).toBe(false);
@@ -375,7 +384,7 @@ describe("MongoDB 特有功能", () => {
         return;
       }
 
-      const collection = db.collection("features_test_collection_ops");
+      const collection = db.collection(COLLECTION_COLLECTION_OPS);
 
       // 插入测试数据
       await collection.insertMany([
