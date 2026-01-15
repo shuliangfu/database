@@ -40,7 +40,7 @@ describe("缓存机制测试", () => {
 
     // 创建测试表（使用 SQLite 语法）
     await adapter.execute(
-      `CREATE TABLE IF NOT EXISTS cache_test_users (
+      `CREATE TABLE IF NOT EXISTS sqlite_cache_test_users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         email TEXT NOT NULL,

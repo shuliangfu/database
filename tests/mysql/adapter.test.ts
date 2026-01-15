@@ -73,7 +73,7 @@ describe("MySQLAdapter", () => {
     // 创建测试表
     try {
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_users (
+        `CREATE TABLE IF NOT EXISTS mysql_test_users (
           id INT AUTO_INCREMENT PRIMARY KEY,
           name VARCHAR(100) NOT NULL,
           email VARCHAR(100) UNIQUE,
@@ -81,7 +81,7 @@ describe("MySQLAdapter", () => {
         )`,
         [],
       );
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
     } catch {
       // 表可能已存在，忽略错误
     }
@@ -434,7 +434,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
@@ -460,7 +460,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
 
       await assertRejects(
         async () => {
@@ -494,7 +494,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
@@ -538,7 +538,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
@@ -754,7 +754,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
@@ -777,7 +777,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
@@ -850,7 +850,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
@@ -887,7 +887,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
 
       await assertRejects(
         async () => {
@@ -905,7 +905,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
@@ -956,7 +956,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
       await adapter.execute(
         `CREATE TABLE IF NOT EXISTS test_orders (
           id INT AUTO_INCREMENT PRIMARY KEY,
@@ -1004,7 +1004,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
 
       await adapter.execute(
         "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?)",
@@ -1040,7 +1040,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
 
       await adapter.execute(
         "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?), (?, ?, ?)",
@@ -1064,7 +1064,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         for (let i = 1; i <= 5; i++) {
@@ -1088,7 +1088,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
 
       await adapter.execute(
         "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?)",
@@ -1125,7 +1125,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
 
       await adapter.execute(
         "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?)",
@@ -1159,7 +1159,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
 
       const result = await adapter.execute(
         "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
@@ -1198,7 +1198,7 @@ describe("MySQLAdapter", () => {
       const logger = new QueryLogger({ enabled: true, logLevel: "all" });
       adapter.setQueryLogger(logger);
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
       await adapter.execute(
         "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
         ["Log User", "log@test.com", 25],
@@ -1247,7 +1247,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
 
       await adapter.execute(
         "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
@@ -1269,7 +1269,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
 
       const specialName = 'User\'s Name & "Special" <Chars>';
       await adapter.execute(
@@ -1291,7 +1291,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
 
       const maliciousInput = "'; DROP TABLE test_users; --";
       await adapter.execute(
@@ -1438,7 +1438,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
 
       await adapter.transaction(async (db1: DatabaseAdapter) => {
         await db1.execute(
@@ -1474,7 +1474,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
 
       await assertRejects(
         async () => {
@@ -1512,7 +1512,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
 
       for (let i = 1; i <= 10; i++) {
         await adapter.execute(
@@ -1541,7 +1541,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
 
       const promises = Array.from(
         { length: 5 },
@@ -1594,7 +1594,7 @@ describe("MySQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE mysql_test_users", []);
 
       const logger = new QueryLogger({ enabled: true, logLevel: "all" });
       adapter.setQueryLogger(logger);

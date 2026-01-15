@@ -52,7 +52,7 @@ describe("缓存机制测试", () => {
 
     // 创建测试表（使用 PostgreSQL 语法）
     await adapter.execute(
-      `CREATE TABLE IF NOT EXISTS cache_test_users (
+      `CREATE TABLE IF NOT EXISTS postgresql_cache_test_users (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         email VARCHAR(255) NOT NULL,
@@ -62,7 +62,7 @@ describe("缓存机制测试", () => {
     );
 
     // 清空测试数据
-    await adapter.execute("TRUNCATE TABLE cache_test_users", []);
+    await adapter.execute("TRUNCATE TABLE postgresql_cache_test_users", []);
 
     // 初始化模型
     await CacheTestUser.init();

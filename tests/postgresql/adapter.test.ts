@@ -99,7 +99,7 @@ describe("PostgreSQLAdapter", () => {
         )`,
         [],
       );
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
     } catch {
       // 表可能已存在，忽略错误
     }
@@ -504,7 +504,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
@@ -530,7 +530,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
 
       await assertRejects(
         async () => {
@@ -564,7 +564,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
@@ -608,7 +608,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
@@ -827,7 +827,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
@@ -850,7 +850,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
@@ -923,7 +923,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
@@ -962,7 +962,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
 
       await assertRejects(
         async () => {
@@ -980,7 +980,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         await db.execute(
@@ -1027,7 +1027,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
       await adapter.execute(
         `CREATE TABLE IF NOT EXISTS test_orders (
           id SERIAL PRIMARY KEY,
@@ -1075,7 +1075,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
 
       await adapter.execute(
         "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3), ($4, $5, $6), ($7, $8, $9)",
@@ -1112,7 +1112,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
 
       await adapter.execute(
         "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3), ($4, $5, $6)",
@@ -1136,7 +1136,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
 
       await adapter.transaction(async (db: DatabaseAdapter) => {
         for (let i = 1; i <= 5; i++) {
@@ -1160,7 +1160,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
 
       await adapter.execute(
         "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3), ($4, $5, $6), ($7, $8, $9)",
@@ -1197,7 +1197,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
 
       await adapter.execute(
         "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3), ($4, $5, $6), ($7, $8, $9)",
@@ -1254,7 +1254,7 @@ describe("PostgreSQLAdapter", () => {
       const logger = new QueryLogger({ enabled: true, logLevel: "all" });
       (adapter as any).setQueryLogger(logger);
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
       await adapter.execute(
         "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
         ["Log User", "log@test.com", 25],
@@ -1304,7 +1304,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
 
       await adapter.execute(
         "INSERT INTO postgresql_test_users (name, email, age) VALUES ($1, $2, $3)",
@@ -1326,7 +1326,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
 
       const specialName = 'User\'s Name & "Special" <Chars>';
       await adapter.execute(
@@ -1348,7 +1348,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
 
       // 尝试SQL注入
       const maliciousInput = "'; DROP TABLE test_users; --";
@@ -1454,7 +1454,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
 
       // 修复 SQL 语法：使用 VALUES 子句，因为不需要从表查询
       const result = await adapter.query(
@@ -1541,7 +1541,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
 
       await adapter.transaction(async (db1: DatabaseAdapter) => {
         await db1.execute(
@@ -1577,7 +1577,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
 
       await assertRejects(
         async () => {
@@ -1616,7 +1616,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
 
       // 插入测试数据
       for (let i = 1; i <= 10; i++) {
@@ -1647,7 +1647,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
 
       // 并发事务
       const promises = Array.from(
@@ -1702,7 +1702,7 @@ describe("PostgreSQLAdapter", () => {
         return;
       }
 
-      await adapter.execute("TRUNCATE TABLE test_users", []);
+      await adapter.execute("TRUNCATE TABLE postgresql_test_users", []);
 
       const logger = new QueryLogger({ enabled: true, logLevel: "all" });
       (adapter as any).setQueryLogger(logger);

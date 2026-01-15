@@ -114,8 +114,8 @@ describe("SQLModel 高级功能", () => {
     );
 
     // 清空测试数据
-    await adapter.execute("TRUNCATE TABLE users_virtuals", []);
-    await adapter.execute("TRUNCATE TABLE users_scopes", []);
+    await adapter.execute("TRUNCATE TABLE mysql_users_virtuals", []);
+    await adapter.execute("TRUNCATE TABLE mysql_users_scopes", []);
 
     // 设置模型适配器
     UserWithVirtuals.setAdapter(adapter);
@@ -129,8 +129,8 @@ describe("SQLModel 高级功能", () => {
 
   beforeEach(async () => {
     // 清空测试数据
-    await adapter.execute("TRUNCATE TABLE users_virtuals", []);
-    await adapter.execute("TRUNCATE TABLE users_scopes", []);
+    await adapter.execute("TRUNCATE TABLE mysql_users_virtuals", []);
+    await adapter.execute("TRUNCATE TABLE mysql_users_scopes", []);
   });
 
   describe("虚拟字段（virtuals）", () => {

@@ -126,8 +126,8 @@ describe("SQLModel 高级功能", () => {
     );
 
     // 清空测试数据
-    await adapter.execute("TRUNCATE TABLE users_virtuals RESTART IDENTITY", []);
-    await adapter.execute("TRUNCATE TABLE users_scopes RESTART IDENTITY", []);
+    await adapter.execute("TRUNCATE TABLE postgresql_users_virtuals RESTART IDENTITY", []);
+    await adapter.execute("TRUNCATE TABLE postgresql_users_scopes RESTART IDENTITY", []);
 
     // 设置模型适配器
     UserWithVirtuals.setAdapter(adapter);
@@ -163,8 +163,8 @@ describe("SQLModel 高级功能", () => {
 
   beforeEach(async () => {
     // 清空测试数据
-    await adapter.execute("TRUNCATE TABLE users_virtuals RESTART IDENTITY", []);
-    await adapter.execute("TRUNCATE TABLE users_scopes RESTART IDENTITY", []);
+    await adapter.execute("TRUNCATE TABLE postgresql_users_virtuals RESTART IDENTITY", []);
+    await adapter.execute("TRUNCATE TABLE postgresql_users_scopes RESTART IDENTITY", []);
   });
 
   describe("虚拟字段（virtuals）", () => {
