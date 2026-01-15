@@ -628,7 +628,7 @@ describe("MongoQueryBuilder", () => {
   describe("getFilter 和 getOptions", () => {
     it("应该返回查询过滤器", () => {
       const builder = new MongoQueryBuilder(adapter);
-      builder.from("query_builder_users").find({ name: "Alice" }).eq(
+      builder.from(COLLECTION_NAME).find({ name: "Alice" }).eq(
         "status",
         "active",
       );
@@ -644,7 +644,7 @@ describe("MongoQueryBuilder", () => {
 
     it("应该返回查询选项", () => {
       const builder = new MongoQueryBuilder(adapter);
-      builder.from("query_builder_users").sort({ age: -1 }).limit(10).skip(5);
+      builder.from(COLLECTION_NAME).sort({ age: -1 }).limit(10).skip(5);
 
       const options = builder.getOptions();
       expect(options.sort).toEqual({ age: -1 });
