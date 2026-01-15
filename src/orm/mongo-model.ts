@@ -2590,18 +2590,8 @@ export abstract class MongoModel {
       (instance as any)[this.primaryKey] = insertedId;
     }
 
-    // 应用虚拟字段
-    if ((this as any).virtuals) {
-      const Model = this as any;
-      for (const [name, getter] of Object.entries(Model.virtuals)) {
-        const getterFn = getter as (instance: any) => any;
-        Object.defineProperty(instance, name, {
-          get: () => getterFn(instance),
-          enumerable: true,
-          configurable: true,
-        });
-      }
-    }
+    // 应用虚拟字段（使用缓存的虚拟字段定义）
+    this.applyVirtuals(instance);
 
     // afterCreate 钩子
     if (this.afterCreate) {
@@ -2644,25 +2634,44 @@ export abstract class MongoModel {
     condition: MongoWhereCondition | string,
     data: Record<string, any>,
     returnLatest: true,
-    fields?: string[],
   ): Promise<InstanceType<T>>;
   static async update<T extends typeof MongoModel>(
     this: T,
     condition: MongoWhereCondition | string,
     data: Record<string, any>,
+    returnLatest: boolean,
+    options?: {
+      enableHooks?: boolean;
+      enableValidation?: boolean;
+      useUpdateMany?: boolean;
+    },
+  ): Promise<number | InstanceType<T>>;
+  static async update<T extends typeof MongoModel>(
+    this: T,
+    condition: MongoWhereCondition | string,
+    data: Record<string, any>,
     returnLatest: boolean = false,
-    fields?: string[],
+    options?: {
+      enableHooks?: boolean;
+      enableValidation?: boolean;
+      useUpdateMany?: boolean;
+    },
   ): Promise<number | InstanceType<T>> {
     // 自动初始化（如果未初始化）
     await this.ensureAdapter();
 
     // 解析参数（保持向后兼容）
-    // 注意：为了保持类型兼容性，第三个参数只能是 boolean
-    // 如果需要 skipPreQuery，可以通过其他方式实现（如静态配置）
-    const options: { skipPreQuery?: boolean } = {}; // 暂时不支持，保持类型兼容
-
-    // 检查是否可以跳过预查询（性能优化）
-    const skipPreQuery = options?.skipPreQuery === true;
+    // 如果 options.enableHooks 是 undefined，默认启用钩子（保持向后兼容）
+    // 如果 options.enableHooks 明确设置为 false，则禁用钩子
+    const enableHooks = options?.enableHooks === undefined
+      ? true
+      : options.enableHooks;
+    // 如果 options.enableValidation 是 undefined，默认启用验证（保持向后兼容）
+    // 如果 options.enableValidation 明确设置为 false，则禁用验证
+    const enableValidation = options?.enableValidation === undefined
+      ? true
+      : options.enableValidation;
+    const useUpdateMany = options?.useUpdateMany === true;
     const hasHooks = !!(
       this.beforeValidate ||
       this.afterValidate ||
@@ -2671,11 +2680,13 @@ export abstract class MongoModel {
       this.afterUpdate ||
       this.afterSave
     );
+    // 只有在启用钩子或验证时才需要预查询
+    const needsPreQuery = (enableHooks && hasHooks) || enableValidation;
 
-    // 先查找要更新的记录（如果不需要钩子且明确指定跳过，可以跳过）
+    // 先查找要更新的记录（如果不需要钩子且不需要验证，可以跳过）
     let existingInstance: InstanceType<typeof MongoModel> | null = null;
-    if (!skipPreQuery || hasHooks || returnLatest) {
-      // 需要预查询：有钩子、需要返回最新记录或未明确指定跳过
+    if (needsPreQuery || returnLatest) {
+      // 需要预查询：有钩子、需要验证、需要返回最新记录
       if (typeof condition === "string") {
         existingInstance = await this.find(condition);
       } else {
@@ -2689,12 +2700,18 @@ export abstract class MongoModel {
     } else {
       // 跳过预查询：检查记录是否存在（仅检查存在性，不获取完整记录）
       const filter = typeof condition === "string"
-        ? { _id: condition }
-        : condition;
-      const checkResult = await (this.adapter as any).collection.countDocuments(
-        filter,
-        { limit: 1 },
-      );
+        ? { _id: this.normalizeId(condition) }
+        : this.normalizeCondition(condition);
+      const appliedFilter = this.applySoftDeleteFilter(filter);
+      const db = (this.adapter as any as MongoDBAdapter).getDatabase();
+      if (!db) {
+        throw new Error("Database not connected");
+      }
+      const checkResult = await db.collection(this.collectionName)
+        .countDocuments(
+          appliedFilter,
+          { limit: 1 },
+        );
       if (checkResult === 0) {
         return 0;
       }
@@ -2718,70 +2735,151 @@ export abstract class MongoModel {
     }
     Object.assign(tempInstance, processedData);
 
-    // beforeValidate 钩子
-    if (this.beforeValidate) {
-      // 性能优化：检测钩子是否修改了数据，只在有变化时合并
-      const beforeSnapshot = { ...tempInstance };
-      await this.beforeValidate(tempInstance);
-      if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
-        Object.assign(processedData, tempInstance);
-      }
-    }
-
-    // 验证数据（包括跨字段验证和数据库查询验证）
-    // 传递当前记录的 ID，用于唯一性验证时排除当前记录
-    const primaryKey = (this as any).primaryKey || "_id";
-    const instanceId = existingInstance
-      ? (existingInstance as any)[primaryKey]
-      : undefined;
-    // 如果跳过预查询，instanceId 为 undefined，唯一性验证可能不准确
-    // 因此建议在跳过预查询时确保没有唯一性验证
-    await this.validate(processedData, instanceId);
-
-    // afterValidate 钩子
-    if (this.afterValidate) {
-      // 性能优化：检测钩子是否修改了数据，只在有变化时合并
-      const beforeSnapshot = { ...tempInstance };
-      await this.afterValidate(tempInstance);
-      if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
-        Object.assign(processedData, tempInstance);
-      }
-    }
-
-    // beforeUpdate 钩子
-    if (this.beforeUpdate) {
-      // 性能优化：检测钩子是否修改了数据，只在有变化时合并
-      const beforeSnapshot = { ...tempInstance };
-      await this.beforeUpdate(tempInstance);
-      if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
-        // 合并钩子修改的字段到 processedData
-        // 注意：MongoDB 内部使用 _id 作为主键，但用户可能定义 primaryKey 为其他字段名
-        const primaryKeyField = this.primaryKey || "_id";
-        // 创建一个临时对象，排除系统字段和方法
-        const tempData: Record<string, any> = {};
-        // 复制 tempInstance 的属性，排除系统字段和方法
-        for (const key in tempInstance) {
-          if (
-            key !== "_id" &&
-            key !== primaryKeyField &&
-            key !== "constructor" &&
-            key !== "prototype" &&
-            typeof tempInstance[key] !== "function"
-          ) {
-            tempData[key] = tempInstance[key];
+    // 钩子和验证处理（如果启用）
+    // 注意：只有当 enableHooks 或 enableValidation 为 true 时才进入此块
+    if (enableHooks || enableValidation) {
+      // beforeValidate 钩子（只有启用钩子时才执行）
+      if (enableHooks && this.beforeValidate) {
+        // 性能优化：检测钩子是否修改了数据，只在有变化时合并
+        const beforeSnapshot = { ...tempInstance };
+        await this.beforeValidate(tempInstance);
+        if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
+          // 合并钩子修改的字段，但排除非数据库字段（如 hookData）和主键字段
+          const primaryKey = (this as any).primaryKey || "_id";
+          // 先合并 processedData 中已存在的字段
+          for (const key in processedData) {
+            if (
+              key in tempInstance && key !== "hookData" && key !== primaryKey
+            ) {
+              processedData[key] = tempInstance[key];
+            }
+          }
+          // 然后合并 existingInstance 中被钩子修改的字段（但不在 processedData 中）
+          if (existingInstance) {
+            for (const key in existingInstance) {
+              if (
+                key !== "hookData" &&
+                key !== primaryKey &&
+                !(key in processedData) &&
+                key in tempInstance &&
+                tempInstance[key] !== beforeSnapshot[key]
+              ) {
+                processedData[key] = tempInstance[key];
+              }
+            }
           }
         }
-        Object.assign(processedData, tempData);
       }
-    }
 
-    // beforeSave 钩子
-    if (this.beforeSave) {
-      // 性能优化：检测钩子是否修改了数据，只在有变化时合并
-      const beforeSnapshot = { ...tempInstance };
-      await this.beforeSave(tempInstance);
-      if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
-        Object.assign(processedData, tempInstance);
+      // 验证数据（如果启用）
+      // 传递当前记录的 ID，用于唯一性验证时排除当前记录
+      if (enableValidation) {
+        const primaryKey = (this as any).primaryKey || "_id";
+        const instanceId = existingInstance
+          ? (existingInstance as any)[primaryKey]
+          : undefined;
+        // 如果跳过预查询，instanceId 为 undefined，唯一性验证可能不准确
+        // 因此建议在跳过预查询时确保没有唯一性验证
+        await this.validate(processedData, instanceId);
+      }
+
+      // afterValidate 钩子
+      if (enableHooks && this.afterValidate) {
+        // 性能优化：检测钩子是否修改了数据，只在有变化时合并
+        const beforeSnapshot = { ...tempInstance };
+        await this.afterValidate(tempInstance);
+        if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
+          // 合并钩子修改的字段，但排除非数据库字段（如 hookData）和主键字段
+          const primaryKey = (this as any).primaryKey || "_id";
+          // 先合并 processedData 中已存在的字段
+          for (const key in processedData) {
+            if (
+              key in tempInstance && key !== "hookData" && key !== primaryKey
+            ) {
+              processedData[key] = tempInstance[key];
+            }
+          }
+          // 然后合并 existingInstance 中被钩子修改的字段（但不在 processedData 中）
+          if (existingInstance) {
+            for (const key in existingInstance) {
+              if (
+                key !== "hookData" &&
+                key !== primaryKey &&
+                !(key in processedData) &&
+                key in tempInstance &&
+                tempInstance[key] !== beforeSnapshot[key]
+              ) {
+                processedData[key] = tempInstance[key];
+              }
+            }
+          }
+        }
+      }
+
+      // beforeUpdate 钩子
+      if (enableHooks && this.beforeUpdate) {
+        // 性能优化：检测钩子是否修改了数据，只在有变化时合并
+        const beforeSnapshot = { ...tempInstance };
+        await this.beforeUpdate(tempInstance);
+        if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
+          // 合并钩子修改的字段，但排除非数据库字段（如 hookData）和主键字段
+          const primaryKey = (this as any).primaryKey || "_id";
+          // 先合并 processedData 中已存在的字段
+          for (const key in processedData) {
+            if (
+              key in tempInstance && key !== "hookData" && key !== primaryKey
+            ) {
+              processedData[key] = tempInstance[key];
+            }
+          }
+          // 然后合并 existingInstance 中被钩子修改的字段（但不在 processedData 中）
+          if (existingInstance) {
+            for (const key in existingInstance) {
+              if (
+                key !== "hookData" &&
+                key !== primaryKey &&
+                !(key in processedData) &&
+                key in tempInstance &&
+                tempInstance[key] !== beforeSnapshot[key]
+              ) {
+                processedData[key] = tempInstance[key];
+              }
+            }
+          }
+        }
+      }
+
+      // beforeSave 钩子
+      if (enableHooks && this.beforeSave) {
+        // 性能优化：检测钩子是否修改了数据，只在有变化时合并
+        const beforeSnapshot = { ...tempInstance };
+        await this.beforeSave(tempInstance);
+        if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
+          // 合并钩子修改的字段，但排除非数据库字段（如 hookData）和主键字段
+          const primaryKey = (this as any).primaryKey || "_id";
+          // 先合并 processedData 中已存在的字段
+          for (const key in processedData) {
+            if (
+              key in tempInstance && key !== "hookData" && key !== primaryKey
+            ) {
+              processedData[key] = tempInstance[key];
+            }
+          }
+          // 然后合并 existingInstance 中被钩子修改的字段（但不在 processedData 中）
+          if (existingInstance) {
+            for (const key in existingInstance) {
+              if (
+                key !== "hookData" &&
+                key !== primaryKey &&
+                !(key in processedData) &&
+                key in tempInstance &&
+                tempInstance[key] !== beforeSnapshot[key]
+              ) {
+                processedData[key] = tempInstance[key];
+              }
+            }
+          }
+        }
       }
     }
 
@@ -2808,11 +2906,7 @@ export abstract class MongoModel {
       throw new Error("Database not connected");
     }
     if (returnLatest) {
-      const projection = this.buildProjection(fields);
       const opts: any = { returnDocument: "after" };
-      if (Object.keys(projection).length > 0) {
-        opts.projection = projection;
-      }
       // 排除 _id 字段和主键字段，MongoDB 不允许更新 _id
       // 注意：MongoDB 内部使用 _id 作为主键，但用户可能定义 primaryKey 为其他字段名
       const updateData: Record<string, any> = {};
@@ -2857,10 +2951,16 @@ export abstract class MongoModel {
           updateData[key] = processedData[key];
         }
       }
-      const result = await db.collection(this.collectionName).updateOne(
-        filter,
-        { $set: updateData },
-      );
+      // 根据 useUpdateMany 选项决定使用 updateOne 还是 updateMany
+      const result = useUpdateMany
+        ? await db.collection(this.collectionName).updateMany(
+          filter,
+          { $set: updateData },
+        )
+        : await db.collection(this.collectionName).updateOne(
+          filter,
+          { $set: updateData },
+        );
       const modifiedCount = result.modifiedCount || 0;
 
       // 清除相关缓存（更新后需要清除缓存，确保后续查询获取最新数据）
@@ -2883,9 +2983,9 @@ export abstract class MongoModel {
               (condition as any)._id;
           }
           if (!primaryKeyValue) {
-            throw new Error(
-              "Cannot get primary key value for afterUpdate hook",
-            );
+            // 如果无法获取主键值（例如 updateMany 使用复杂条件），跳过 afterUpdate 和 afterSave 钩子
+            // 这是正常的，因为 updateMany 不返回实例
+            return modifiedCount;
           }
           // 查询最新数据（缓存已清除，会从数据库查询）
           const latest = await this.find(primaryKeyValue);
@@ -2894,11 +2994,13 @@ export abstract class MongoModel {
             // 如果查询失败，使用更新后的数据
             Object.assign(updatedInstance, updateData);
           }
-          if (this.afterUpdate) {
-            await this.afterUpdate(updatedInstance);
-          }
-          if (this.afterSave) {
-            await this.afterSave(updatedInstance);
+          if (enableHooks) {
+            if (this.afterUpdate) {
+              await this.afterUpdate(updatedInstance);
+            }
+            if (this.afterSave) {
+              await this.afterSave(updatedInstance);
+            }
           }
         } else {
           const primaryKeyValue = existingInstance[this.primaryKey || "_id"];
@@ -2912,11 +3014,13 @@ export abstract class MongoModel {
               ...updateData,
             });
           }
-          if (this.afterUpdate) {
-            await this.afterUpdate(updatedInstance);
-          }
-          if (this.afterSave) {
-            await this.afterSave(updatedInstance);
+          if (enableHooks) {
+            if (this.afterUpdate) {
+              await this.afterUpdate(updatedInstance);
+            }
+            if (this.afterSave) {
+              await this.afterSave(updatedInstance);
+            }
           }
         }
 
@@ -2968,8 +3072,6 @@ export abstract class MongoModel {
       await this.beforeDelete(instanceToDelete);
     }
 
-    // 自动初始化（懒加载）
-    await this.ensureAdapter();
     let filter: any = {};
 
     // 如果是字符串，作为主键查询
@@ -3260,67 +3362,36 @@ export abstract class MongoModel {
    * 批量更新记录
    * @param condition 查询条件（可以是 ID、条件对象）
    * @param data 要更新的数据对象
+   * @param options 可选配置
+   *   - enableHooks: 是否启用钩子（默认 false，批量操作通常不需要钩子以提升性能）
+   *   - enableValidation: 是否启用验证（默认 false，批量操作通常不需要验证以提升性能）
    * @returns 更新的记录数
    *
    * @example
    * await User.updateMany({ status: 'active' }, { lastLogin: new Date() });
    * await User.updateMany({ age: { $lt: 18 } }, { isMinor: true });
+   *
+   * // 启用钩子和验证（性能较慢，但功能完整）
+   * await User.updateMany({ status: 'active' }, { lastLogin: new Date() }, { enableHooks: true, enableValidation: true });
    */
   static async updateMany(
     condition: MongoWhereCondition | string,
     data: Record<string, any>,
+    options?: { enableHooks?: boolean; enableValidation?: boolean },
   ): Promise<number> {
-    await this.ensureAdapter();
-
-    // 处理字段并设置时间戳
-    const processedData = this.processFields(data);
-    // 移除 _id 字段，因为 MongoDB 不允许更新 _id
-    delete processedData._id;
-    if (this.timestamps) {
-      const updatedAtField = typeof this.timestamps === "object"
-        ? (this.timestamps.updatedAt || "updatedAt")
-        : "updatedAt";
-      processedData[updatedAtField] = new Date();
-    }
-
-    // 自动初始化（懒加载）
-    await this.ensureAdapter();
-    let filter: any = {};
-
-    // 如果是字符串，作为主键查询
-    if (typeof condition === "string") {
-      // MongoDB 总是使用 _id 字段作为主键，无论 primaryKey 是什么
-      filter._id = this.normalizeId(condition);
-    } else {
-      // 规范化查询条件，将主键字段（如果是字符串）转换为 ObjectId
-      // 如果 primaryKey !== "_id"，会自动映射到 _id 字段
-      filter = this.normalizeCondition(condition);
-    }
-
-    filter = this.applySoftDeleteFilter(filter);
-
-    const result = await this.adapter.execute(
-      "updateMany",
-      this.collectionName,
-      {
-        filter,
-        update: processedData,
-      },
-    );
-
-    // MongoDB updateMany 返回结果包含 modifiedCount
-    const modifiedCount = (result && typeof result === "object" &&
-        "modifiedCount" in result)
-      ? ((result as any).modifiedCount || 0)
-      : 0;
-
-    // 清除相关缓存（批量更新后需要清除缓存）
-    // 注意：只有实际修改了数据（modifiedCount > 0）才需要清除缓存
-    if (modifiedCount > 0) {
-      await this.clearCache();
-    }
-
-    return modifiedCount;
+    // updateMany 和 update 在 MongoDB 中逻辑相同，都是 updateMany/updateOne ... WHERE
+    // 默认不启用钩子和验证，以提升批量操作性能
+    // 注意：必须明确传递 false，因为 update() 方法默认启用钩子和验证
+    const enableHooksValue = options?.enableHooks === true ? true : false;
+    const enableValidationValue = options?.enableValidation === true
+      ? true
+      : false;
+    const result = await this.update(condition, data, false, {
+      enableHooks: enableHooksValue,
+      enableValidation: enableValidationValue,
+      useUpdateMany: true,
+    });
+    return typeof result === "number" ? result : 0;
   }
 
   /**
@@ -3587,6 +3658,9 @@ export abstract class MongoModel {
   /**
    * 批量创建记录
    * @param dataArray 要插入的数据对象数组
+   * @param options 可选配置
+   *   - enableHooks: 是否启用钩子（默认 false，批量操作通常不需要钩子以提升性能）
+   *   - enableValidation: 是否启用验证（默认 false，批量操作通常不需要验证以提升性能）
    * @returns 创建的模型实例数组
    *
    * @example
@@ -3594,12 +3668,20 @@ export abstract class MongoModel {
    *   { name: 'John', email: 'john@example.com' },
    *   { name: 'Jane', email: 'jane@example.com' }
    * ]);
+   *
+   * // 启用钩子和验证（性能较慢，但功能完整）
+   * const users = await User.createMany([...], { enableHooks: true, enableValidation: true });
    */
   static async createMany<T extends typeof MongoModel>(
     this: T,
     dataArray: Record<string, any>[],
+    options?: { enableHooks?: boolean; enableValidation?: boolean },
   ): Promise<InstanceType<T>[]> {
+    // 自动初始化（懒加载）
     await this.ensureAdapter();
+
+    const enableHooks = options?.enableHooks === true;
+    const enableValidation = options?.enableValidation === true;
 
     // 处理每个数据项（应用默认值、类型转换、验证、时间戳与钩子）
     const processedArray: Record<string, any>[] = [];
@@ -3619,40 +3701,58 @@ export abstract class MongoModel {
           item[updatedAtField] = new Date();
         }
       }
-      const tempInstance = new (this as any)();
-      Object.assign(tempInstance, item);
-      if (this.beforeValidate) {
-        // 性能优化：检测钩子是否修改了数据，只在有变化时合并
-        const beforeSnapshot = { ...tempInstance };
-        await this.beforeValidate(tempInstance);
-        if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
-          Object.assign(item, tempInstance);
+
+      // 钩子和验证处理（如果启用）
+      if (enableHooks || enableValidation) {
+        const tempInstance = new (this as any)();
+        Object.assign(tempInstance, item);
+
+        // beforeValidate 钩子
+        if (enableHooks && this.beforeValidate) {
+          // 性能优化：检测钩子是否修改了数据，只在有变化时合并
+          const beforeSnapshot = { ...tempInstance };
+          await this.beforeValidate(tempInstance);
+          if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
+            Object.assign(item, tempInstance);
+          }
+        }
+
+        // 验证数据（如果启用）
+        if (enableValidation) {
+          await this.validate.call(this, item);
+        }
+
+        // afterValidate 钩子
+        if (enableHooks && this.afterValidate) {
+          // 性能优化：检测钩子是否修改了数据，只在有变化时合并
+          const beforeSnapshot = { ...tempInstance };
+          await this.afterValidate(tempInstance);
+          if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
+            Object.assign(item, tempInstance);
+          }
+        }
+
+        // 钩子处理（如果启用）
+        if (enableHooks) {
+          if (this.beforeCreate) {
+            // 性能优化：检测钩子是否修改了数据，只在有变化时合并
+            const beforeSnapshot = { ...tempInstance };
+            await this.beforeCreate(tempInstance);
+            if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
+              Object.assign(item, tempInstance);
+            }
+          }
+          if (this.beforeSave) {
+            // 性能优化：检测钩子是否修改了数据，只在有变化时合并
+            const beforeSnapshot = { ...tempInstance };
+            await this.beforeSave(tempInstance);
+            if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
+              Object.assign(item, tempInstance);
+            }
+          }
         }
       }
-      if (this.afterValidate) {
-        // 性能优化：检测钩子是否修改了数据，只在有变化时合并
-        const beforeSnapshot = { ...tempInstance };
-        await this.afterValidate(tempInstance);
-        if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
-          Object.assign(item, tempInstance);
-        }
-      }
-      if (this.beforeCreate) {
-        // 性能优化：检测钩子是否修改了数据，只在有变化时合并
-        const beforeSnapshot = { ...tempInstance };
-        await this.beforeCreate(tempInstance);
-        if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
-          Object.assign(item, tempInstance);
-        }
-      }
-      if (this.beforeSave) {
-        // 性能优化：检测钩子是否修改了数据，只在有变化时合并
-        const beforeSnapshot = { ...tempInstance };
-        await this.beforeSave(tempInstance);
-        if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
-          Object.assign(item, tempInstance);
-        }
-      }
+
       // 如果提供了 _id 字段且是字符串，需要转换为 ObjectId
       // MongoDB 的 _id 字段必须是 ObjectId 类型
       if (item._id !== undefined && typeof item._id === "string") {
@@ -3661,8 +3761,7 @@ export abstract class MongoModel {
       processedArray.push(item);
     }
 
-    // 自动初始化（懒加载）
-    await this.ensureAdapter();
+    // 执行批量插入
     const result = await this.adapter.execute(
       "insertMany",
       this.collectionName,
@@ -3685,11 +3784,14 @@ export abstract class MongoModel {
       Object.assign(instance, item);
       // 应用虚拟字段（使用缓存的虚拟字段定义）
       this.applyVirtuals(instance);
-      if (this.afterCreate) {
-        await this.afterCreate(instance);
-      }
-      if (this.afterSave) {
-        await this.afterSave(instance);
+      // 执行 afterCreate 和 afterSave 钩子（如果启用）
+      if (enableHooks) {
+        if (this.afterCreate) {
+          await this.afterCreate(instance);
+        }
+        if (this.afterSave) {
+          await this.afterSave(instance);
+        }
       }
       instances.push(instance as InstanceType<T>);
     }
@@ -4103,7 +4205,6 @@ export abstract class MongoModel {
     fields?: string[],
   ): Promise<InstanceType<T>> {
     // 自动初始化（懒加载）
-    // 自动初始化（懒加载）
     await this.ensureAdapter();
     let filter: any = {};
 
@@ -4239,7 +4340,6 @@ export abstract class MongoModel {
     onlyTrashed: boolean = false,
   ): Promise<any[]> {
     // 自动初始化（懒加载）
-    // 自动初始化（懒加载）
     await this.ensureAdapter();
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
 
@@ -4280,7 +4380,6 @@ export abstract class MongoModel {
     includeTrashed: boolean = false,
     onlyTrashed: boolean = false,
   ): Promise<any[]> {
-    // 自动初始化（懒加载）
     // 自动初始化（懒加载）
     await this.ensureAdapter();
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
@@ -4373,18 +4472,8 @@ export abstract class MongoModel {
         return results.map((row: any) => {
           const instance = new (this as any)();
           Object.assign(instance, row);
-          if ((this as any).virtuals) {
-            for (
-              const [name, getter] of Object.entries((this as any).virtuals)
-            ) {
-              const getterFn = getter as (instance: any) => any;
-              Object.defineProperty(instance, name, {
-                get: () => getterFn(instance),
-                enumerable: true,
-                configurable: true,
-              });
-            }
-          }
+          // 应用虚拟字段（使用缓存的虚拟字段定义）
+          this.applyVirtuals(instance);
           return instance as InstanceType<T>;
         });
       },
@@ -4502,18 +4591,8 @@ export abstract class MongoModel {
         return results.map((row: any) => {
           const instance = new (this as any)();
           Object.assign(instance, row);
-          if ((this as any).virtuals) {
-            for (
-              const [name, getter] of Object.entries((this as any).virtuals)
-            ) {
-              const getterFn = getter as (instance: any) => any;
-              Object.defineProperty(instance, name, {
-                get: () => getterFn(instance),
-                enumerable: true,
-                configurable: true,
-              });
-            }
-          }
+          // 应用虚拟字段（使用缓存的虚拟字段定义）
+          this.applyVirtuals(instance);
           return instance as InstanceType<T>;
         });
       },
@@ -4587,7 +4666,6 @@ export abstract class MongoModel {
       throw new Error("Soft delete is not enabled for this model");
     }
     // 自动初始化（懒加载）
-    // 自动初始化（懒加载）
     await this.ensureAdapter();
     let filter: any = {};
 
@@ -4653,7 +4731,6 @@ export abstract class MongoModel {
     condition: MongoWhereCondition | string,
     options?: { returnIds?: boolean },
   ): Promise<number | { count: number; ids: any[] }> {
-    // 自动初始化（懒加载）
     // 自动初始化（懒加载）
     await this.ensureAdapter();
     let filter: any = {};
@@ -4762,7 +4839,6 @@ export abstract class MongoModel {
         return builder;
       },
       findAll: async (): Promise<InstanceType<T>[]> => {
-        await this.ensureAdapter();
         // 自动初始化（懒加载）
         await this.ensureAdapter();
         const projection = this.buildProjection(_fields);
@@ -4808,7 +4884,6 @@ export abstract class MongoModel {
         });
       },
       findOne: async (): Promise<InstanceType<T> | null> => {
-        await this.ensureAdapter();
         // 自动初始化（懒加载）
         await this.ensureAdapter();
         const projection = this.buildProjection(_fields);
@@ -4843,17 +4918,8 @@ export abstract class MongoModel {
         }
         const instance = new (this as any)();
         Object.assign(instance, results[0]);
-        if ((this as any).virtuals) {
-          const Model = this as any;
-          for (const [name, getter] of Object.entries(Model.virtuals)) {
-            const getterFn = getter as (instance: any) => any;
-            Object.defineProperty(instance, name, {
-              get: () => getterFn(instance),
-              enumerable: true,
-              configurable: true,
-            });
-          }
-        }
+        // 应用虚拟字段（使用缓存的虚拟字段定义）
+        this.applyVirtuals(instance);
         return instance as InstanceType<T>;
       },
       one: async (): Promise<InstanceType<T> | null> => {
@@ -4870,7 +4936,6 @@ export abstract class MongoModel {
         return await this.findById(id, fields);
       },
       count: async (): Promise<number> => {
-        await this.ensureAdapter();
         // 自动初始化（懒加载）
         await this.ensureAdapter();
         const db = (this.adapter as any as MongoDBAdapter).getDatabase();
@@ -4918,10 +4983,13 @@ export abstract class MongoModel {
             _condition as any,
             data,
             true,
-            _fields,
-          );
+          ) as InstanceType<T>;
         }
-        return await this.update(_condition as any, data);
+        return await this.update(
+          _condition as any,
+          data,
+          false,
+        ) as number;
       },
       updateMany: async (data: Record<string, any>): Promise<number> => {
         return await this.updateMany(_condition as any, data);
@@ -5131,9 +5199,6 @@ export abstract class MongoModel {
    * await User.truncate();
    */
   static async truncate(): Promise<number> {
-    // 自动初始化（如果未初始化）
-    await this.ensureAdapter();
-
     // 自动初始化（懒加载）
     await this.ensureAdapter();
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
@@ -5164,8 +5229,6 @@ export abstract class MongoModel {
   static async transaction<T>(
     callback: (db: DatabaseAdapter) => Promise<T>,
   ): Promise<T> {
-    // 自动初始化（如果未初始化）
-    await this.ensureAdapter();
     // 自动初始化（懒加载）
     await this.ensureAdapter();
     return await this.adapter.transaction(callback);
@@ -5322,15 +5385,27 @@ export abstract class MongoModel {
    * await User.createIndexes(true); // 强制重新创建
    */
   static async createIndexes(force: boolean = false): Promise<string[]> {
-    // 自动初始化（如果未初始化）
+    // 自动初始化（懒加载）
     await this.ensureAdapter();
 
     if (!this.indexes || this.indexes.length === 0) {
       return [];
     }
 
-    // 自动初始化（懒加载）
-    await this.ensureAdapter();
+    // 确保适配器已连接
+    if (!this.adapter) {
+      throw new Error("Database adapter not set");
+    }
+
+    // 通过执行一个简单的查询来确保连接（这会自动调用 ensureConnection）
+    // 如果适配器未连接，query 方法会抛出错误
+    try {
+      await this.adapter.query(this.collectionName, {}, { limit: 1 });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Database not connected: ${message}`);
+    }
+
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
       throw new Error("Database not connected");
@@ -5435,9 +5510,6 @@ export abstract class MongoModel {
    * @returns 删除的索引名称数组
    */
   static async dropIndexes(): Promise<string[]> {
-    // 自动初始化（如果未初始化）
-    await this.ensureAdapter();
-
     // 自动初始化（懒加载）
     await this.ensureAdapter();
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
@@ -5472,11 +5544,23 @@ export abstract class MongoModel {
    * @returns 索引信息数组
    */
   static async getIndexes(): Promise<any[]> {
-    // 自动初始化（如果未初始化）
-    await this.ensureAdapter();
-
     // 自动初始化（懒加载）
     await this.ensureAdapter();
+
+    // 确保适配器已连接
+    if (!this.adapter) {
+      throw new Error("Database adapter not set");
+    }
+
+    // 通过执行一个简单的查询来确保连接（这会自动调用 ensureConnection）
+    // 如果适配器未连接，query 方法会抛出错误
+    try {
+      await this.adapter.query(this.collectionName, {}, { limit: 1 });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Database not connected: ${message}`);
+    }
+
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
       throw new Error("Database not connected");

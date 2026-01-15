@@ -12,7 +12,7 @@ import {
   expect,
   it,
 } from "@dreamer/test";
-import { MongoDBAdapter } from "../../src/adapters/mongodb.ts";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { MongoModel } from "../../src/orm/mongo-model.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
 
@@ -57,7 +57,7 @@ function createMongoConfig() {
  * 测试用户模型（带虚拟字段）
  */
 class UserWithVirtuals extends MongoModel {
-  static override collectionName = "users_virtuals";
+  static override collectionName = "model_advanced_users_virtuals";
   static override primaryKey = "_id";
 
   // 定义虚拟字段
@@ -78,7 +78,7 @@ class UserWithVirtuals extends MongoModel {
  * 测试用户模型（带查询作用域）
  */
 class UserWithScopes extends MongoModel {
-  static override collectionName = "users_scopes";
+  static override collectionName = "model_advanced_users_scopes";
   static override primaryKey = "_id";
 
   // 定义查询作用域
@@ -96,11 +96,18 @@ describe("MongoModel 高级功能", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    adapter = new MongoDBAdapter();
     const config = createMongoConfig();
 
     try {
-      await adapter.connect(config);
+      // 使用 initDatabase 初始化全局 dbManager
+      await initDatabase(config);
+
+      // 从全局 dbManager 获取适配器
+      adapter = getDatabase();
+
+      // 设置模型适配器
+      UserWithVirtuals.setAdapter(adapter);
+      UserWithScopes.setAdapter(adapter);
     } catch (error) {
       console.warn(
         `MongoDB not available, skipping tests: ${
@@ -109,34 +116,39 @@ describe("MongoModel 高级功能", () => {
       );
       adapter = null as any;
     }
-
-    // 设置模型适配器
-    UserWithVirtuals.setAdapter(adapter);
-    UserWithScopes.setAdapter(adapter);
   });
 
   afterAll(async () => {
     if (adapter) {
       try {
-        const db = (adapter as MongoDBAdapter).getDatabase();
+        const db = (adapter as any).getDatabase();
         if (db) {
-          await db.collection("users_virtuals").drop().catch(() => {});
-          await db.collection("users_scopes").drop().catch(() => {});
+          await db.collection("model_advanced_users_virtuals").drop().catch(
+            () => {},
+          );
+          await db.collection("model_advanced_users_scopes").drop().catch(
+            () => {},
+          );
         }
-        await adapter.close();
       } catch {
-        // 忽略关闭错误
+        // 忽略错误
       }
+    }
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    try {
+      await closeDatabase();
+    } catch {
+      // 忽略关闭错误
     }
   });
 
   beforeEach(async () => {
     if (!adapter) return;
 
-    const db = (adapter as MongoDBAdapter).getDatabase();
+    const db = (adapter as any).getDatabase();
     if (db) {
-      await db.collection("users_virtuals").deleteMany({});
-      await db.collection("users_scopes").deleteMany({});
+      await db.collection("model_advanced_users_virtuals").deleteMany({});
+      await db.collection("model_advanced_users_scopes").deleteMany({});
     }
   });
 
@@ -288,6 +300,12 @@ describe("MongoModel 高级功能", () => {
       if (!adapter) {
         console.log("MongoDB not available, skipping test");
         return;
+      }
+
+      // 确保测试开始时数据是干净的（防止其他测试的数据污染）
+      const db = (adapter as any).getDatabase();
+      if (db) {
+        await db.collection("model_advanced_users_scopes").deleteMany({});
       }
 
       await UserWithScopes.create({

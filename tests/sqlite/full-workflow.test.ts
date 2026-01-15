@@ -3,7 +3,7 @@
  * 测试从数据库连接到 CRUD 操作的完整流程
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "@dreamer/test";
 import { getDatabase, initDatabase } from "../../src/access.ts";
 import { closeDatabase } from "../../src/init-database.ts";
 import { SQLModel } from "../../src/orm/sql-model.ts";
@@ -21,6 +21,9 @@ describe("SQLite 完整工作流程集成测试", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
+    // 先关闭之前的连接（如果有）
+    await closeDatabase();
+
     // 初始化数据库
     await initDatabase({
       type: "sqlite",
@@ -29,7 +32,10 @@ describe("SQLite 完整工作流程集成测试", () => {
       },
     });
 
-    adapter = getDatabase()!;
+    adapter = getDatabase();
+    if (!adapter) {
+      throw new Error("Failed to get database adapter");
+    }
 
     // 创建测试表
     await adapter.execute(
@@ -48,7 +54,44 @@ describe("SQLite 完整工作流程集成测试", () => {
 
     // 清空测试数据
     await adapter.execute("DELETE FROM integration_users", []);
+  });
 
+  // 每个测试前确保适配器已连接并设置给模型
+  beforeEach(async () => {
+    // 重新获取适配器，确保使用最新的连接
+    adapter = getDatabase();
+    if (!adapter) {
+      throw new Error("Failed to get database adapter");
+    }
+    // 确保适配器已连接
+    if (!adapter.isConnected()) {
+      // 如果未连接，重新初始化
+      await closeDatabase();
+      await initDatabase({
+        type: "sqlite",
+        connection: {
+          filename: ":memory:",
+        },
+      });
+      adapter = getDatabase();
+      if (!adapter) {
+        throw new Error("Failed to get database adapter");
+      }
+      // 重新创建表
+      await adapter.execute(
+        `CREATE TABLE IF NOT EXISTS integration_users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          email TEXT UNIQUE NOT NULL,
+          age INTEGER,
+          status TEXT DEFAULT 'active',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          deleted_at TEXT
+        )`,
+        [],
+      );
+    }
     // 设置模型适配器
     User.setAdapter(adapter);
   });

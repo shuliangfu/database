@@ -11,28 +11,31 @@ import {
   expect,
   it,
 } from "@dreamer/test";
-import { SQLiteAdapter } from "../../src/adapters/sqlite.ts";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
+import type { DatabaseAdapter } from "../../src/types.ts";
 
 describe("SQLite 性能测试", () => {
-  let adapter: SQLiteAdapter;
+  let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    adapter = new SQLiteAdapter();
-    await adapter.connect({
+    // 使用 initDatabase 初始化全局 dbManager
+    await initDatabase({
       type: "sqlite",
       connection: {
         filename: ":memory:",
       },
     });
+
+    // 从全局 dbManager 获取适配器
+    adapter = getDatabase();
   });
 
   afterAll(async () => {
-    if (adapter) {
-      try {
-        await adapter.close();
-      } catch {
-        // 忽略关闭错误
-      }
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    try {
+      await closeDatabase();
+    } catch {
+      // 忽略关闭错误
     }
   });
 

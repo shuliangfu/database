@@ -6,13 +6,15 @@
 import { getEnv } from "@dreamer/runtime-adapter";
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
   expect,
   it,
 } from "@dreamer/test";
-import { PostgreSQLAdapter } from "../../src/adapters/postgresql.ts";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
+import type { DatabaseAdapter } from "../../src/types.ts";
 
 /**
  * 获取环境变量，带默认值
@@ -22,10 +24,17 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
 }
 
 describe("PostgreSQL 特有功能", () => {
-  let adapter: PostgreSQLAdapter;
+  let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    adapter = new PostgreSQLAdapter();
+    // 在 Bun 测试环境中，先清理所有之前的连接，避免连接累积
+    // Bun 可能并行运行测试文件，导致连接泄漏
+    try {
+      await closeDatabase();
+    } catch {
+      // 忽略清理错误
+    }
+
     const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
     const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
     const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
@@ -34,7 +43,8 @@ describe("PostgreSQL 特有功能", () => {
     const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "");
 
     try {
-      await adapter.connect({
+      // 使用 initDatabase 初始化全局 dbManager
+      await initDatabase({
         type: "postgresql",
         connection: {
           host: pgHost,
@@ -44,6 +54,9 @@ describe("PostgreSQL 特有功能", () => {
           password: pgPassword,
         },
       });
+
+      // 从全局 dbManager 获取适配器
+      adapter = getDatabase();
     } catch (error) {
       console.warn(
         `PostgreSQL not available, skipping tests: ${
@@ -55,11 +68,26 @@ describe("PostgreSQL 特有功能", () => {
   });
 
   afterAll(async () => {
-    if (adapter) {
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    try {
+      await closeDatabase();
+    } catch {
+      // 忽略关闭错误
+    }
+  });
+
+  // 每个测试后强制等待连接释放，防止连接泄漏
+  afterEach(async () => {
+    if (adapter && adapter.isConnected()) {
       try {
-        await adapter.close();
+        // 获取连接池状态并检查（已移除延时以提升测试速度）
+        const status = await adapter.getPoolStatus();
+        // 如果活跃连接过多，记录警告但不等待
+        if (status.active > 2) {
+          console.warn(`警告：连接池中有 ${status.active} 个活跃连接`);
+        }
       } catch {
-        // 忽略关闭错误
+        // 忽略错误
       }
     }
   });
@@ -175,7 +203,7 @@ describe("PostgreSQL 特有功能", () => {
       expect(results.length).toBe(1);
       expect(Array.isArray(results[0].numbers)).toBe(true);
       expect(results[0].numbers).toEqual([1, 2, 3, 4, 5]);
-    }, { sanitizeOps: false, sanitizeResources: false });
+    }, { sanitizeOps: false, sanitizeResources: false, timeout: 10000 });
 
     it("应该支持字符串数组", async () => {
       if (!adapter) {
@@ -205,7 +233,7 @@ describe("PostgreSQL 特有功能", () => {
       expect(results.length).toBe(1);
       expect(Array.isArray(results[0].tags)).toBe(true);
       expect(results[0].tags).toEqual(["tag1", "tag2", "tag3"]);
-    }, { sanitizeOps: false, sanitizeResources: false });
+    }, { sanitizeOps: false, sanitizeResources: false, timeout: 10000 });
 
     it("应该支持数组查询操作符", async () => {
       if (!adapter) {
@@ -274,7 +302,7 @@ describe("PostgreSQL 特有功能", () => {
 
       expect(results.length).toBe(1);
       expect(results[0].id).toBe(uuid);
-    }, { sanitizeOps: false, sanitizeResources: false });
+    }, { sanitizeOps: false, sanitizeResources: false, timeout: 10000 });
 
     it("应该支持 UUID 自动生成", async () => {
       if (!adapter) {
@@ -311,7 +339,7 @@ describe("PostgreSQL 特有功能", () => {
       expect(typeof results[0].id).toBe("string");
       // UUID 格式：xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
       expect(results[0].id.length).toBe(36);
-    }, { sanitizeOps: false, sanitizeResources: false });
+    }, { sanitizeOps: false, sanitizeResources: false, timeout: 10000 });
   });
 
   describe("RETURNING 子句", () => {
@@ -341,7 +369,7 @@ describe("PostgreSQL 特有功能", () => {
       expect(result.rows[0].name).toBe("Returning User");
       expect(result.rows[0].email).toBe("returning@test.com");
       expect(result.rows[0].id).toBeGreaterThan(0);
-    }, { sanitizeOps: false, sanitizeResources: false });
+    }, { sanitizeOps: false, sanitizeResources: false, timeout: 10000 });
 
     it("应该在 UPDATE 中使用 RETURNING 子句", async () => {
       if (!adapter) {

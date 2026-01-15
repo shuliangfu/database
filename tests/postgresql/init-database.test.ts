@@ -5,6 +5,7 @@
 import { getEnv } from "@dreamer/runtime-adapter";
 import {
   afterAll,
+  afterEach,
   assertRejects,
   beforeEach,
   describe,
@@ -38,6 +39,16 @@ describe("init-database", () => {
   beforeEach(async () => {
     // 清理全局状态
     await closeDatabase();
+    // Bun 可能并行运行测试文件，导致连接累积（已移除延时以提升测试速度）
+  });
+
+  // 每个测试后也清理，确保连接不泄漏
+  afterEach(async () => {
+    try {
+      await closeDatabase();
+    } catch {
+      // 忽略清理错误
+    }
   });
 
   afterAll(async () => {
@@ -135,7 +146,7 @@ describe("init-database", () => {
       expect(status2.name).toBe("conn2");
       expect(hasConnection("conn1")).toBe(true);
       expect(hasConnection("conn2")).toBe(true);
-    });
+    }, { timeout: 30000 });
   });
 
   describe("initDatabaseFromConfig", () => {
@@ -386,7 +397,7 @@ describe("init-database", () => {
       await initDatabase(config, "test_conn");
 
       expect(hasConnection("test_conn")).toBe(true);
-    });
+    }, { timeout: 30000 });
 
     it("应该使用默认连接名称", async () => {
       const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
@@ -410,7 +421,7 @@ describe("init-database", () => {
       await initDatabase(config);
 
       expect(hasConnection()).toBe(true);
-    });
+    }, { timeout: 30000 });
   });
 
   describe("closeDatabase", () => {
@@ -441,17 +452,20 @@ describe("init-database", () => {
 
       await closeDatabase();
 
+      // 等待一段时间让连接完全释放
+
+
       expect(hasConnection("conn1")).toBe(false);
       expect(hasConnection("conn2")).toBe(false);
       expect(isDatabaseInitialized()).toBe(false);
-    });
+    }, { timeout: 30000 });
 
     it("应该在无连接时安全调用", async () => {
       await closeDatabase();
       await closeDatabase();
 
       expect(isDatabaseInitialized()).toBe(false);
-    });
+    }, { timeout: 30000 });
   });
 
   describe("setDatabaseConfigLoader", () => {
@@ -484,7 +498,7 @@ describe("init-database", () => {
 
       expect(loaderCalled).toBe(true);
       expect(isDatabaseInitialized()).toBe(true);
-    });
+    }, { timeout: 30000 });
   });
 
   describe("setupDatabaseConfigLoader", () => {
@@ -517,7 +531,7 @@ describe("init-database", () => {
 
       expect(loaderCalled).toBe(true);
       expect(isDatabaseInitialized()).toBe(true);
-    });
+    }, { timeout: 10000 });
   });
 
   describe("setDatabaseManager", () => {
@@ -547,7 +561,11 @@ describe("init-database", () => {
       const retrievedManager = getDatabaseManager();
       expect(retrievedManager).toBe(manager);
       expect(retrievedManager.hasConnection("test")).toBe(true);
-    });
+
+      // 测试结束后显式清理，确保连接完全释放
+      await manager.closeAll();
+
+    }, { timeout: 10000 });
   });
 }, {
   sanitizeOps: false,

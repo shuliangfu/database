@@ -59,7 +59,7 @@ function createMongoConfig() {
  * 测试用户模型
  */
 class User extends MongoModel {
-  static override collectionName = "integration_users";
+  static override collectionName = "full_workflow_integration_users";
   static override primaryKey = "_id";
 }
 
@@ -84,7 +84,7 @@ describe("MongoDB 完整工作流程集成测试", () => {
       try {
         const db = (adapter as MongoDBAdapter).getDatabase();
         if (db) {
-          await db.collection("integration_users").deleteMany({});
+          await db.collection("full_workflow_integration_users").deleteMany({});
         }
       } catch {
         // 忽略错误
@@ -99,7 +99,7 @@ describe("MongoDB 完整工作流程集成测试", () => {
       try {
         const db = (adapter as MongoDBAdapter).getDatabase();
         if (db) {
-          await db.collection("integration_users").deleteMany({});
+          await db.collection("full_workflow_integration_users").deleteMany({});
         }
       } catch {
         // 忽略错误

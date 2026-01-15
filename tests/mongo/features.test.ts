@@ -12,7 +12,9 @@ import {
   expect,
   it,
 } from "@dreamer/test";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { MongoDBAdapter } from "../../src/adapters/mongodb.ts";
+import type { DatabaseAdapter } from "../../src/types.ts";
 
 /**
  * 获取环境变量，带默认值
@@ -22,10 +24,9 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
 }
 
 describe("MongoDB 特有功能", () => {
-  let adapter: MongoDBAdapter;
+  let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    adapter = new MongoDBAdapter();
     const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
     const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
     const mongoDatabase = getEnvWithDefault(
@@ -39,7 +40,8 @@ describe("MongoDB 特有功能", () => {
     ) === "true";
 
     try {
-      await adapter.connect({
+      // 使用 initDatabase 初始化全局 dbManager
+      await initDatabase({
         type: "mongodb",
         connection: {
           host: mongoHost,
@@ -51,6 +53,9 @@ describe("MongoDB 特有功能", () => {
           directConnection: directConnection,
         },
       });
+
+      // 从全局 dbManager 获取适配器
+      adapter = getDatabase();
     } catch (error) {
       console.warn(
         `MongoDB not available, skipping tests: ${
@@ -64,29 +69,34 @@ describe("MongoDB 特有功能", () => {
   afterAll(async () => {
     if (adapter) {
       try {
-        const db = adapter.getDatabase();
+        const db = (adapter as any).getDatabase();
         if (db) {
           // 清理测试集合
-          await db.collection("test_index_data").drop().catch(() => {});
-          await db.collection("test_collection_ops").drop().catch(() => {});
-          await db.collection("test_validation_data").drop().catch(() => {});
+          await db.collection("features_test_index_data").drop().catch(() => {});
+          await db.collection("features_test_collection_ops").drop().catch(() => {});
+          await db.collection("features_test_validation_data").drop().catch(() => {});
         }
-        await adapter.close();
       } catch {
-        // 忽略关闭错误
+        // 忽略错误
       }
+    }
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    try {
+      await closeDatabase();
+    } catch {
+      // 忽略关闭错误
     }
   });
 
   beforeEach(async () => {
     if (!adapter) return;
 
-    const db = adapter.getDatabase();
+    const db = (adapter as any).getDatabase();
     if (db) {
       // 清理测试数据
-      await db.collection("test_index_data").deleteMany({});
-      await db.collection("test_collection_ops").deleteMany({});
-      await db.collection("test_validation_data").deleteMany({});
+      await db.collection("features_test_index_data").deleteMany({});
+      await db.collection("features_test_collection_ops").deleteMany({});
+      await db.collection("features_test_validation_data").deleteMany({});
     }
   });
 
@@ -97,13 +107,13 @@ describe("MongoDB 特有功能", () => {
         return;
       }
 
-      const db = adapter.getDatabase();
+      const db = (adapter as any).getDatabase();
       if (!db) {
         console.log("Database not available, skipping test");
         return;
       }
 
-      const collection = db.collection("test_index_data");
+      const collection = db.collection("features_test_index_data");
 
       // 插入测试数据
       await collection.insertMany([
@@ -117,7 +127,7 @@ describe("MongoDB 特有功能", () => {
 
       // 查询索引
       const indexes = await collection.indexes();
-      const emailIndex = indexes.find((idx) => idx.key?.email === 1);
+      const emailIndex = indexes.find((idx: any) => idx.key?.email === 1);
 
       expect(emailIndex).toBeTruthy();
       expect(emailIndex?.key?.email).toBe(1);
@@ -129,13 +139,13 @@ describe("MongoDB 特有功能", () => {
         return;
       }
 
-      const db = adapter.getDatabase();
+      const db = (adapter as any).getDatabase();
       if (!db) {
         console.log("Database not available, skipping test");
         return;
       }
 
-      const collection = db.collection("test_index_data");
+      const collection = db.collection("features_test_index_data");
 
       // 创建复合索引
       await collection.createIndex({ name: 1, age: -1 });
@@ -143,7 +153,7 @@ describe("MongoDB 特有功能", () => {
       // 查询索引
       const indexes = await collection.indexes();
       const compoundIndex = indexes.find(
-        (idx) => idx.key?.name === 1 && idx.key?.age === -1,
+        (idx: any) => idx.key?.name === 1 && idx.key?.age === -1,
       );
 
       expect(compoundIndex).toBeTruthy();
@@ -155,13 +165,13 @@ describe("MongoDB 特有功能", () => {
         return;
       }
 
-      const db = adapter.getDatabase();
+      const db = (adapter as any).getDatabase();
       if (!db) {
         console.log("Database not available, skipping test");
         return;
       }
 
-      const collection = db.collection("test_index_unique");
+      const collection = db.collection("features_test_index_unique");
 
       // 清理之前的数据和索引
       await collection.drop().catch(() => {});
@@ -209,13 +219,13 @@ describe("MongoDB 特有功能", () => {
         return;
       }
 
-      const db = adapter.getDatabase();
+      const db = (adapter as any).getDatabase();
       if (!db) {
         console.log("Database not available, skipping test");
         return;
       }
 
-      const collection = db.collection("test_index_delete");
+      const collection = db.collection("features_test_index_delete");
 
       // 清理之前的数据和索引
       await collection.drop().catch(() => {});
@@ -225,7 +235,9 @@ describe("MongoDB 特有功能", () => {
 
       // 删除索引（使用索引名称或字段）
       const indexesBefore = await collection.indexes();
-      const nameIndexBefore = indexesBefore.find((idx) => idx.key?.name === 1);
+      const nameIndexBefore = indexesBefore.find((idx: any) =>
+        idx.key?.name === 1
+      );
       if (nameIndexBefore && nameIndexBefore.name) {
         await collection.dropIndex(nameIndexBefore.name);
       } else {
@@ -241,7 +253,9 @@ describe("MongoDB 特有功能", () => {
 
       // 验证索引已删除
       const indexesAfter = await collection.indexes();
-      const nameIndexAfter = indexesAfter.find((idx) => idx.key?.name === 1);
+      const nameIndexAfter = indexesAfter.find((idx: any) =>
+        idx.key?.name === 1
+      );
 
       // _id 索引总是存在，但 name 索引应该不存在了
       expect(nameIndexAfter).toBeFalsy();
@@ -253,13 +267,13 @@ describe("MongoDB 特有功能", () => {
         return;
       }
 
-      const db = adapter.getDatabase();
+      const db = (adapter as any).getDatabase();
       if (!db) {
         console.log("Database not available, skipping test");
         return;
       }
 
-      const collection = db.collection("test_index_data");
+      const collection = db.collection("features_test_index_data");
 
       // 创建多个索引
       await collection.createIndex({ name: 1 });
@@ -281,7 +295,7 @@ describe("MongoDB 特有功能", () => {
         return;
       }
 
-      const db = adapter.getDatabase();
+      const db = (adapter as any).getDatabase();
       if (!db) {
         console.log("Database not available, skipping test");
         return;
@@ -293,7 +307,7 @@ describe("MongoDB 特有功能", () => {
       // 验证集合存在
       const collections = await db.listCollections().toArray();
       const collectionExists = collections.some(
-        (c) => c.name === "test_collection_ops",
+        (c: any) => c.name === "test_collection_ops",
       );
 
       expect(collectionExists).toBe(true);
@@ -305,7 +319,7 @@ describe("MongoDB 特有功能", () => {
         return;
       }
 
-      const db = adapter.getDatabase();
+      const db = (adapter as any).getDatabase();
       if (!db) {
         console.log("Database not available, skipping test");
         return;
@@ -315,12 +329,12 @@ describe("MongoDB 特有功能", () => {
       await db.createCollection("test_collection_ops");
 
       // 删除集合
-      await db.collection("test_collection_ops").drop();
+      await db.collection("features_test_collection_ops").drop();
 
       // 验证集合已删除
       const collections = await db.listCollections().toArray();
       const collectionExists = collections.some(
-        (c) => c.name === "test_collection_ops",
+        (c: any) => c.name === "test_collection_ops",
       );
 
       expect(collectionExists).toBe(false);
@@ -332,7 +346,7 @@ describe("MongoDB 特有功能", () => {
         return;
       }
 
-      const db = adapter.getDatabase();
+      const db = (adapter as any).getDatabase();
       if (!db) {
         console.log("Database not available, skipping test");
         return;
@@ -340,7 +354,7 @@ describe("MongoDB 特有功能", () => {
 
       // 创建一些集合
       await db.createCollection("test_collection_ops").catch(() => {});
-      await db.collection("test_index_data").insertOne({}).catch(() => {});
+      await db.collection("features_test_index_data").insertOne({}).catch(() => {});
 
       // 列出所有集合
       const collections = await db.listCollections().toArray();
@@ -355,13 +369,13 @@ describe("MongoDB 特有功能", () => {
         return;
       }
 
-      const db = adapter.getDatabase();
+      const db = (adapter as any).getDatabase();
       if (!db) {
         console.log("Database not available, skipping test");
         return;
       }
 
-      const collection = db.collection("test_collection_ops");
+      const collection = db.collection("features_test_collection_ops");
 
       // 插入测试数据
       await collection.insertMany([
@@ -385,7 +399,7 @@ describe("MongoDB 特有功能", () => {
         return;
       }
 
-      const db = adapter.getDatabase();
+      const db = (adapter as any).getDatabase();
       if (!db) {
         console.log("Database not available, skipping test");
         return;
@@ -421,7 +435,7 @@ describe("MongoDB 特有功能", () => {
         });
 
         // 插入有效数据
-        await db.collection("test_validation_data").insertOne({
+        await db.collection("features_test_validation_data").insertOne({
           name: "Valid User",
           email: "valid@test.com",
           age: 25,
@@ -429,7 +443,7 @@ describe("MongoDB 特有功能", () => {
 
         // 尝试插入无效数据（缺少必需字段）
         try {
-          await db.collection("test_validation_data").insertOne({
+          await db.collection("features_test_validation_data").insertOne({
             name: "Invalid User",
             // 缺少 email
           });
@@ -531,13 +545,13 @@ describe("MongoDB 特有功能", () => {
         return;
       }
 
-      const db = adapter.getDatabase();
+      const db = (adapter as any).getDatabase();
       if (!db) {
         console.log("Database not available, skipping test");
         return;
       }
 
-      const collection = db.collection("test_batch_insert");
+      const collection = db.collection("features_test_batch_insert");
 
       // 清理之前的数据和索引
       await collection.drop().catch(() => {});
@@ -606,13 +620,13 @@ describe("MongoDB 特有功能", () => {
         return;
       }
 
-      const db = adapter.getDatabase();
+      const db = (adapter as any).getDatabase();
       if (!db) {
         console.log("Database not available, skipping test");
         return;
       }
 
-      const collection = db.collection("test_batch_ordered");
+      const collection = db.collection("features_test_batch_ordered");
 
       // 清理之前的数据和索引
       await collection.drop().catch(() => {});

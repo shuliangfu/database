@@ -230,4 +230,15 @@ export abstract class BaseAdapter implements DatabaseAdapter {
   getQueryLogger(): QueryLogger | null {
     return this.queryLogger;
   }
+
+  /**
+   * 获取底层数据库实例（如果适用）
+   * 默认实现返回 null，子类可以重写
+   * 主要用于 MongoDB 适配器，返回 MongoDB 的 Db 实例
+   *
+   * @returns 底层数据库实例，如果不适用则返回 null
+   */
+  getDatabase(): any | null {
+    return null;
+  }
 }

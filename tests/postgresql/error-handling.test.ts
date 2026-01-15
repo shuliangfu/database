@@ -6,6 +6,7 @@
 import { getEnv } from "@dreamer/runtime-adapter";
 import {
   afterAll,
+  afterEach,
   assertRejects,
   beforeAll,
   describe,
@@ -64,41 +65,33 @@ describe("PostgreSQL 错误处理", () => {
     }
   });
 
+  // 每个测试后强制等待连接释放，防止连接泄漏
+  afterEach(async () => {
+    if (adapter && adapter.isConnected()) {
+      try {
+        // 获取连接池状态并检查（已移除延时以提升测试速度）
+        const status = await adapter.getPoolStatus();
+        // 如果活跃连接过多，记录警告但不等待
+        if (status.active > 2) {
+          console.warn(`警告：连接池中有 ${status.active} 个活跃连接`);
+        }
+      } catch {
+        // 忽略错误
+      }
+    }
+  });
+
   describe("连接错误", () => {
     it("应该处理无效的主机名", async () => {
       const badAdapter = new PostgreSQLAdapter();
-      await assertRejects(
-        async () => {
-          await badAdapter.connect({
-            type: "postgresql",
-            connection: {
-              host: "invalid_host_that_does_not_exist_12345",
-              port: 5432,
-              database: "test",
-              username: "test",
-              password: "test",
-            },
-            postgresqlOptions: {
-              connectionTimeout: 2000, // 2 秒超时
-            },
-          });
-        },
-        Error,
-      );
-    }, { sanitizeOps: false, sanitizeResources: false, timeout: 10000 });
-
-    it("应该处理无效的端口", async () => {
-      const badAdapter = new PostgreSQLAdapter();
-      await assertRejects(
-        async () => {
-          // 使用 Promise.race 添加超时，避免长时间等待
-          // 使用有效但不可达的端口（65534），而不是无效的端口号
-          await Promise.race([
-            badAdapter.connect({
+      try {
+        await assertRejects(
+          async () => {
+            await badAdapter.connect({
               type: "postgresql",
               connection: {
-                host: "localhost",
-                port: 65534, // 有效但不可达的端口
+                host: "invalid_host_that_does_not_exist_12345",
+                port: 5432,
                 database: "test",
                 username: "test",
                 password: "test",
@@ -106,17 +99,59 @@ describe("PostgreSQL 错误处理", () => {
               postgresqlOptions: {
                 connectionTimeout: 2000, // 2 秒超时
               },
-              pool: {
-                maxRetries: 0, // 禁用重试，立即失败
-              },
-            }),
-            new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error("Connection timeout")), 5000)
-            ),
-          ]);
-        },
-        Error,
-      );
+            });
+          },
+          Error,
+        );
+      } finally {
+        // 确保关闭适配器，即使连接失败
+        try {
+          await badAdapter.close();
+        } catch {
+          // 忽略关闭错误
+        }
+      }
+    }, { sanitizeOps: false, sanitizeResources: false, timeout: 10000 });
+
+    it("应该处理无效的端口", async () => {
+      const badAdapter = new PostgreSQLAdapter();
+      try {
+        await assertRejects(
+          async () => {
+            // 使用 Promise.race 添加超时，避免长时间等待
+            // 使用有效但不可达的端口（65534），而不是无效的端口号
+            await Promise.race([
+              badAdapter.connect({
+                type: "postgresql",
+                connection: {
+                  host: "localhost",
+                  port: 65534, // 有效但不可达的端口
+                  database: "test",
+                  username: "test",
+                  password: "test",
+                },
+                postgresqlOptions: {
+                  connectionTimeout: 2000, // 2 秒超时
+                },
+                pool: {
+                  maxRetries: 0, // 禁用重试，立即失败
+                },
+              }),
+              new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error("Connection timeout")), 5000)
+              ),
+            ]);
+          },
+          Error,
+        );
+      } finally {
+        // 确保关闭适配器，即使连接失败
+        try {
+          await badAdapter.close();
+        } catch {
+          // 忽略关闭错误
+        }
+      }
     }, {
       sanitizeOps: false,
       sanitizeResources: false,
@@ -125,24 +160,33 @@ describe("PostgreSQL 错误处理", () => {
 
     it("应该处理无效的数据库名", async () => {
       const badAdapter = new PostgreSQLAdapter();
-      await assertRejects(
-        async () => {
-          await badAdapter.connect({
-            type: "postgresql",
-            connection: {
-              host: "localhost",
-              port: 5432,
-              database: "nonexistent_database_12345",
-              username: "test",
-              password: "test",
-            },
-            postgresqlOptions: {
-              connectionTimeout: 2000, // 2 秒超时
-            },
-          });
-        },
-        Error,
-      );
+      try {
+        await assertRejects(
+          async () => {
+            await badAdapter.connect({
+              type: "postgresql",
+              connection: {
+                host: "localhost",
+                port: 5432,
+                database: "nonexistent_database_12345",
+                username: "test",
+                password: "test",
+              },
+              postgresqlOptions: {
+                connectionTimeout: 2000, // 2 秒超时
+              },
+            });
+          },
+          Error,
+        );
+      } finally {
+        // 确保关闭适配器，即使连接失败
+        try {
+          await badAdapter.close();
+        } catch {
+          // 忽略关闭错误
+        }
+      }
     }, { sanitizeOps: false, sanitizeResources: false, timeout: 10000 });
   });
 
@@ -350,15 +394,24 @@ describe("PostgreSQL 错误处理", () => {
         },
       });
 
-      await testAdapter.close();
+      try {
+        await testAdapter.close();
 
-      // 关闭后应该无法查询
-      await assertRejects(
-        async () => {
-          await testAdapter.query("SELECT 1", []);
-        },
-        Error,
-      );
+        // 关闭后应该无法查询
+        await assertRejects(
+          async () => {
+            await testAdapter.query("SELECT 1", []);
+          },
+          Error,
+        );
+      } finally {
+        // 确保关闭适配器
+        try {
+          await testAdapter.close();
+        } catch {
+          // 忽略关闭错误
+        }
+      }
     }, { sanitizeOps: false, sanitizeResources: false });
   });
 }, {

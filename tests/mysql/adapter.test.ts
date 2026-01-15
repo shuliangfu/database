@@ -24,10 +24,9 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
 }
 
 describe("MySQLAdapter", () => {
-  let adapter: MySQLAdapter;
+  let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    adapter = new MySQLAdapter();
     const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
     const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
     const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
@@ -35,6 +34,8 @@ describe("MySQLAdapter", () => {
     const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
 
     try {
+      // 直接创建适配器实例进行测试
+      adapter = new MySQLAdapter();
       await adapter.connect({
         type: "mysql",
         connection: {
@@ -56,7 +57,8 @@ describe("MySQLAdapter", () => {
   });
 
   afterAll(async () => {
-    if (adapter) {
+    // 直接关闭适配器连接
+    if (adapter && adapter.isConnected()) {
       try {
         await adapter.close();
       } catch {

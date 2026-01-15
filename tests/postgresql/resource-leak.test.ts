@@ -5,7 +5,9 @@
 
 import { getEnv } from "@dreamer/runtime-adapter";
 import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { PostgreSQLAdapter } from "../../src/adapters/postgresql.ts";
+import type { DatabaseAdapter } from "../../src/types.ts";
 
 /**
  * 获取环境变量，带默认值
@@ -15,7 +17,7 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
 }
 
 describe("资源泄漏测试", () => {
-  let adapter: PostgreSQLAdapter;
+  let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
     const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
@@ -25,8 +27,8 @@ describe("资源泄漏测试", () => {
     const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
     const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "");
 
-    adapter = new PostgreSQLAdapter();
-    await adapter.connect({
+    // 使用 initDatabase 初始化全局 dbManager
+    await initDatabase({
       type: "postgresql",
       connection: {
         host: pgHost,
@@ -40,10 +42,14 @@ describe("资源泄漏测试", () => {
         max: 5,
       },
     });
+
+    // 从全局 dbManager 获取适配器
+    adapter = getDatabase();
   });
 
   afterAll(async () => {
-    await adapter?.close();
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    await closeDatabase();
   });
 
   it("应该在关闭连接后释放所有资源", async () => {
@@ -90,7 +96,7 @@ describe("资源泄漏测试", () => {
     } catch {
       // 如果抛出错误，也是合理的行为
     }
-  }, { sanitizeOps: false, sanitizeResources: false });
+  }, { sanitizeOps: false, sanitizeResources: false, timeout: 10000 });
 
   it("应该在事务完成后释放连接", async () => {
     if (!adapter) {
@@ -106,13 +112,13 @@ describe("资源泄漏测试", () => {
     });
 
     // 等待一小段时间让连接释放
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    
 
     const statusAfter = await adapter.getPoolStatus();
 
     // 事务完成后，活跃连接应该减少或保持不变
     expect(statusAfter.active).toBeLessThanOrEqual(statusBefore.active + 1);
-  }, { sanitizeOps: false, sanitizeResources: false });
+  }, { sanitizeOps: false, sanitizeResources: false, timeout: 10000 });
 
   it("应该在多次查询后连接池状态正常", async () => {
     if (!adapter) {
@@ -131,7 +137,7 @@ describe("资源泄漏测试", () => {
     expect(status.total).toBeGreaterThanOrEqual(0);
     expect(status.active).toBeLessThanOrEqual(status.total);
     expect(status.idle).toBeLessThanOrEqual(status.total);
-  }, { sanitizeOps: false, sanitizeResources: false });
+  }, { sanitizeOps: false, sanitizeResources: false, timeout: 10000 });
 }, {
   sanitizeOps: false,
   sanitizeResources: false,

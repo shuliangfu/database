@@ -4,16 +4,8 @@
  */
 
 import { getEnv } from "@dreamer/runtime-adapter";
-import {
-  afterAll,
-  beforeAll,
-  describe,
-  expect,
-  it,
-} from "@dreamer/test";
-import { DatabaseManager } from "../../src/manager.ts";
-import { MySQLAdapter } from "../../src/adapters/mysql.ts";
-import { SQLiteAdapter } from "../../src/adapters/sqlite.ts";
+import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
 
 /**
@@ -24,21 +16,18 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
 }
 
 describe("多适配器集成测试", () => {
-  let manager: DatabaseManager;
   let mysqlAdapter: DatabaseAdapter;
   let sqliteAdapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    manager = new DatabaseManager();
-
-    // 连接 MySQL
+    // 使用 initDatabase 初始化 MySQL 连接
     const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
     const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
     const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
     const mysqlUser = getEnvWithDefault("MYSQL_USER", "root");
     const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
 
-    await manager.connect("mysql", {
+    await initDatabase({
       type: "mysql",
       connection: {
         host: mysqlHost,
@@ -47,18 +36,19 @@ describe("多适配器集成测试", () => {
         username: mysqlUser,
         password: mysqlPassword,
       },
-    });
+    }, "mysql");
 
-    // 连接 SQLite
-    await manager.connect("sqlite", {
+    // 使用 initDatabase 初始化 SQLite 连接
+    await initDatabase({
       type: "sqlite",
       connection: {
         filename: ":memory:",
       },
-    });
+    }, "sqlite");
 
-    mysqlAdapter = manager.getConnection("mysql");
-    sqliteAdapter = manager.getConnection("sqlite");
+    // 使用 getDatabase 获取连接
+    mysqlAdapter = getDatabase("mysql");
+    sqliteAdapter = getDatabase("sqlite");
 
     // 创建测试表
     await mysqlAdapter.execute(
@@ -81,7 +71,8 @@ describe("多适配器集成测试", () => {
   });
 
   afterAll(async () => {
-    await manager?.closeAll();
+    // 使用 closeDatabase 关闭所有连接
+    await closeDatabase();
   });
 
   it("应该能够同时操作多个数据库", async () => {

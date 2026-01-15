@@ -22,7 +22,7 @@ import {
   expect,
   it,
 } from "@dreamer/test";
-import { MySQLAdapter } from "../../src/adapters/mysql.ts";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { MigrationManager } from "../../src/migration/manager.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
 
@@ -46,8 +46,6 @@ describe("MigrationManager", () => {
     }
     await mkdir(testMigrationsDir, { recursive: true });
 
-    // 创建真实的 MySQL 适配器
-    mysqlAdapter = new MySQLAdapter();
     const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
     const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
     const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
@@ -55,7 +53,8 @@ describe("MigrationManager", () => {
     const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
 
     try {
-      await mysqlAdapter.connect({
+      // 使用 initDatabase 初始化全局 dbManager
+      await initDatabase({
         type: "mysql",
         connection: {
           host: mysqlHost,
@@ -65,6 +64,9 @@ describe("MigrationManager", () => {
           password: mysqlPassword,
         },
       });
+
+      // 从全局 dbManager 获取适配器
+      mysqlAdapter = getDatabase();
     } catch (error) {
       console.warn(
         `MySQL not available for migration tests: ${
@@ -82,7 +84,8 @@ describe("MigrationManager", () => {
     } catch {
       // 忽略错误
     }
-    await mysqlAdapter?.close();
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    await closeDatabase();
   });
 
   beforeEach(async () => {
@@ -136,9 +139,6 @@ describe("MigrationManager", () => {
             // 忽略错误
           }
         }
-      }
-      if (typeof (globalThis as any).Bun !== "undefined") {
-        await new Promise((resolve) => setTimeout(resolve, 100));
       }
     } catch {
       // 目录不存在，忽略
@@ -213,8 +213,8 @@ describe("MigrationManager", () => {
 
       const migrationName = `test_migration_${Date.now()}`;
       const migrationFile = await manager.create(migrationName);
-
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // 等待文件创建完成
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       const migrationContent =
         `import type { Migration } from '@dreamer/database';
@@ -233,6 +233,7 @@ export default class TestMigration implements Migration {
 }`;
 
       await writeTextFile(migrationFile, migrationContent);
+      // 文件写入后需要等待文件系统同步
       await new Promise((resolve) => setTimeout(resolve, 200));
 
       await manager.up();
@@ -271,8 +272,6 @@ export default class TestMigration implements Migration {
       const migrationName = `rollback_test_${Date.now()}`;
       const migrationFile = await manager.create(migrationName);
 
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
       const migrationContent =
         `import type { Migration } from '@dreamer/database';
 import type { DatabaseAdapter } from '@dreamer/database';
@@ -290,7 +289,8 @@ export default class RollbackTest implements Migration {
 }`;
 
       await writeTextFile(migrationFile, migrationContent);
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // 文件写入后需要等待文件系统同步
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       await manager.up();
 
@@ -340,7 +340,9 @@ export default class RollbackTest implements Migration {
       const migration2Name = `status_test_2_${timestamp}`;
 
       const migration1File = await manager.create(migration1Name);
+      await new Promise((resolve) => setTimeout(resolve, 200));
       const migration2File = await manager.create(migration2Name);
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       const migration1Content =
         `import type { Migration } from '@dreamer/database';
@@ -356,8 +358,6 @@ export default class StatusTest1 implements Migration {
   }
 }`;
       await writeTextFile(migration1File, migration1Content);
-
-      await new Promise((resolve) => setTimeout(resolve, 100));
 
       await manager.up(1);
 

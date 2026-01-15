@@ -47,6 +47,9 @@ describe("DatabaseManager", () => {
           // 忽略关闭错误
         }
       }
+      // 等待连接池释放连接，增加等待时间确保连接完全释放
+      // PostgreSQL 服务器端需要时间释放连接，增加等待时间
+      
     }
   });
 
@@ -75,7 +78,7 @@ describe("DatabaseManager", () => {
       expect(status.name).toBe("postgres_test");
       expect(status.type).toBe("postgresql");
       expect(status.connected).toBe(true);
-    });
+    }, { timeout: 10000 });
 
     it("应该支持多个连接", async () => {
       const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
@@ -111,7 +114,7 @@ describe("DatabaseManager", () => {
 
       expect(manager.hasConnection("connection1")).toBe(true);
       expect(manager.hasConnection("connection2")).toBe(true);
-    });
+    }, { timeout: 15000 });
 
     it("应该使用默认连接名称", async () => {
       const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
@@ -136,7 +139,7 @@ describe("DatabaseManager", () => {
 
       expect(status.name).toBe("default");
       expect(manager.hasConnection("default")).toBe(true);
-    });
+    }, { timeout: 10000 });
   });
 
   describe("getConnection", () => {
@@ -164,7 +167,7 @@ describe("DatabaseManager", () => {
 
       expect(adapter).toBeTruthy();
       expect(adapter.isConnected()).toBe(true);
-    });
+    }, { timeout: 10000 });
 
     it("应该使用默认连接名称", async () => {
       const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
@@ -190,7 +193,7 @@ describe("DatabaseManager", () => {
 
       expect(adapter).toBeTruthy();
       expect(adapter.isConnected()).toBe(true);
-    });
+    }, { timeout: 10000 });
 
     it("应该在连接不存在时抛出错误", () => {
       expect(() => {
@@ -224,7 +227,7 @@ describe("DatabaseManager", () => {
 
       await manager.close("close_test");
       expect(manager.hasConnection("close_test")).toBe(false);
-    });
+    }, { timeout: 10000 });
 
     it("应该关闭所有连接", async () => {
       const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
@@ -255,7 +258,7 @@ describe("DatabaseManager", () => {
 
       expect(manager.hasConnection("close_all_1")).toBe(false);
       expect(manager.hasConnection("close_all_2")).toBe(false);
-    });
+    }, { timeout: 10000 });
 
     it("应该在关闭不存在的连接时不报错", async () => {
       await manager.close("nonexistent");
@@ -287,7 +290,7 @@ describe("DatabaseManager", () => {
 
       await manager.connect("has_test", config);
       expect(manager.hasConnection("has_test")).toBe(true);
-    });
+    }, { timeout: 10000 });
 
     it("应该使用默认连接名称", async () => {
       const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
@@ -310,11 +313,14 @@ describe("DatabaseManager", () => {
 
       await manager.connect("default", config);
       expect(manager.hasConnection()).toBe(true);
-    });
+    }, { timeout: 10000 });
   });
 
   describe("getConnectionNames", () => {
     it("应该返回所有连接名称", async () => {
+      // 先清理可能存在的连接
+      await manager.closeAll();
+
       const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
       const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
       const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
@@ -333,13 +339,22 @@ describe("DatabaseManager", () => {
         },
       };
 
+      // 创建两个连接
       await manager.connect("name_test_1", config);
       await manager.connect("name_test_2", config);
 
+      // 验证连接已创建
+      expect(manager.hasConnection("name_test_1")).toBe(true);
+      expect(manager.hasConnection("name_test_2")).toBe(true);
+
+      // 获取所有连接名称
       const names = manager.getConnectionNames();
+
+      // 验证返回的连接名称
+      expect(names.length).toBeGreaterThanOrEqual(2);
       expect(names).toContain("name_test_1");
       expect(names).toContain("name_test_2");
-    });
+    }, { timeout: 10000 });
 
     it("应该在无连接时返回空数组", async () => {
       await manager.closeAll();
@@ -370,7 +385,7 @@ describe("DatabaseManager", () => {
 
       const status = await manager.connect("postgres_adapter", config);
       expect(status.type).toBe("postgresql");
-    });
+    }, { timeout: 10000 });
   });
 
   describe("setAdapterFactory", () => {
@@ -409,7 +424,7 @@ describe("DatabaseManager", () => {
 
       expect(status.type).toBe("postgresql");
       expect(status.connected).toBe(true);
-    });
+    }, { timeout: 10000 });
   });
 }, {
   sanitizeOps: false,

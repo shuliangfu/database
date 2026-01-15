@@ -21,7 +21,7 @@ import {
   expect,
   it,
 } from "@dreamer/test";
-import { SQLiteAdapter } from "../../src/adapters/sqlite.ts";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { MigrationManager } from "../../src/migration/manager.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
 
@@ -38,14 +38,16 @@ describe("MigrationManager", () => {
     }
     await mkdir(testMigrationsDir, { recursive: true });
 
-    // 创建真实的 SQLite 适配器
-    sqliteAdapter = new SQLiteAdapter();
-    await sqliteAdapter.connect({
+    // 使用 initDatabase 初始化全局 dbManager
+    await initDatabase({
       type: "sqlite",
       connection: {
         filename: ":memory:",
       },
     });
+
+    // 从全局 dbManager 获取适配器
+    sqliteAdapter = getDatabase();
   });
 
   afterAll(async () => {
@@ -55,7 +57,8 @@ describe("MigrationManager", () => {
     } catch {
       // 忽略错误
     }
-    await sqliteAdapter?.close();
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    await closeDatabase();
   });
 
   beforeEach(async () => {
@@ -114,9 +117,6 @@ describe("MigrationManager", () => {
         }
       }
       // 在 Bun 中，删除文件后需要等待文件系统同步
-      if (typeof (globalThis as any).Bun !== "undefined") {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
     } catch {
       // 目录不存在，忽略
     }
@@ -178,7 +178,7 @@ describe("MigrationManager", () => {
       const migrationFile = await manager.create(migrationName);
 
       // 等待 manager.create 创建的文件系统同步
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       // 修改迁移文件，添加实际的迁移逻辑
       const migrationContent =
@@ -239,8 +239,11 @@ export default class TestMigration implements Migration {
 
       // 创建多个迁移文件（需要添加实际的迁移逻辑）
       const migration1File = await manager.create(migration1Name);
+      await new Promise((resolve) => setTimeout(resolve, 200));
       const migration2File = await manager.create(migration2Name);
+      await new Promise((resolve) => setTimeout(resolve, 200));
       const migration3File = await manager.create(migration3Name);
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       // 为第三个迁移也添加实际逻辑（即使不执行，也需要有效内容）
       const migration3Content =
@@ -290,9 +293,7 @@ export default class Migration2 implements Migration {
 
       // 在 Bun 中，文件写入后需要等待文件系统同步
       // 增加等待时间，确保文件系统完全同步
-      if (typeof (globalThis as any).Bun !== "undefined") {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       // 只执行前 2 个迁移
       await manager.up(2);
@@ -321,7 +322,7 @@ export default class Migration2 implements Migration {
       const migrationFile = await manager.create(migrationName);
 
       // 等待 manager.create 创建的文件系统同步
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       const migrationContent =
         `import type { Migration } from '@dreamer/database';
@@ -340,9 +341,7 @@ export default class TestMigration implements Migration {
 
       // 在 Bun 中，文件写入后需要等待文件系统同步
       // 增加等待时间，确保文件系统完全同步
-      if (typeof (globalThis as any).Bun !== "undefined") {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       await manager.up();
 
@@ -377,7 +376,7 @@ export default class TestMigration implements Migration {
       const migrationFile = await manager.create(migrationName);
 
       // 等待 manager.create 创建的文件系统同步
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       const migrationContent =
         `import type { Migration } from '@dreamer/database';
@@ -398,7 +397,7 @@ export default class RollbackTest implements Migration {
       await writeTextFile(migrationFile, migrationContent);
 
       // 文件写入后需要等待文件系统同步
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       // 先执行迁移
       await manager.up();
@@ -441,18 +440,22 @@ export default class RollbackTest implements Migration {
       // 注意：每个 create() 调用都会生成新的时间戳，所以顺序应该是 migration1 < migration2 < migration3
       const migration1Name = `migration_1_${Date.now()}`;
       const migration1File = await manager.create(migration1Name);
+      // 等待文件创建完成
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       // 等待一小段时间确保时间戳不同
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
+      await new Promise((resolve) => setTimeout(resolve, 50));
       const migration2Name = `migration_2_${Date.now()}`;
       const migration2File = await manager.create(migration2Name);
+      // 等待文件创建完成
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       // 等待一小段时间确保时间戳不同
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
+      await new Promise((resolve) => setTimeout(resolve, 50));
       const migration3Name = `migration_3_${Date.now()}`;
       const migration3File = await manager.create(migration3Name);
+      // 等待文件创建完成
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       const migration1Content =
         `import type { Migration } from '@dreamer/database';
@@ -499,9 +502,7 @@ export default class Migration3 implements Migration {
 
       // 在 Bun 中，文件写入后需要等待文件系统同步
       // 增加等待时间，确保文件系统完全同步
-      if (typeof (globalThis as any).Bun !== "undefined") {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
       // 执行所有迁移
       await manager.up();
@@ -586,7 +587,9 @@ export default class Migration3 implements Migration {
 
       // 创建测试迁移文件
       const migration1File = await manager.create(migration1Name);
+      await new Promise((resolve) => setTimeout(resolve, 200));
       const migration2File = await manager.create(migration2Name);
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       // 为第一个迁移添加实际逻辑并执行
       const migration1Content =
@@ -605,7 +608,7 @@ export default class StatusTest1 implements Migration {
       await writeTextFile(migration1File, migration1Content);
 
       // 文件写入后需要等待文件系统同步
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       // 只执行第一个迁移（限制数量为1）
       await manager.up(1);
@@ -642,7 +645,7 @@ export default class StatusTest1 implements Migration {
       const migrationFile = await manager.create(migrationName);
 
       // 等待 manager.create 创建的文件系统同步
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       const migrationContent =
         `import type { Migration } from '@dreamer/database';
@@ -661,9 +664,7 @@ export default class StatusTest1 implements Migration {
 
       // 在 Bun 中，文件写入后需要等待文件系统同步
       // 增加等待时间，确保文件系统完全同步
-      if (typeof (globalThis as any).Bun !== "undefined") {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       await manager.up();
 

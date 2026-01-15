@@ -571,4 +571,28 @@ export interface DatabaseAdapter {
    * @returns 健康检查结果，包含健康状态、延迟时间、错误信息等
    */
   healthCheck(): Promise<import("./adapters/base.ts").HealthCheckResult>;
+
+  /**
+   * 设置查询日志记录器
+   * 用于记录数据库查询和执行操作的日志
+   *
+   * @param logger 查询日志记录器实例
+   */
+  setQueryLogger(logger: import("./adapters/base.ts").QueryLogger): void;
+
+  /**
+   * 获取查询日志记录器
+   *
+   * @returns 当前设置的查询日志记录器，如果未设置则返回 null
+   */
+  getQueryLogger(): import("./adapters/base.ts").QueryLogger | null;
+
+  /**
+   * 获取底层数据库实例（如果适用）
+   * 主要用于 MongoDB 适配器，返回 MongoDB 的 Db 实例
+   * 其他适配器返回 null
+   *
+   * @returns 底层数据库实例，如果不适用则返回 null
+   */
+  getDatabase(): any | null;
 }

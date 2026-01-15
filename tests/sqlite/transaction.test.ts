@@ -10,17 +10,21 @@ import {
   expect,
   it,
 } from "@dreamer/test";
-import { SQLiteAdapter } from "../../src/adapters/sqlite.ts";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
+import type { DatabaseAdapter } from "../../src/types.ts";
 
 describe("事务测试", () => {
-  let adapter: SQLiteAdapter;
+  let adapter: DatabaseAdapter;
 
   beforeEach(async () => {
-    adapter = new SQLiteAdapter();
-    await adapter.connect({
+    // 使用 initDatabase 初始化全局 dbManager
+    await initDatabase({
       type: "sqlite",
       connection: { filename: ":memory:" },
     });
+
+    // 从全局 dbManager 获取适配器
+    adapter = getDatabase();
 
     // 创建测试表
     await adapter.execute(
@@ -34,7 +38,8 @@ describe("事务测试", () => {
   });
 
   afterEach(async () => {
-    await adapter?.close();
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    await closeDatabase();
   });
 
   describe("基本事务", () => {

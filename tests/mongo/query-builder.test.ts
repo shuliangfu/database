@@ -11,7 +11,7 @@ import {
   expect,
   it,
 } from "@dreamer/test";
-import { MongoDBAdapter } from "../../src/adapters/mongodb.ts";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { MongoQueryBuilder } from "../../src/query/mongo-builder.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
 
@@ -19,9 +19,9 @@ describe("MongoQueryBuilder", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    adapter = new MongoDBAdapter();
     try {
-      await adapter.connect({
+      // 使用 initDatabase 初始化全局 dbManager
+      await initDatabase({
         type: "mongodb",
         connection: {
           host: "localhost",
@@ -33,6 +33,9 @@ describe("MongoQueryBuilder", () => {
           directConnection: true,
         },
       });
+
+      // 从全局 dbManager 获取适配器
+      adapter = getDatabase();
     } catch (error) {
       // MongoDB 不可用，跳过测试
       const errorMessage = error instanceof Error
@@ -51,12 +54,17 @@ describe("MongoQueryBuilder", () => {
       try {
         const db = (adapter as any).db;
         if (db) {
-          await db.collection("users").deleteMany({});
+          await db.collection("query_builder_users").deleteMany({});
         }
-        await adapter.close();
       } catch {
-        // 忽略关闭错误
+        // 忽略错误
       }
+    }
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    try {
+      await closeDatabase();
+    } catch {
+      // 忽略关闭错误
     }
   });
 
@@ -80,7 +88,7 @@ describe("MongoQueryBuilder", () => {
 
       // 先插入测试数据
       const db = (adapter as any).db;
-      await db.collection("users").insertOne({ name: "Alice", age: 25 });
+      await db.collection("query_builder_users").insertOne({ name: "Alice", age: 25 });
 
       const builder = new MongoQueryBuilder(adapter);
       const results = await builder.from("users").query();
@@ -97,7 +105,7 @@ describe("MongoQueryBuilder", () => {
     it("应该设置查询过滤器", async () => {
       // 先插入测试数据
       const db = (adapter as any).db;
-      await db.collection("users").insertMany([
+      await db.collection("query_builder_users").insertMany([
         { name: "Alice", age: 25 },
         { name: "Bob", age: 30 },
       ]);
@@ -117,7 +125,7 @@ describe("MongoQueryBuilder", () => {
   describe("eq", () => {
     it("应该添加等于条件", async () => {
       const db = (adapter as any).db;
-      await db.collection("users").insertMany([
+      await db.collection("query_builder_users").insertMany([
         { name: "Alice", age: 25, status: "active" },
         { name: "Bob", age: 30, status: "inactive" },
       ]);
@@ -137,7 +145,7 @@ describe("MongoQueryBuilder", () => {
   describe("gt, gte, lt, lte", () => {
     it("应该添加大于条件", async () => {
       const db = (adapter as any).db;
-      await db.collection("users").insertMany([
+      await db.collection("query_builder_users").insertMany([
         { name: "Alice", age: 25 },
         { name: "Bob", age: 30 },
         { name: "Charlie", age: 20 },
@@ -157,7 +165,7 @@ describe("MongoQueryBuilder", () => {
 
     it("应该添加大于等于条件", async () => {
       const db = (adapter as any).db;
-      await db.collection("users").insertMany([
+      await db.collection("query_builder_users").insertMany([
         { name: "Alice", age: 25 },
         { name: "Bob", age: 30 },
         { name: "Charlie", age: 20 },
@@ -177,7 +185,7 @@ describe("MongoQueryBuilder", () => {
 
     it("应该添加小于条件", async () => {
       const db = (adapter as any).db;
-      await db.collection("users").insertMany([
+      await db.collection("query_builder_users").insertMany([
         { name: "Alice", age: 25 },
         { name: "Bob", age: 30 },
         { name: "Charlie", age: 20 },
@@ -197,7 +205,7 @@ describe("MongoQueryBuilder", () => {
 
     it("应该添加小于等于条件", async () => {
       const db = (adapter as any).db;
-      await db.collection("users").insertMany([
+      await db.collection("query_builder_users").insertMany([
         { name: "Alice", age: 25 },
         { name: "Bob", age: 30 },
         { name: "Charlie", age: 20 },
@@ -219,7 +227,7 @@ describe("MongoQueryBuilder", () => {
   describe("ne", () => {
     it("应该添加不等于条件", async () => {
       const db = (adapter as any).db;
-      await db.collection("users").insertMany([
+      await db.collection("query_builder_users").insertMany([
         { name: "Alice", status: "active" },
         { name: "Bob", status: "deleted" },
         { name: "Charlie", status: "active" },
@@ -242,7 +250,7 @@ describe("MongoQueryBuilder", () => {
   describe("in", () => {
     it("应该添加 IN 条件", async () => {
       const db = (adapter as any).db;
-      await db.collection("users").insertMany([
+      await db.collection("query_builder_users").insertMany([
         { name: "Alice", status: "active" },
         { name: "Bob", status: "pending" },
         { name: "Charlie", status: "inactive" },
@@ -267,7 +275,7 @@ describe("MongoQueryBuilder", () => {
   describe("sort", () => {
     it("应该添加排序选项", async () => {
       const db = (adapter as any).db;
-      await db.collection("users").insertMany([
+      await db.collection("query_builder_users").insertMany([
         { name: "Alice", age: 25 },
         { name: "Bob", age: 30 },
         { name: "Charlie", age: 20 },
@@ -289,7 +297,7 @@ describe("MongoQueryBuilder", () => {
   describe("limit 和 skip", () => {
     it("应该添加限制数量", async () => {
       const db = (adapter as any).db;
-      await db.collection("users").insertMany([
+      await db.collection("query_builder_users").insertMany([
         { name: "Alice" },
         { name: "Bob" },
         { name: "Charlie" },
@@ -306,7 +314,7 @@ describe("MongoQueryBuilder", () => {
 
     it("应该添加偏移量", async () => {
       const db = (adapter as any).db;
-      await db.collection("users").insertMany([
+      await db.collection("query_builder_users").insertMany([
         { name: "Alice", age: 25 },
         { name: "Bob", age: 30 },
         { name: "Charlie", age: 20 },
@@ -327,7 +335,7 @@ describe("MongoQueryBuilder", () => {
   describe("query", () => {
     it("应该执行查询并返回结果", async () => {
       const db = (adapter as any).db;
-      await db.collection("users").insertMany([
+      await db.collection("query_builder_users").insertMany([
         { name: "Alice", age: 25 },
         { name: "Bob", age: 30 },
       ]);
@@ -355,7 +363,7 @@ describe("MongoQueryBuilder", () => {
   describe("queryOne", () => {
     it("应该返回第一条结果", async () => {
       const db = (adapter as any).db;
-      await db.collection("users").insertMany([
+      await db.collection("query_builder_users").insertMany([
         { name: "Alice", age: 25 },
         { name: "Bob", age: 30 },
       ]);
@@ -384,7 +392,7 @@ describe("MongoQueryBuilder", () => {
   describe("count", () => {
     it("应该统计记录数量", async () => {
       const db = (adapter as any).db;
-      await db.collection("users").insertMany([
+      await db.collection("query_builder_users").insertMany([
         { name: "Alice" },
         { name: "Bob" },
         { name: "Charlie" },
@@ -448,7 +456,7 @@ describe("MongoQueryBuilder", () => {
 
       // 验证数据已插入
       const db = (adapter as any).db;
-      const users = await db.collection("users").find({ name: "Alice" })
+      const users = await db.collection("query_builder_users").find({ name: "Alice" })
         .toArray();
       expect(users.length).toBe(1);
       expect(users[0].age).toBe(25);
@@ -480,7 +488,7 @@ describe("MongoQueryBuilder", () => {
 
       // 验证数据已插入
       const db = (adapter as any).db;
-      const users = await db.collection("users").find({}).toArray();
+      const users = await db.collection("query_builder_users").find({}).toArray();
       expect(users.length).toBe(2);
     }, {
       sanitizeOps: false,
@@ -491,7 +499,7 @@ describe("MongoQueryBuilder", () => {
   describe("execute().update", () => {
     it("应该更新单个文档", async () => {
       const db = (adapter as any).db;
-      await db.collection("users").insertOne({ name: "Alice", age: 25 });
+      await db.collection("query_builder_users").insertOne({ name: "Alice", age: 25 });
 
       const builder = new MongoQueryBuilder(adapter);
       const result = await builder
@@ -504,7 +512,7 @@ describe("MongoQueryBuilder", () => {
       expect(result.modifiedCount).toBe(1);
 
       // 验证数据已更新
-      const user = await db.collection("users").findOne({ name: "Alice" });
+      const user = await db.collection("query_builder_users").findOne({ name: "Alice" });
       expect(user?.age).toBe(26);
     }, {
       sanitizeOps: false,
@@ -513,7 +521,7 @@ describe("MongoQueryBuilder", () => {
 
     it("应该更新多个文档", async () => {
       const db = (adapter as any).db;
-      await db.collection("users").insertMany([
+      await db.collection("query_builder_users").insertMany([
         { name: "Alice", age: 25, status: "active" },
         { name: "Bob", age: 30, status: "active" },
       ]);
@@ -529,7 +537,7 @@ describe("MongoQueryBuilder", () => {
       expect(result.modifiedCount).toBe(2);
 
       // 验证数据已更新
-      const users = await db.collection("users").find({ status: "inactive" })
+      const users = await db.collection("query_builder_users").find({ status: "inactive" })
         .toArray();
       expect(users.length).toBe(2);
     }, {
@@ -541,7 +549,7 @@ describe("MongoQueryBuilder", () => {
   describe("execute().delete", () => {
     it("应该删除单个文档", async () => {
       const db = (adapter as any).db;
-      await db.collection("users").insertOne({ name: "Alice", age: 25 });
+      await db.collection("query_builder_users").insertOne({ name: "Alice", age: 25 });
 
       const builder = new MongoQueryBuilder(adapter);
       const result = await builder
@@ -554,7 +562,7 @@ describe("MongoQueryBuilder", () => {
       expect(result.deletedCount).toBe(1);
 
       // 验证数据已删除
-      const user = await db.collection("users").findOne({ name: "Alice" });
+      const user = await db.collection("query_builder_users").findOne({ name: "Alice" });
       expect(user).toBeNull();
     }, {
       sanitizeOps: false,
@@ -563,7 +571,7 @@ describe("MongoQueryBuilder", () => {
 
     it("应该删除多个文档", async () => {
       const db = (adapter as any).db;
-      await db.collection("users").insertMany([
+      await db.collection("query_builder_users").insertMany([
         { name: "Alice", status: "deleted" },
         { name: "Bob", status: "deleted" },
         { name: "Charlie", status: "active" },
@@ -580,7 +588,7 @@ describe("MongoQueryBuilder", () => {
       expect(result.deletedCount).toBe(2);
 
       // 验证数据已删除
-      const users = await db.collection("users").find({}).toArray();
+      const users = await db.collection("query_builder_users").find({}).toArray();
       expect(users.length).toBe(1);
       expect(users[0].name).toBe("Charlie");
     }, {

@@ -160,6 +160,8 @@ export function hasConnection(connectionName: string = "default"): boolean {
 
 /**
  * 关闭所有数据库连接
+ * 确保所有连接完全关闭，避免连接泄漏
+ * 在 Bun 测试环境中，需要更长的等待时间确保连接完全释放
  */
 export async function closeDatabase(): Promise<void> {
   if (dbManager) {

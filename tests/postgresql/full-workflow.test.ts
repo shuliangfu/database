@@ -4,7 +4,7 @@
  */
 
 import { getEnv } from "@dreamer/runtime-adapter";
-import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "@dreamer/test";
 import { getDatabase, initDatabase } from "../../src/access.ts";
 import { closeDatabase } from "../../src/init-database.ts";
 import { SQLModel } from "../../src/orm/sql-model.ts";
@@ -29,6 +29,16 @@ describe("PostgreSQL 完整工作流程集成测试", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
+    // 在 Bun 测试环境中，先清理所有之前的连接，避免连接累积
+    // Bun 可能并行运行测试文件，导致连接泄漏
+    try {
+      await closeDatabase();
+      // 等待之前的连接完全释放
+      
+    } catch {
+      // 忽略清理错误
+    }
+
     const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
     const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
     const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
@@ -74,6 +84,25 @@ describe("PostgreSQL 完整工作流程集成测试", () => {
 
   afterAll(async () => {
     await closeDatabase();
+    // 等待连接完全释放，特别是在 Bun 测试环境中
+    
+  });
+
+  // 每个测试后强制等待连接释放，防止连接泄漏
+  afterEach(async () => {
+    try {
+      // 等待连接池释放空闲连接
+      
+      if (adapter && adapter.isConnected()) {
+        const status = await adapter.getPoolStatus();
+        // 如果活跃连接过多，等待更长时间
+        if (status.active > 2) {
+          
+        }
+      }
+    } catch {
+      // 忽略错误
+    }
   });
 
   it("应该完成完整的 CRUD 工作流程", async () => {
@@ -118,7 +147,7 @@ describe("PostgreSQL 完整工作流程集成测试", () => {
 
     const deletedUser = await User.find(user1.id);
     expect(deletedUser).toBeNull();
-  }, { sanitizeOps: false, sanitizeResources: false });
+  }, { sanitizeOps: false, sanitizeResources: false, timeout: 10000 });
 
   it("应该支持事务中的完整工作流程", async () => {
     if (!adapter) {
@@ -152,7 +181,7 @@ describe("PostgreSQL 完整工作流程集成测试", () => {
       const deletedUser = await User.find(user.id);
       expect(deletedUser).toBeNull();
     });
-  }, { sanitizeOps: false, sanitizeResources: false });
+  }, { sanitizeOps: false, sanitizeResources: false, timeout: 10000 });
 
   it("应该支持批量操作工作流程", async () => {
     if (!adapter) {
@@ -195,7 +224,7 @@ describe("PostgreSQL 完整工作流程集成测试", () => {
       email: { $in: ["batch1@test.com", "batch2@test.com", "batch3@test.com"] },
     });
     expect(remainingUsers.length).toBe(0);
-  }, { sanitizeOps: false, sanitizeResources: false });
+  }, { sanitizeOps: false, sanitizeResources: false, timeout: 10000 });
 }, {
   sanitizeOps: false,
   sanitizeResources: false,

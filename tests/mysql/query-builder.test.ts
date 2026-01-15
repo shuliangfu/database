@@ -4,7 +4,7 @@
 
 import { getEnv } from "@dreamer/runtime-adapter";
 import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
-import { MySQLAdapter } from "../../src/adapters/mysql.ts";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { SQLQueryBuilder } from "../../src/query/sql-builder.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
 
@@ -26,8 +26,8 @@ describe("SQLQueryBuilder", () => {
     const mariadbUser = getEnvWithDefault("MYSQL_USER", "root");
     const mariadbPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
 
-    adapter = new MySQLAdapter();
-    await adapter.connect({
+    // 使用 initDatabase 初始化全局 dbManager
+    await initDatabase({
       type: "mysql",
       connection: {
         host: mariadbHost,
@@ -37,6 +37,9 @@ describe("SQLQueryBuilder", () => {
         password: mariadbPassword,
       },
     });
+
+    // 从全局 dbManager 获取适配器
+    adapter = getDatabase();
 
     // 创建测试表（使用 MySQL/MariaDB 语法）
     await adapter.execute(
@@ -79,7 +82,8 @@ describe("SQLQueryBuilder", () => {
   });
 
   afterAll(async () => {
-    await adapter?.close();
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    await closeDatabase();
   });
 
   describe("select", () => {

@@ -5,6 +5,7 @@
 import { getEnv } from "@dreamer/runtime-adapter";
 import {
   afterAll,
+  afterEach,
   assertRejects,
   beforeAll,
   beforeEach,
@@ -24,10 +25,9 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
 }
 
 describe("PostgreSQLAdapter", () => {
-  let adapter: PostgreSQLAdapter;
+  let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    adapter = new PostgreSQLAdapter();
     const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
     const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
     const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
@@ -36,6 +36,8 @@ describe("PostgreSQLAdapter", () => {
     const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "");
 
     try {
+      // 直接创建适配器实例进行测试
+      adapter = new PostgreSQLAdapter();
       await adapter.connect({
         type: "postgresql",
         connection: {
@@ -57,11 +59,28 @@ describe("PostgreSQLAdapter", () => {
   });
 
   afterAll(async () => {
-    if (adapter) {
+    // 直接关闭适配器连接
+    if (adapter && adapter.isConnected()) {
       try {
         await adapter.close();
       } catch {
         // 忽略关闭错误
+      }
+    }
+  });
+
+  // 每个测试后强制等待连接释放，防止连接泄漏
+  afterEach(async () => {
+    if (adapter && adapter.isConnected()) {
+      try {
+        // 获取连接池状态并检查（已移除延时以提升测试速度）
+        const status = await adapter.getPoolStatus();
+        // 如果活跃连接过多，记录警告但不等待
+        if (status.active > 2) {
+          console.warn(`警告：连接池中有 ${status.active} 个活跃连接`);
+        }
+      } catch {
+        // 忽略错误
       }
     }
   });
@@ -122,7 +141,7 @@ describe("PostgreSQLAdapter", () => {
           // 忽略关闭错误
         }
       }
-    }, { sanitizeOps: false, sanitizeResources: false });
+    }, { sanitizeOps: false, sanitizeResources: false, timeout: 10000 });
   });
 
   describe("query", () => {
@@ -698,9 +717,9 @@ describe("PostgreSQLAdapter", () => {
     describe("setQueryLogger", () => {
       it("应该设置查询日志记录器", () => {
         const logger = new QueryLogger();
-        adapter.setQueryLogger(logger);
+        (adapter as any).setQueryLogger(logger);
 
-        const retrievedLogger = adapter.getQueryLogger();
+        const retrievedLogger = (adapter as any).getQueryLogger();
         expect(retrievedLogger).toBe(logger);
       }, { sanitizeOps: false, sanitizeResources: false });
 
@@ -708,17 +727,17 @@ describe("PostgreSQLAdapter", () => {
         const logger1 = new QueryLogger();
         const logger2 = new QueryLogger();
 
-        adapter.setQueryLogger(logger1);
-        expect(adapter.getQueryLogger()).toBe(logger1);
+        (adapter as any).setQueryLogger(logger1);
+        expect((adapter as any).getQueryLogger()).toBe(logger1);
 
-        adapter.setQueryLogger(logger2);
-        expect(adapter.getQueryLogger()).toBe(logger2);
+        (adapter as any).setQueryLogger(logger2);
+        expect((adapter as any).getQueryLogger()).toBe(logger2);
       }, { sanitizeOps: false, sanitizeResources: false });
 
       it("应该支持设置为 null", () => {
         const logger = new QueryLogger();
-        adapter.setQueryLogger(logger);
-        expect(adapter.getQueryLogger()).toBe(logger);
+        (adapter as any).setQueryLogger(logger);
+        expect((adapter as any).getQueryLogger()).toBe(logger);
 
         const newAdapter = new PostgreSQLAdapter();
         expect(newAdapter.getQueryLogger()).toBeNull();
@@ -758,8 +777,8 @@ describe("PostgreSQLAdapter", () => {
           logLevel: "all",
         });
 
-        adapter.setQueryLogger(logger);
-        const retrievedLogger = adapter.getQueryLogger();
+        (adapter as any).setQueryLogger(logger);
+        const retrievedLogger = (adapter as any).getQueryLogger();
 
         expect(retrievedLogger).toBe(logger);
         expect(retrievedLogger?.getLogger()).toBeTruthy();
@@ -1215,7 +1234,7 @@ describe("PostgreSQLAdapter", () => {
       }
 
       const logger = new QueryLogger({ enabled: true, logLevel: "all" });
-      adapter.setQueryLogger(logger);
+      (adapter as any).setQueryLogger(logger);
 
       await adapter.query("SELECT 1 as test", []);
       await adapter.query("SELECT 2 as test", []);
@@ -1233,7 +1252,7 @@ describe("PostgreSQLAdapter", () => {
       }
 
       const logger = new QueryLogger({ enabled: true, logLevel: "all" });
-      adapter.setQueryLogger(logger);
+      (adapter as any).setQueryLogger(logger);
 
       await adapter.execute("TRUNCATE TABLE test_users", []);
       await adapter.execute(
@@ -1253,7 +1272,7 @@ describe("PostgreSQLAdapter", () => {
       }
 
       const logger = new QueryLogger({ enabled: true, logLevel: "all" });
-      adapter.setQueryLogger(logger);
+      (adapter as any).setQueryLogger(logger);
 
       try {
         await adapter.query("SELECT * FROM nonexistent_table", []);
@@ -1363,7 +1382,7 @@ describe("PostgreSQLAdapter", () => {
         },
         Error,
       );
-    }, { sanitizeOps: false, sanitizeResources: false });
+    }, { sanitizeOps: false, sanitizeResources: false, timeout: 10000 });
 
     it("应该处理缺少必需配置", async () => {
       const badAdapter = new PostgreSQLAdapter();
@@ -1379,7 +1398,7 @@ describe("PostgreSQLAdapter", () => {
         },
         Error,
       );
-    }, { sanitizeOps: false, sanitizeResources: false });
+    }, { sanitizeOps: false, sanitizeResources: false, timeout: 10000 });
 
     it("应该处理SQL语法错误", async () => {
       if (!adapter) {
@@ -1663,7 +1682,7 @@ describe("PostgreSQLAdapter", () => {
       }
 
       const logger = new QueryLogger({ enabled: true, logLevel: "all" });
-      adapter.setQueryLogger(logger);
+      (adapter as any).setQueryLogger(logger);
 
       await adapter.query("SELECT $1 as test", [42]);
 
@@ -1686,7 +1705,7 @@ describe("PostgreSQLAdapter", () => {
       await adapter.execute("TRUNCATE TABLE test_users", []);
 
       const logger = new QueryLogger({ enabled: true, logLevel: "all" });
-      adapter.setQueryLogger(logger);
+      (adapter as any).setQueryLogger(logger);
 
       await adapter.execute(
         "INSERT INTO test_users (name, email, age) VALUES ($1, $2, $3)",

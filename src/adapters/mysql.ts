@@ -4,7 +4,7 @@
  * @module
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
+import { createLogger } from "@dreamer/logger";
 import { createPool, type Pool, type PoolConnection } from "mysql2/promise";
 import {
   createConnectionError,
@@ -25,6 +25,11 @@ import {
  */
 export class MySQLAdapter extends BaseAdapter {
   private pool: Pool | null = null;
+  private logger = createLogger({
+    level: "warn",
+    format: "text",
+    tags: ["database", "mysql"],
+  });
 
   /**
    * 连接 MySQL/MariaDB 数据库
@@ -294,6 +299,16 @@ export class MySQLAdapter extends BaseAdapter {
   }
 
   /**
+   * 获取底层数据库实例（MySQL Pool）
+   * 用于直接操作 MySQL 连接池
+   *
+   * @returns MySQL 连接池实例，如果未连接则返回 null
+   */
+  override getDatabase(): Pool | null {
+    return this.pool;
+  }
+
+  /**
    * 获取连接池状态
    */
   getPoolStatus(): Promise<PoolStatus> {
@@ -378,12 +393,11 @@ export class MySQLAdapter extends BaseAdapter {
 
         await Promise.race([closePromise, timeoutPromise]);
       } catch (error) {
-        // 关闭失败或超时，记录但不抛出错误
+        // 关闭失败或超时，忽略错误（状态已清理）
         const message = error instanceof Error ? error.message : String(error);
-        // 在测试环境中不输出警告，避免干扰测试输出
-        if (getEnv("TEST") !== "true") {
-          console.warn(`MySQL 关闭连接时出错: ${message}`);
-        }
+        this.logger.warn(`MySQL 关闭连接时出错（已忽略）: ${message}`, {
+          error: message,
+        });
       }
     }
   }

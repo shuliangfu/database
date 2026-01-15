@@ -4,7 +4,7 @@
  * @module
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
+import { createLogger } from "@dreamer/logger";
 import { Pool, type PoolClient } from "pg";
 import {
   createConnectionError,
@@ -29,6 +29,11 @@ import {
  */
 export class PostgreSQLAdapter extends BaseAdapter {
   protected pool: Pool | null = null;
+  private logger = createLogger({
+    level: "warn",
+    format: "text",
+    tags: ["database", "postgresql"],
+  });
 
   /**
    * 将 ? 占位符转换为 PostgreSQL 的 $1, $2... 格式
@@ -73,15 +78,16 @@ export class PostgreSQLAdapter extends BaseAdapter {
       const connectionTimeoutSeconds = Math.ceil(connectionTimeoutMs / 1000);
 
       // 创建连接池
+      // 减少最大连接数，避免连接泄漏
       this.pool = new Pool({
         host: host || "localhost",
         port: port || 5432,
         database: database || "",
         user: username || "",
         password: password || "",
-        max: pgConfig.pool?.max || 10,
+        max: pgConfig.pool?.max || 5, // 减少默认最大连接数从 10 到 5
         min: pgConfig.pool?.min || 1,
-        idleTimeoutMillis: (pgConfig.pool?.idleTimeout || 30) * 1000,
+        idleTimeoutMillis: (pgConfig.pool?.idleTimeout || 10) * 1000, // 减少空闲超时从 30 秒到 10 秒
         connect_timeout: connectionTimeoutSeconds, // pg 库使用 connect_timeout（秒）
       });
 
@@ -362,6 +368,16 @@ export class PostgreSQLAdapter extends BaseAdapter {
   }
 
   /**
+   * 获取底层数据库实例（PostgreSQL Pool）
+   * 用于直接操作 PostgreSQL 连接池
+   *
+   * @returns PostgreSQL 连接池实例，如果未连接则返回 null
+   */
+  override getDatabase(): Pool | null {
+    return this.pool;
+  }
+
+  /**
    * 获取连接池状态
    */
   getPoolStatus(): Promise<PoolStatus> {
@@ -434,23 +450,22 @@ export class PostgreSQLAdapter extends BaseAdapter {
       this.connected = false;
 
       try {
-        // 添加超时保护（3秒）
+        // 添加超时保护（5秒）
         const closePromise = pool.end();
         const timeoutPromise = new Promise<void>((_, reject) => {
           setTimeout(
-            () => reject(new Error("PostgreSQL 关闭连接超时（3秒）")),
-            3000,
+            () => reject(new Error("PostgreSQL 关闭连接超时（5秒）")),
+            5000,
           );
         });
 
         await Promise.race([closePromise, timeoutPromise]);
       } catch (error) {
-        // 关闭失败或超时，记录但不抛出错误
+        // 关闭失败或超时，忽略错误（状态已清理）
         const message = error instanceof Error ? error.message : String(error);
-        // 在测试环境中不输出警告，避免干扰测试输出
-        if (getEnv("TEST") !== "true") {
-          console.warn(`PostgreSQL 关闭连接时出错: ${message}`);
-        }
+        this.logger.warn(`PostgreSQL 关闭连接时出错（已忽略）: ${message}`, {
+          error: message,
+        });
       }
     }
   }

@@ -12,7 +12,7 @@ import {
   expect,
   it,
 } from "@dreamer/test";
-import { MySQLAdapter } from "../../src/adapters/mysql.ts";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { SQLModel } from "../../src/orm/sql-model.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
 
@@ -72,8 +72,8 @@ describe("SQLModel 高级功能", () => {
     const mysqlUser = getEnvWithDefault("MYSQL_USER", "root");
     const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
 
-    adapter = new MySQLAdapter();
-    await adapter.connect({
+    // 使用 initDatabase 初始化全局 dbManager
+    await initDatabase({
       type: "mysql",
       connection: {
         host: mysqlHost,
@@ -83,6 +83,9 @@ describe("SQLModel 高级功能", () => {
         password: mysqlPassword,
       },
     });
+
+    // 从全局 dbManager 获取适配器
+    adapter = getDatabase();
 
     // 创建测试表
     await adapter.execute(
@@ -120,7 +123,8 @@ describe("SQLModel 高级功能", () => {
   });
 
   afterAll(async () => {
-    await adapter?.close();
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    await closeDatabase();
   });
 
   beforeEach(async () => {

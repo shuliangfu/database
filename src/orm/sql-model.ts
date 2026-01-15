@@ -2592,26 +2592,67 @@ export abstract class SQLModel {
    * 更新记录
    * @param condition 查询条件（可以是 ID、条件对象）
    * @param data 要更新的数据对象
+   * @param returnLatest 是否返回更新后的记录（默认 false，返回更新的记录数）
    * @param options 可选配置（性能优化：skipPreQuery 可跳过预查询，但需要确保没有钩子和验证）
-   * @returns 更新的记录数
+   * @returns 更新的记录数或更新后的模型实例
    *
    * @example
    * await User.update(1, { name: 'lisi' });
    * await User.update({ id: 1 }, { name: 'lisi' });
    * await User.update({ email: 'user@example.com' }, { name: 'lisi' });
+   * // 返回更新后的记录
+   * const updated = await User.update(1, { name: 'lisi' }, true);
    * // 性能优化：跳过预查询（仅当没有钩子和验证时使用）
-   * await User.update(1, { name: 'lisi' }, { skipPreQuery: true });
+   * await User.update(1, { name: 'lisi' }, false, { skipPreQuery: true });
    */
-  static async update(
+  static async update<T extends typeof SQLModel>(
+    this: T,
     condition: WhereCondition | number | string,
     data: Record<string, any>,
-    options?: { skipPreQuery?: boolean },
-  ): Promise<number> {
+    returnLatest?: false,
+    options?: {
+      skipPreQuery?: boolean;
+      enableHooks?: boolean;
+      enableValidation?: boolean;
+    },
+  ): Promise<number>;
+  static async update<T extends typeof SQLModel>(
+    this: T,
+    condition: WhereCondition | number | string,
+    data: Record<string, any>,
+    returnLatest: true,
+    options?: {
+      skipPreQuery?: boolean;
+      enableHooks?: boolean;
+      enableValidation?: boolean;
+    },
+  ): Promise<InstanceType<T>>;
+  static async update<T extends typeof SQLModel>(
+    this: T,
+    condition: WhereCondition | number | string,
+    data: Record<string, any>,
+    returnLatest: boolean = false,
+    options?: {
+      skipPreQuery?: boolean;
+      enableHooks?: boolean;
+      enableValidation?: boolean;
+    },
+  ): Promise<number | InstanceType<T>> {
     // 自动初始化（如果未初始化）
     await this.ensureAdapter();
 
     // 检查是否可以跳过预查询（性能优化）
     const skipPreQuery = options?.skipPreQuery === true;
+    // 如果 options.enableHooks 是 undefined，默认启用钩子（保持向后兼容）
+    // 如果 options.enableHooks 明确设置为 false，则禁用钩子
+    const enableHooks = options?.enableHooks === undefined
+      ? true
+      : options.enableHooks;
+    // 如果 options.enableValidation 是 undefined，默认启用验证（保持向后兼容）
+    // 如果 options.enableValidation 明确设置为 false，则禁用验证
+    const enableValidation = options?.enableValidation === undefined
+      ? true
+      : options.enableValidation;
     const hasHooks = !!(
       this.beforeValidate ||
       this.afterValidate ||
@@ -2620,10 +2661,13 @@ export abstract class SQLModel {
       this.afterUpdate ||
       this.afterSave
     );
+    // 只有在启用钩子或验证时才需要预查询
+    // 如果类定义了钩子方法且启用了钩子，或者启用了验证，则需要预查询
+    const needsPreQuery = (enableHooks && hasHooks) || enableValidation;
 
     // 先查找要更新的记录（如果不需要钩子且明确指定跳过，可以跳过）
     let existingInstance: InstanceType<typeof SQLModel> | null = null;
-    if (!skipPreQuery || hasHooks) {
+    if (!skipPreQuery && needsPreQuery) {
       // 需要预查询：有钩子或未明确指定跳过
       if (typeof condition === "number" || typeof condition === "string") {
         existingInstance = await this.find(condition);
@@ -2669,53 +2713,159 @@ export abstract class SQLModel {
     }
     Object.assign(tempInstance, processedData);
 
-    // beforeValidate 钩子
-    if (this.beforeValidate) {
-      // 性能优化：检测钩子是否修改了数据，只在有变化时合并
-      const beforeSnapshot = { ...tempInstance };
-      await this.beforeValidate(tempInstance);
-      if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
-        Object.assign(processedData, tempInstance);
+    // 钩子和验证处理（如果启用）
+    // 注意：只有当 enableHooks 或 enableValidation 为 true 时才进入此块
+    if (enableHooks || enableValidation) {
+      // beforeValidate 钩子（只有启用钩子时才执行）
+      if (enableHooks && this.beforeValidate) {
+        // 性能优化：检测钩子是否修改了数据，只在有变化时合并
+        const beforeSnapshot = { ...tempInstance };
+        await this.beforeValidate(tempInstance);
+        if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
+          // 合并钩子修改的字段，但排除非数据库字段（如 hookData）和主键字段
+          // 只合并被钩子修改的字段（通过比较 beforeSnapshot 和 tempInstance）
+          const primaryKey = (this as any).primaryKey || "id";
+          // 先合并 processedData 中已存在的字段
+          for (const key in processedData) {
+            if (
+              key in tempInstance && key !== "hookData" && key !== primaryKey
+            ) {
+              processedData[key] = tempInstance[key];
+            }
+          }
+          // 然后合并 existingInstance 中被钩子修改的字段（但不在 processedData 中）
+          if (existingInstance) {
+            for (const key in existingInstance) {
+              // 只合并被修改的字段（在 tempInstance 中但不在 beforeSnapshot 中，或者值不同）
+              if (
+                key !== "hookData" &&
+                key !== primaryKey &&
+                !(key in processedData) &&
+                key in tempInstance &&
+                tempInstance[key] !== beforeSnapshot[key]
+              ) {
+                processedData[key] = tempInstance[key];
+              }
+            }
+          }
+        }
       }
-    }
 
-    // 验证数据（包括跨字段验证和数据库查询验证）
-    // 传递当前记录的 ID，用于唯一性验证时排除当前记录
-    const primaryKey = (this as any).primaryKey || "id";
-    const instanceId = existingInstance
-      ? (existingInstance as any)[primaryKey]
-      : undefined;
-    // 如果跳过预查询，instanceId 为 undefined，唯一性验证可能不准确
-    // 因此建议在跳过预查询时确保没有唯一性验证
-    await SQLModel.validate.call(this, processedData, instanceId);
-
-    // afterValidate 钩子
-    if (this.afterValidate) {
-      // 性能优化：检测钩子是否修改了数据，只在有变化时合并
-      const beforeSnapshot = { ...tempInstance };
-      await this.afterValidate(tempInstance);
-      if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
-        Object.assign(processedData, tempInstance);
+      // 验证数据（包括跨字段验证和数据库查询验证）
+      // 传递当前记录的 ID，用于唯一性验证时排除当前记录
+      if (enableValidation) {
+        const primaryKey = (this as any).primaryKey || "id";
+        const instanceId = existingInstance
+          ? (existingInstance as any)[primaryKey]
+          : undefined;
+        // 如果跳过预查询，instanceId 为 undefined，唯一性验证可能不准确
+        // 因此建议在跳过预查询时确保没有唯一性验证
+        await SQLModel.validate.call(this, processedData, instanceId);
       }
-    }
 
-    // beforeUpdate 钩子
-    if (this.beforeUpdate) {
-      // 性能优化：检测钩子是否修改了数据，只在有变化时合并
-      const beforeSnapshot = { ...tempInstance };
-      await this.beforeUpdate(tempInstance);
-      if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
-        Object.assign(processedData, tempInstance);
+      // afterValidate 钩子
+      if (enableHooks && this.afterValidate) {
+        // 性能优化：检测钩子是否修改了数据，只在有变化时合并
+        const beforeSnapshot = { ...tempInstance };
+        await this.afterValidate(tempInstance);
+        if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
+          // 合并钩子修改的字段，但排除非数据库字段（如 hookData）和主键字段
+          // 只合并被钩子修改的字段（通过比较 beforeSnapshot 和 tempInstance）
+          const primaryKey = (this as any).primaryKey || "id";
+          // 先合并 processedData 中已存在的字段
+          for (const key in processedData) {
+            if (
+              key in tempInstance && key !== "hookData" && key !== primaryKey
+            ) {
+              processedData[key] = tempInstance[key];
+            }
+          }
+          // 然后合并 existingInstance 中被钩子修改的字段（但不在 processedData 中）
+          if (existingInstance) {
+            for (const key in existingInstance) {
+              // 只合并被修改的字段（在 tempInstance 中但不在 beforeSnapshot 中，或者值不同）
+              if (
+                key !== "hookData" &&
+                key !== primaryKey &&
+                !(key in processedData) &&
+                key in tempInstance &&
+                tempInstance[key] !== beforeSnapshot[key]
+              ) {
+                processedData[key] = tempInstance[key];
+              }
+            }
+          }
+        }
       }
-    }
 
-    // beforeSave 钩子
-    if (this.beforeSave) {
-      // 性能优化：检测钩子是否修改了数据，只在有变化时合并
-      const beforeSnapshot = { ...tempInstance };
-      await this.beforeSave(tempInstance);
-      if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
-        Object.assign(processedData, tempInstance);
+      // beforeUpdate 钩子
+      if (enableHooks && this.beforeUpdate) {
+        // 性能优化：检测钩子是否修改了数据，只在有变化时合并
+        const beforeSnapshot = { ...tempInstance };
+        await this.beforeUpdate(tempInstance);
+        if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
+          // 合并钩子修改的字段，但排除非数据库字段（如 hookData）和主键字段
+          // 只合并被钩子修改的字段（通过比较 beforeSnapshot 和 tempInstance）
+          const primaryKey = (this as any).primaryKey || "id";
+          // 先合并 processedData 中已存在的字段
+          for (const key in processedData) {
+            if (
+              key in tempInstance && key !== "hookData" && key !== primaryKey
+            ) {
+              processedData[key] = tempInstance[key];
+            }
+          }
+          // 然后合并 existingInstance 中被钩子修改的字段（但不在 processedData 中）
+          if (existingInstance) {
+            for (const key in existingInstance) {
+              // 只合并被修改的字段（在 tempInstance 中但不在 beforeSnapshot 中，或者值不同）
+              if (
+                key !== "hookData" &&
+                key !== primaryKey &&
+                !(key in processedData) &&
+                key in tempInstance &&
+                tempInstance[key] !== beforeSnapshot[key]
+              ) {
+                processedData[key] = tempInstance[key];
+              }
+            }
+          }
+        }
+      }
+
+      // beforeSave 钩子
+      if (enableHooks && this.beforeSave) {
+        // 性能优化：检测钩子是否修改了数据，只在有变化时合并
+        const beforeSnapshot = { ...tempInstance };
+        await this.beforeSave(tempInstance);
+        if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
+          // 合并钩子修改的字段，但排除非数据库字段（如 hookData）和主键字段
+          // 只合并被钩子修改的字段（通过比较 beforeSnapshot 和 tempInstance）
+          const primaryKey = (this as any).primaryKey || "id";
+          // 先合并 processedData 中已存在的字段
+          for (const key in processedData) {
+            if (
+              key in tempInstance && key !== "hookData" && key !== primaryKey
+            ) {
+              processedData[key] = tempInstance[key];
+            }
+          }
+          // 然后合并 existingInstance 中被钩子修改的字段（但不在 processedData 中）
+          if (existingInstance) {
+            for (const key in existingInstance) {
+              // 只合并被修改的字段（在 tempInstance 中但不在 beforeSnapshot 中，或者值不同）
+              if (
+                key !== "hookData" &&
+                key !== primaryKey &&
+                !(key in processedData) &&
+                key in tempInstance &&
+                tempInstance[key] !== beforeSnapshot[key]
+              ) {
+                processedData[key] = tempInstance[key];
+              }
+            }
+          }
+        }
       }
     }
 
@@ -2740,15 +2890,37 @@ export abstract class SQLModel {
     ).join(", ");
 
     let sql = `UPDATE ${this.tableName} SET ${setClause} WHERE ${where}`;
-    const isPostgres = (this.adapter as any)?.config?.type === "postgresql";
-    if (isPostgres) {
+    const dbType = (this.adapter as any)?.config?.type;
+    const isPostgres = dbType === "postgresql";
+    const isMySQL = dbType === "mysql";
+    const isSQLite = dbType === "sqlite";
+
+    // 如果 returnLatest 为 true，尝试使用 RETURNING 子句获取更新后的值
+    if (returnLatest && (isPostgres || isMySQL || isSQLite)) {
+      sql = `${sql} RETURNING *`;
+    } else if (isPostgres) {
+      // PostgreSQL 默认使用 RETURNING *（即使不返回实例，也用于钩子）
       sql = `${sql} RETURNING *`;
     }
     // ensureAdapter() 已确保 adapter 不为 null
-    const result = await this.adapter.execute(sql, [
-      ...values,
-      ...whereParams,
-    ]);
+    let result: any;
+    try {
+      result = await this.adapter.execute(sql, [
+        ...values,
+        ...whereParams,
+      ]);
+    } catch (error) {
+      // 如果 RETURNING 不支持（旧版本 MySQL/SQLite），回退到不使用 RETURNING
+      if (returnLatest && (isMySQL || isSQLite)) {
+        sql = `UPDATE ${this.tableName} SET ${setClause} WHERE ${where}`;
+        result = await this.adapter.execute(sql, [
+          ...values,
+          ...whereParams,
+        ]);
+      } else {
+        throw error;
+      }
+    }
 
     // 返回影响的行数（如果适配器支持）
     const affectedRows = (typeof result === "number")
@@ -2760,24 +2932,72 @@ export abstract class SQLModel {
     if (affectedRows > 0) {
       let updatedInstance: any | null = null;
       if (
-        isPostgres && result && typeof result === "object" && "rows" in result
+        isPostgres &&
+        result && typeof result === "object" && "rows" in result
       ) {
+        // PostgreSQL 使用 RETURNING 返回的行
         const rows = (result as any).rows as any[];
         if (Array.isArray(rows) && rows.length > 0) {
           const instance = new (this as any)();
           Object.assign(instance, rows[0]);
+          // 应用虚拟字段
+          this.applyVirtuals(instance);
+          updatedInstance = instance;
+        }
+      } else if (returnLatest) {
+        // MySQL/SQLite 可能不支持 RETURNING 或返回格式不同，需要重新查询
+        // 从条件中获取主键值
+        const primaryKey = (this as any).primaryKey || "id";
+        let primaryKeyValue: any;
+        if (typeof condition === "number" || typeof condition === "string") {
+          primaryKeyValue = condition;
+        } else if (condition && typeof condition === "object") {
+          primaryKeyValue = (condition as any)[primaryKey];
+        }
+
+        if (primaryKeyValue) {
+          // 重新查询数据库获取最新数据
+          const latest = await this.find(primaryKeyValue);
+          if (latest) {
+            updatedInstance = latest;
+          } else {
+            // 如果查询失败，使用合并后的数据
+            const instance = new (this as any)();
+            if (existingInstance) {
+              Object.assign(instance, existingInstance, processedData);
+            } else {
+              Object.assign(instance, processedData);
+            }
+            // 应用虚拟字段
+            this.applyVirtuals(instance);
+            updatedInstance = instance;
+          }
+        } else {
+          // 无法获取主键值，使用合并后的数据
+          const instance = new (this as any)();
+          if (existingInstance) {
+            Object.assign(instance, existingInstance, processedData);
+          } else {
+            Object.assign(instance, processedData);
+          }
+          // 应用虚拟字段
+          this.applyVirtuals(instance);
           updatedInstance = instance;
         }
       } else {
+        // 不需要返回实例，但需要创建实例用于钩子
         const instance = new (this as any)();
         if (existingInstance) {
           Object.assign(instance, existingInstance, processedData);
         } else {
           Object.assign(instance, processedData);
         }
+        // 应用虚拟字段
+        this.applyVirtuals(instance);
         updatedInstance = instance;
       }
-      if (updatedInstance) {
+
+      if (updatedInstance && enableHooks) {
         if (this.afterUpdate) {
           await this.afterUpdate(updatedInstance);
         }
@@ -2788,6 +3008,11 @@ export abstract class SQLModel {
 
       // 清除相关缓存
       await this.clearCache();
+
+      // 如果 returnLatest 为 true，返回更新后的实例
+      if (returnLatest && updatedInstance) {
+        return updatedInstance as InstanceType<T>;
+      }
     }
 
     return affectedRows;
@@ -2809,22 +3034,26 @@ export abstract class SQLModel {
     // 自动初始化（如果未初始化）
     await this.ensureAdapter();
 
-    // 先查找要删除的记录
-    let instanceToDelete: InstanceType<typeof SQLModel> | null = null;
+    // 先查找要删除的记录（用于钩子）
+    let instancesToDelete: InstanceType<typeof SQLModel>[] = [];
     if (typeof condition === "number" || typeof condition === "string") {
-      instanceToDelete = await this.find(condition);
+      const instance = await this.find(condition);
+      if (instance) {
+        instancesToDelete = [instance];
+      }
     } else {
-      const results = await this.findAll(condition);
-      instanceToDelete = results[0] || null;
+      instancesToDelete = await this.findAll(condition);
     }
 
-    if (!instanceToDelete) {
+    if (instancesToDelete.length === 0) {
       return 0;
     }
 
-    // beforeDelete 钩子
+    // beforeDelete 钩子（对所有要删除的记录执行）
     if (this.beforeDelete) {
-      await this.beforeDelete(instanceToDelete);
+      for (const instance of instancesToDelete) {
+        await this.beforeDelete(instance);
+      }
     }
 
     // 软删除：设置 deletedAt 字段（排除已删除的记录，避免重复删除）
@@ -2855,7 +3084,10 @@ export abstract class SQLModel {
           : 0);
 
       if (affectedRows > 0 && this.afterDelete) {
-        await this.afterDelete(instanceToDelete);
+        // afterDelete 钩子（对所有已删除的记录执行）
+        for (const instance of instancesToDelete) {
+          await this.afterDelete(instance);
+        }
       }
       return affectedRows;
     }
@@ -2875,7 +3107,10 @@ export abstract class SQLModel {
 
     if (affectedRows > 0) {
       if (this.afterDelete) {
-        await this.afterDelete(instanceToDelete);
+        // afterDelete 钩子（对所有已删除的记录执行）
+        for (const instance of instancesToDelete) {
+          await this.afterDelete(instance);
+        }
       }
 
       // 清除相关缓存
@@ -2912,17 +3147,12 @@ export abstract class SQLModel {
           }
         }
       }
-      // 检查更新是否成功（受影响的行数 > 0）
-      const affectedRows = await Model.update(id, data);
-      if (affectedRows === 0) {
+      // 使用 returnLatest 选项直接获取更新后的数据，避免额外的查询
+      const updated = await Model.update(id, data, true);
+      if (!updated) {
         throw new Error(
           `更新失败：未找到 ID 为 ${id} 的记录或记录已被删除`,
         );
-      }
-      // 重新查询更新后的数据，确保获取最新状态
-      const updated = await Model.find(id);
-      if (!updated) {
-        throw new Error(`更新后无法找到 ID 为 ${id} 的记录`);
       }
       Object.assign(this, updated);
       return this;
@@ -2958,17 +3188,12 @@ export abstract class SQLModel {
       throw new Error("Cannot update instance without primary key");
     }
 
-    // 检查更新是否成功（受影响的行数 > 0）
-    const affectedRows = await Model.update(id, data);
-    if (affectedRows === 0) {
+    // 使用 returnLatest 选项直接获取更新后的数据，避免额外的查询
+    const updated = await Model.update(id, data, true);
+    if (!updated) {
       throw new Error(
         `更新失败：未找到 ID 为 ${id} 的记录或记录已被删除`,
       );
-    }
-    // 重新查询更新后的数据，确保获取最新状态
-    const updated = await Model.find(id);
-    if (!updated) {
-      throw new Error(`更新后无法找到 ID 为 ${id} 的记录`);
     }
     Object.assign(this, updated);
     return this;
@@ -3075,18 +3300,34 @@ export abstract class SQLModel {
    * 批量更新记录
    * @param condition 查询条件（可以是 ID、条件对象）
    * @param data 要更新的数据对象
+   * @param options 可选配置
+   *   - enableHooks: 是否启用钩子（默认 false，批量操作通常不需要钩子以提升性能）
+   *   - enableValidation: 是否启用验证（默认 false，批量操作通常不需要验证以提升性能）
    * @returns 更新的记录数
    *
    * @example
    * await User.updateMany({ status: 'active' }, { lastLogin: new Date() });
    * await User.updateMany({ age: { $lt: 18 } }, { isMinor: true });
+   *
+   * // 启用钩子和验证（性能较慢，但功能完整）
+   * await User.updateMany({ status: 'active' }, { lastLogin: new Date() }, { enableHooks: true, enableValidation: true });
    */
   static async updateMany(
     condition: WhereCondition | number | string,
     data: Record<string, any>,
+    options?: { enableHooks?: boolean; enableValidation?: boolean },
   ): Promise<number> {
     // updateMany 和 update 在 SQL 中逻辑相同，都是 UPDATE ... WHERE
-    return await this.update(condition, data);
+    // 默认不启用钩子和验证，以提升批量操作性能
+    // 注意：必须明确传递 false，因为 update() 方法默认启用钩子和验证
+    const enableHooksValue = options?.enableHooks === true ? true : false;
+    const enableValidationValue = options?.enableValidation === true
+      ? true
+      : false;
+    return await this.update(condition, data, false, {
+      enableHooks: enableHooksValue,
+      enableValidation: enableValidationValue,
+    });
   }
 
   /**
@@ -3179,6 +3420,9 @@ export abstract class SQLModel {
   /**
    * 批量创建记录
    * @param dataArray 要插入的数据对象数组
+   * @param options 可选配置
+   *   - enableHooks: 是否启用钩子（默认 false，批量操作通常不需要钩子以提升性能）
+   *   - enableValidation: 是否启用验证（默认 false，批量操作通常不需要验证以提升性能）
    * @returns 创建的模型实例数组
    *
    * @example
@@ -3186,10 +3430,14 @@ export abstract class SQLModel {
    *   { name: 'John', email: 'john@example.com' },
    *   { name: 'Jane', email: 'jane@example.com' }
    * ]);
+   *
+   * // 启用钩子和验证（性能较慢，但功能完整）
+   * const users = await User.createMany([...], { enableHooks: true, enableValidation: true });
    */
   static async createMany<T extends typeof SQLModel>(
     this: T,
     dataArray: Record<string, any>[],
+    options?: { enableHooks?: boolean; enableValidation?: boolean },
   ): Promise<InstanceType<T>[]> {
     // 自动初始化（如果未初始化）
     await this.ensureAdapter();
@@ -3198,50 +3446,268 @@ export abstract class SQLModel {
       return [];
     }
 
+    const enableHooks = options?.enableHooks === true;
+    const enableValidation = options?.enableValidation === true;
+
+    // 处理每个数据项（如果启用了钩子或验证）
+    const processedArray: Record<string, any>[] = [];
+    for (const data of dataArray) {
+      let processedData = data;
+
+      // 字段处理（应用默认值、类型转换）
+      if (enableHooks || enableValidation) {
+        processedData = this.processFields(data);
+
+        // 自动时间戳
+        if (this.timestamps) {
+          const createdAtField = typeof this.timestamps === "object"
+            ? (this.timestamps.createdAt || "createdAt")
+            : "createdAt";
+          const updatedAtField = typeof this.timestamps === "object"
+            ? (this.timestamps.updatedAt || "updatedAt")
+            : "updatedAt";
+          if (!processedData[createdAtField]) {
+            processedData[createdAtField] = new Date();
+          }
+          if (!processedData[updatedAtField]) {
+            processedData[updatedAtField] = new Date();
+          }
+        }
+
+        // 钩子处理（如果启用）
+        if (enableHooks) {
+          const tempInstance = new (this as any)();
+          Object.assign(tempInstance, processedData);
+          // 保存原始数据的键，用于过滤钩子添加的非数据库字段
+          const originalKeys = new Set(Object.keys(processedData));
+          if (this.beforeValidate) {
+            await this.beforeValidate(tempInstance);
+            // 只合并钩子修改的、在原始数据中存在的字段（避免钩子添加的非数据库字段）
+            const schema = (this as any).schema;
+            if (schema) {
+              const schemaKeys = this.getSchemaKeys();
+              for (const key of schemaKeys) {
+                if (key in tempInstance && originalKeys.has(key)) {
+                  processedData[key] = tempInstance[key];
+                }
+              }
+            } else {
+              // 即使没有 schema，也只合并原始数据中存在的字段
+              for (const key of originalKeys) {
+                if (key in tempInstance) {
+                  processedData[key] = tempInstance[key];
+                }
+              }
+            }
+          }
+          if (this.afterValidate) {
+            await this.afterValidate(tempInstance);
+            // 只合并钩子修改的、在原始数据中存在的字段（避免钩子添加的非数据库字段）
+            const schema = (this as any).schema;
+            if (schema) {
+              const schemaKeys = this.getSchemaKeys();
+              for (const key of schemaKeys) {
+                if (key in tempInstance && originalKeys.has(key)) {
+                  processedData[key] = tempInstance[key];
+                }
+              }
+            } else {
+              // 即使没有 schema，也只合并原始数据中存在的字段
+              for (const key of originalKeys) {
+                if (key in tempInstance) {
+                  processedData[key] = tempInstance[key];
+                }
+              }
+            }
+          }
+          if (this.beforeCreate) {
+            await this.beforeCreate(tempInstance);
+            // 只合并钩子修改的、在原始数据中存在的字段（避免钩子添加的非数据库字段）
+            const schema = (this as any).schema;
+            if (schema) {
+              const schemaKeys = this.getSchemaKeys();
+              for (const key of schemaKeys) {
+                if (key in tempInstance && originalKeys.has(key)) {
+                  processedData[key] = tempInstance[key];
+                }
+              }
+            } else {
+              // 即使没有 schema，也只合并原始数据中存在的字段
+              for (const key of originalKeys) {
+                if (key in tempInstance) {
+                  processedData[key] = tempInstance[key];
+                }
+              }
+            }
+          }
+          if (this.beforeSave) {
+            await this.beforeSave(tempInstance);
+            // 只合并钩子修改的、在原始数据中存在的字段（避免钩子添加的非数据库字段）
+            const schema = (this as any).schema;
+            if (schema) {
+              const schemaKeys = this.getSchemaKeys();
+              for (const key of schemaKeys) {
+                if (key in tempInstance && originalKeys.has(key)) {
+                  processedData[key] = tempInstance[key];
+                }
+              }
+            } else {
+              // 即使没有 schema，也只合并原始数据中存在的字段
+              for (const key of originalKeys) {
+                if (key in tempInstance) {
+                  processedData[key] = tempInstance[key];
+                }
+              }
+            }
+          }
+        }
+
+        // 验证（如果启用）
+        if (enableValidation) {
+          await SQLModel.validate.call(this, processedData);
+        }
+
+        // 序列化数组和对象字段
+        processedData = SQLModel.serializeFields.call(this, processedData);
+      } else {
+        // 未启用钩子和验证时，只序列化字段（批量操作通常用于性能优化）
+        processedData = SQLModel.serializeFields.call(this, data);
+      }
+
+      processedArray.push(processedData);
+    }
+
     // 获取所有数据的键（假设所有对象有相同的键）
-    const keys = Object.keys(dataArray[0]);
+    const keys = Object.keys(processedArray[0]);
     const placeholders = keys.map(() => "?").join(", ");
 
     // 构建批量插入 SQL
-    const valuesList = dataArray.map(() => `(${placeholders})`).join(", ");
-    const allValues = dataArray.flatMap((data) => keys.map((key) => data[key]));
+    const valuesList = processedArray.map(() => `(${placeholders})`).join(", ");
+    const allValues = processedArray.flatMap((data) =>
+      keys.map((key) => data[key])
+    );
+
+    const escapedKeys = keys.map((key) =>
+      SQLModel.escapeFieldName.call(this, key, this.adapter)
+    );
+    const escapedPrimaryKey = SQLModel.escapeFieldName.call(
+      this,
+      this.primaryKey,
+      this.adapter,
+    );
 
     let sql = `INSERT INTO ${this.tableName} (${
-      keys.join(", ")
+      escapedKeys.join(", ")
     }) VALUES ${valuesList}`;
-    const isPostgres = (this.adapter as any)?.config?.type === "postgresql";
-    if (isPostgres) {
-      sql = `${sql} RETURNING ${this.primaryKey}`;
+    const dbType = (this.adapter as any)?.config?.type;
+    const isPostgres = dbType === "postgresql";
+    const isMySQL = dbType === "mysql";
+    const isSQLite = dbType === "sqlite";
+
+    // 尝试使用 RETURNING 子句获取插入的 ID（MySQL 8.0+ 和 SQLite 3.35.0+ 支持）
+    // 注意：这里假设数据库版本支持 RETURNING，如果失败会回退到其他方式
+    if (isPostgres || isMySQL || isSQLite) {
+      sql = `${sql} RETURNING ${escapedPrimaryKey}`;
     }
     // ensureAdapter() 已确保 adapter 不为 null
-    const execResult = await this.adapter.execute(sql, allValues);
+    let execResult: any;
+    try {
+      execResult = await this.adapter.execute(sql, allValues);
+    } catch (error) {
+      // 如果 RETURNING 不支持（旧版本 MySQL/SQLite），回退到不使用 RETURNING
+      if (isMySQL || isSQLite) {
+        sql = `INSERT INTO ${this.tableName} (${
+          escapedKeys.join(", ")
+        }) VALUES ${valuesList}`;
+        execResult = await this.adapter.execute(sql, allValues);
+      } else {
+        throw error;
+      }
+    }
 
-    // 尝试获取最后插入的 ID（如果支持）
-    // 注意：批量插入时，不同数据库获取 ID 的方式不同
-    // 这里简化处理，重新查询所有记录
-    // 实际应用中可能需要根据业务逻辑优化
+    // 尝试获取插入的 ID
+    const instances: InstanceType<T>[] = [];
     if (
-      isPostgres && execResult && typeof execResult === "object" &&
-      "rows" in execResult
+      execResult && typeof execResult === "object" && "rows" in execResult
     ) {
+      // PostgreSQL/MySQL/SQLite 使用 RETURNING 返回的行
       const rows = (execResult as any).rows;
-      if (Array.isArray(rows) && rows.length === dataArray.length) {
-        return dataArray.map((data, idx) => {
+      if (Array.isArray(rows) && rows.length === processedArray.length) {
+        for (let idx = 0; idx < processedArray.length; idx++) {
           const instance = new (this as any)();
-          Object.assign(instance, data);
+          Object.assign(instance, processedArray[idx]);
           const idVal = rows[idx]?.[this.primaryKey] ?? rows[idx]?.id ?? null;
           if (idVal != null) {
             (instance as any)[this.primaryKey] = idVal;
           }
-          return instance as InstanceType<T>;
-        });
+          // 应用虚拟字段
+          this.applyVirtuals(instance);
+          instances.push(instance as InstanceType<T>);
+        }
+      }
+    } else if (
+      execResult && typeof execResult === "object" && "insertId" in execResult
+    ) {
+      // MySQL 批量插入时只返回第一个 insertId，需要计算后续的 ID
+      // 注意：这假设主键是自增的，且批量插入是连续的
+      const firstInsertId = (execResult as any).insertId ?? null;
+      if (firstInsertId != null) {
+        for (let idx = 0; idx < processedArray.length; idx++) {
+          const instance = new (this as any)();
+          Object.assign(instance, processedArray[idx]);
+          (instance as any)[this.primaryKey] = firstInsertId + idx;
+          // 应用虚拟字段
+          this.applyVirtuals(instance);
+          instances.push(instance as InstanceType<T>);
+        }
+      }
+    } else if (
+      execResult && typeof execResult === "object" &&
+      "lastInsertRowid" in execResult
+    ) {
+      // SQLite 批量插入时只返回最后一个 lastInsertRowid，需要计算前面的 ID
+      // 注意：这假设主键是自增的，且批量插入是连续的
+      const lastInsertRowid = (execResult as any).lastInsertRowid ?? null;
+      if (lastInsertRowid != null) {
+        for (let idx = 0; idx < processedArray.length; idx++) {
+          const instance = new (this as any)();
+          Object.assign(instance, processedArray[idx]);
+          (instance as any)[this.primaryKey] = lastInsertRowid -
+            (processedArray.length - 1 - idx);
+          // 应用虚拟字段
+          this.applyVirtuals(instance);
+          instances.push(instance as InstanceType<T>);
+        }
       }
     }
-    return dataArray.map((data) => {
-      const instance = new (this as any)();
-      Object.assign(instance, data);
-      return instance as InstanceType<T>;
-    });
+
+    // 如果无法获取 ID，直接使用处理后的数据创建实例
+    if (instances.length === 0) {
+      for (const data of processedArray) {
+        const instance = new (this as any)();
+        Object.assign(instance, data);
+        // 应用虚拟字段
+        this.applyVirtuals(instance);
+        instances.push(instance as InstanceType<T>);
+      }
+    }
+
+    // 执行 afterCreate 和 afterSave 钩子（如果启用）
+    if (enableHooks) {
+      for (const instance of instances) {
+        if (this.afterCreate) {
+          await this.afterCreate(instance);
+        }
+        if (this.afterSave) {
+          await this.afterSave(instance);
+        }
+      }
+    }
+
+    // 清除相关缓存
+    await this.clearCache();
+
+    return instances;
   }
 
   /**
@@ -3342,11 +3808,14 @@ export abstract class SQLModel {
    * @param condition 查询条件（可以是 ID、条件对象）
    * @param field 要增加的字段名
    * @param amount 增加的数量（默认为 1）
-   * @returns 更新的记录数
+   * @param returnLatest 是否返回更新后的记录（默认 false）
+   * @returns 更新的记录数或更新后的模型实例
    *
    * @example
    * await User.increment(1, 'views', 1);
    * await User.increment({ status: 'active' }, 'score', 10);
+   * // 获取更新后的记录
+   * const user = await User.increment(1, 'views', 1, true);
    */
   static async increment<T extends typeof SQLModel>(
     this: T,
@@ -3359,14 +3828,36 @@ export abstract class SQLModel {
     await this.ensureAdapter();
 
     const { where, params } = this.buildWhereClause(condition, false, false);
+    const escapedField = SQLModel.escapeFieldName.call(
+      this,
+      field,
+      this.adapter,
+    );
     let sql =
-      `UPDATE ${this.tableName} SET ${field} = ${field} + ? WHERE ${where}`;
-    const isPostgres = (this.adapter as any)?.config?.type === "postgresql";
-    if (isPostgres && returnLatest) {
+      `UPDATE ${this.tableName} SET ${escapedField} = ${escapedField} + ? WHERE ${where}`;
+    const dbType = (this.adapter as any)?.config?.type;
+    const isPostgres = dbType === "postgresql";
+    const isMySQL = dbType === "mysql";
+    const isSQLite = dbType === "sqlite";
+
+    // 尝试使用 RETURNING 子句获取更新后的值（MySQL 8.0+ 和 SQLite 3.35.0+ 支持）
+    if (returnLatest && (isPostgres || isMySQL || isSQLite)) {
       sql = `${sql} RETURNING *`;
     }
     // ensureAdapter() 已确保 adapter 不为 null
-    const result = await this.adapter.execute(sql, [amount, ...params]);
+    let result: any;
+    try {
+      result = await this.adapter.execute(sql, [amount, ...params]);
+    } catch (error) {
+      // 如果 RETURNING 不支持（旧版本 MySQL/SQLite），回退到不使用 RETURNING
+      if (returnLatest && (isMySQL || isSQLite)) {
+        sql =
+          `UPDATE ${this.tableName} SET ${escapedField} = ${escapedField} + ? WHERE ${where}`;
+        result = await this.adapter.execute(sql, [amount, ...params]);
+      } else {
+        throw error;
+      }
+    }
 
     if (!returnLatest) {
       if (typeof result === "number") {
@@ -3380,22 +3871,43 @@ export abstract class SQLModel {
 
     let instance: any | null = null;
     if (
-      isPostgres && result && typeof result === "object" && "rows" in result
+      result && typeof result === "object" && "rows" in result
     ) {
+      // PostgreSQL/MySQL/SQLite 使用 RETURNING 返回的行
       const rows = (result as any).rows as any[];
       if (Array.isArray(rows) && rows.length > 0) {
         instance = new (this as any)();
         Object.assign(instance, rows[0]);
+        // 应用虚拟字段
+        this.applyVirtuals(instance);
       }
     } else {
-      const existing = await this.find(condition);
-      if (existing) {
-        instance = new (this as any)();
-        Object.assign(instance, existing);
-        const prevVal = (instance as any)[field];
-        (instance as any)[field] = (typeof prevVal === "number" ? prevVal : 0) +
-          amount;
+      // 不支持 RETURNING 或 RETURNING 失败，使用 SELECT 查询获取更新后的值
+      // 只查询更新的字段和主键，避免查询整个记录
+      const primaryKey = SQLModel.escapeFieldName.call(
+        this,
+        this.primaryKey,
+        this.adapter,
+      );
+      const selectSql =
+        `SELECT ${primaryKey}, ${escapedField} FROM ${this.tableName} WHERE ${where} LIMIT 1`;
+      const selectResult = await this.adapter.query(selectSql, params);
+      if (selectResult && selectResult.length > 0) {
+        // 获取原始记录（用于合并其他字段）
+        const existing = await this.find(condition);
+        if (existing) {
+          instance = new (this as any)();
+          Object.assign(instance, existing);
+          // 使用 SELECT 查询返回的更新后的值
+          instance[field] = selectResult[0][field];
+          // 应用虚拟字段
+          this.applyVirtuals(instance);
+        }
       }
+    }
+
+    if (!instance) {
+      throw new Error("无法获取更新后的记录");
     }
 
     return instance as InstanceType<T>;
@@ -3508,8 +4020,12 @@ export abstract class SQLModel {
             return instance as InstanceType<T>;
           }
         }
-      } catch (_e) {
-        void 0;
+        // 如果 PostgreSQL upsert 成功但没有返回行，回退到通用方式
+      } catch (_error) {
+        // PostgreSQL 方言 upsert 失败，记录错误并回退到通用方式
+        // 注意：这里不抛出错误，而是回退到通用的 find + update/create 方式
+        // 如果需要在失败时抛出错误，可以取消注释下面的代码
+        // throw new Error(`PostgreSQL upsert failed: ${_error instanceof Error ? _error.message : String(_error)}`);
       }
     }
 

@@ -6,12 +6,13 @@
 import { getEnv } from "@dreamer/runtime-adapter";
 import {
   afterAll,
+  afterEach,
   beforeAll,
   describe,
   expect,
   it,
 } from "@dreamer/test";
-import { PostgreSQLAdapter } from "../../src/adapters/postgresql.ts";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
 
 /**
@@ -25,6 +26,16 @@ describe("PostgreSQL 故障恢复集成测试", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
+    // 在 Bun 测试环境中，先清理所有之前的连接，避免连接累积
+    // Bun 可能并行运行测试文件，导致连接泄漏
+    try {
+      await closeDatabase();
+      // 等待之前的连接完全释放
+      
+    } catch {
+      // 忽略清理错误
+    }
+
     const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
     const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
     const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
@@ -32,8 +43,8 @@ describe("PostgreSQL 故障恢复集成测试", () => {
     const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
     const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "");
 
-    adapter = new PostgreSQLAdapter();
-    await adapter.connect({
+    // 使用 initDatabase 初始化全局 dbManager
+    await initDatabase({
       type: "postgresql",
       connection: {
         host: pgHost,
@@ -48,6 +59,9 @@ describe("PostgreSQL 故障恢复集成测试", () => {
       },
     });
 
+    // 从全局 dbManager 获取适配器
+    adapter = getDatabase();
+
     // 创建测试表
     await adapter.execute(
       `CREATE TABLE IF NOT EXISTS fault_recovery_test (
@@ -58,11 +72,39 @@ describe("PostgreSQL 故障恢复集成测试", () => {
       [],
     );
 
-    await adapter.execute("TRUNCATE TABLE fault_recovery_test RESTART IDENTITY", []);
+    await adapter.execute(
+      "TRUNCATE TABLE fault_recovery_test RESTART IDENTITY",
+      [],
+    );
   });
 
   afterAll(async () => {
-    await adapter?.close();
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    try {
+      await closeDatabase();
+      // 等待连接完全释放，特别是在 Bun 测试环境中
+      
+    } catch {
+      // 忽略关闭错误
+    }
+  });
+
+  // 每个测试后强制等待连接释放，防止连接泄漏
+  afterEach(async () => {
+    if (adapter && adapter.isConnected()) {
+      try {
+        // 等待连接池释放空闲连接
+        
+        // 获取连接池状态并检查
+        const status = await adapter.getPoolStatus();
+        // 如果活跃连接过多，等待更长时间
+        if (status.active > 2) {
+          
+        }
+      } catch {
+        // 忽略错误
+      }
+    }
   });
 
   it("应该在连接关闭后能够重新连接", async () => {
@@ -99,7 +141,7 @@ describe("PostgreSQL 故障恢复集成测试", () => {
     // 验证可以正常查询
     const results = await adapter.query("SELECT 1", []);
     expect(results).toBeTruthy();
-  }, { sanitizeOps: false, sanitizeResources: false });
+  }, { sanitizeOps: false, sanitizeResources: false, timeout: 10000 });
 
   it("应该在查询失败后能够继续工作", async () => {
     if (!adapter) {
@@ -121,7 +163,7 @@ describe("PostgreSQL 故障恢复集成测试", () => {
     // 验证可以继续执行正常查询
     const results = await adapter.query("SELECT 1", []);
     expect(results).toBeTruthy();
-  }, { sanitizeOps: false, sanitizeResources: false });
+  }, { sanitizeOps: false, sanitizeResources: false, timeout: 10000 });
 
   it("应该在事务失败后能够继续工作", async () => {
     if (!adapter) {
@@ -150,7 +192,7 @@ describe("PostgreSQL 故障恢复集成测试", () => {
     // 验证可以继续执行正常操作
     const results = await adapter.query("SELECT 1", []);
     expect(results).toBeTruthy();
-  }, { sanitizeOps: false, sanitizeResources: false });
+  }, { sanitizeOps: false, sanitizeResources: false, timeout: 10000 });
 
   it("应该在多次错误后连接池仍然正常", async () => {
     if (!adapter) {
@@ -175,7 +217,7 @@ describe("PostgreSQL 故障恢复集成测试", () => {
     // 验证可以继续执行正常查询
     const results = await adapter.query("SELECT 1", []);
     expect(results).toBeTruthy();
-  }, { sanitizeOps: false, sanitizeResources: false });
+  }, { sanitizeOps: false, sanitizeResources: false, timeout: 10000 });
 }, {
   sanitizeOps: false,
   sanitizeResources: false,

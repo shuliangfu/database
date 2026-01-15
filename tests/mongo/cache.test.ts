@@ -15,7 +15,7 @@ import { type ModelSchema, MongoModel } from "../../src/orm/mongo-model.ts";
  * 测试用户模型（用于 MongoDB 缓存测试）
  */
 class CacheTestMongoUser extends MongoModel {
-  static override collectionName = "cache_test_mongo_users";
+  static override collectionName = "cache_cache_test_mongo_users";
   static override primaryKey = "_id";
   static override schema: ModelSchema = {
     _id: { type: "string" as const },
@@ -78,7 +78,7 @@ describe("MongoModel 缓存机制测试", () => {
     // 清理测试数据
     const db = (adapter as any).db;
     if (db) {
-      await db.collection("cache_test_mongo_users").deleteMany({});
+      await db.collection("cache_cache_test_mongo_users").deleteMany({});
     }
     // 清除缓存适配器的缓存（如果存在）
     // 这是为了防止测试之间的状态污染

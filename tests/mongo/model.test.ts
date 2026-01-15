@@ -11,24 +11,25 @@ import {
   expect,
   it,
 } from "@dreamer/test";
-import { MongoDBAdapter } from "../../src/adapters/mongodb.ts";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { type ModelSchema, MongoModel } from "../../src/orm/mongo-model.ts";
+import type { DatabaseAdapter } from "../../src/types.ts";
 
 /**
  * 测试用户模型
  */
 class User extends MongoModel {
-  static override collectionName = "users";
+  static override collectionName = "model_users";
   static override primaryKey = "_id";
 }
 
 describe("MongoModel", () => {
-  let adapter: MongoDBAdapter;
+  let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    adapter = new MongoDBAdapter();
     try {
-      await adapter.connect({
+      // 使用 initDatabase 初始化全局 dbManager
+      await initDatabase({
         type: "mongodb",
         connection: {
           host: "localhost",
@@ -40,6 +41,9 @@ describe("MongoModel", () => {
           directConnection: true,
         },
       });
+
+      // 从全局 dbManager 获取适配器
+      adapter = getDatabase();
 
       // 设置模型适配器
       User.setAdapter(adapter);
@@ -61,12 +65,17 @@ describe("MongoModel", () => {
       try {
         const db = (adapter as any).db;
         if (db) {
-          await db.collection("users").deleteMany({});
+          await db.collection("model_users").deleteMany({});
         }
-        await adapter.close();
       } catch {
-        // 忽略关闭错误
+        // 忽略错误
       }
+    }
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    try {
+      await closeDatabase();
+    } catch {
+      // 忽略关闭错误
     }
   });
 
@@ -78,7 +87,7 @@ describe("MongoModel", () => {
       }
 
       class TestModel extends MongoModel {
-        static override collectionName = "test_collection";
+        static override collectionName = "model_test_collection";
       }
 
       TestModel.setAdapter(adapter);
@@ -98,7 +107,7 @@ describe("MongoModel", () => {
       }
 
       class TestModel extends MongoModel {
-        static override collectionName = "test_collection";
+        static override collectionName = "model_test_collection";
       }
 
       TestModel.setAdapter(adapter);
@@ -115,7 +124,7 @@ describe("MongoModel", () => {
       // 清理测试数据
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
     });
 
@@ -138,7 +147,7 @@ describe("MongoModel", () => {
 
     it("应该支持时间戳自动管理", async () => {
       class TimestampModel extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override timestamps = true;
       }
       TimestampModel.setAdapter(adapter);
@@ -162,7 +171,7 @@ describe("MongoModel", () => {
       // 清理测试数据
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
       await User.create({ name: "Alice", email: "alice@test.com", age: 25 });
       await User.create({ name: "Bob", email: "bob@test.com", age: 30 });
@@ -303,7 +312,7 @@ describe("MongoModel", () => {
       // 清理测试数据
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
       await User.create({ name: "User1", email: "user1@test.com", age: 20 });
       await User.create({ name: "User2", email: "user2@test.com", age: 25 });
@@ -362,7 +371,7 @@ describe("MongoModel", () => {
       // 清理测试数据
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
       await User.create({
         name: "FindOne",
@@ -396,7 +405,7 @@ describe("MongoModel", () => {
       // 清理测试数据
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
       await User.create({ name: "Update", email: "update@test.com", age: 25 });
     });
@@ -445,7 +454,7 @@ describe("MongoModel", () => {
       // 清理测试数据
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
       await User.create({ name: "Delete", email: "delete@test.com", age: 25 });
     });
@@ -489,7 +498,7 @@ describe("MongoModel", () => {
       // 清理测试数据
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
       await User.create({ name: "Count1", email: "count1@test.com", age: 20 });
       await User.create({ name: "Count2", email: "count2@test.com", age: 25 });
@@ -520,7 +529,7 @@ describe("MongoModel", () => {
       // 清理测试数据
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
       await User.create({ name: "Exists", email: "exists@test.com", age: 25 });
     });
@@ -545,13 +554,15 @@ describe("MongoModel", () => {
   });
 
   describe("createMany", () => {
-    it("应该批量创建文档", async () => {
+    beforeEach(async () => {
       // 清理测试数据
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
+    });
 
+    it("应该批量创建文档", async () => {
       const users = await User.createMany([
         { name: "Batch1", email: "batch1@test.com", age: 20 },
         { name: "Batch2", email: "batch2@test.com", age: 25 },
@@ -567,6 +578,103 @@ describe("MongoModel", () => {
       sanitizeOps: false,
       sanitizeResources: false,
     });
+
+    it("应该支持 enableHooks 选项", async () => {
+      let beforeCreateCalled = 0;
+      let afterCreateCalled = 0;
+      let beforeSaveCalled = 0;
+      let afterSaveCalled = 0;
+
+      class UserWithHooks extends MongoModel {
+        static override collectionName = "model_users";
+        static override primaryKey = "_id";
+
+        static override beforeCreate(instance: any) {
+          beforeCreateCalled++;
+          instance.hookData = "beforeCreate";
+        }
+
+        static override afterCreate(instance: any) {
+          afterCreateCalled++;
+          instance.hookData = "afterCreate";
+        }
+
+        static override beforeSave(instance: any) {
+          beforeSaveCalled++;
+        }
+
+        static override afterSave(instance: any) {
+          afterSaveCalled++;
+        }
+      }
+      UserWithHooks.setAdapter(adapter);
+
+      // 默认不启用钩子
+      await UserWithHooks.createMany([
+        { name: "NoHooks1", email: "nohooks1@test.com", age: 20 },
+        { name: "NoHooks2", email: "nohooks2@test.com", age: 25 },
+      ]);
+      expect(beforeCreateCalled).toBe(0);
+      expect(afterCreateCalled).toBe(0);
+      expect(beforeSaveCalled).toBe(0);
+      expect(afterSaveCalled).toBe(0);
+
+      // 启用钩子
+      const users = await UserWithHooks.createMany([
+        { name: "WithHooks1", email: "withhooks1@test.com", age: 20 },
+        { name: "WithHooks2", email: "withhooks2@test.com", age: 25 },
+      ], { enableHooks: true });
+      expect(beforeCreateCalled).toBe(2);
+      expect(afterCreateCalled).toBe(2);
+      expect(beforeSaveCalled).toBe(2);
+      expect(afterSaveCalled).toBe(2);
+      expect(users[0].hookData).toBe("afterCreate");
+      expect(users[1].hookData).toBe("afterCreate");
+    }, {
+      sanitizeOps: false,
+      sanitizeResources: false,
+    });
+
+    it("应该支持 enableValidation 选项", async () => {
+      class UserWithValidation extends MongoModel {
+        static override collectionName = "model_users";
+        static override primaryKey = "_id";
+        static override schema: ModelSchema = {
+          email: {
+            type: "string",
+            validate: {
+              required: true,
+              format: "email",
+            },
+          },
+          age: {
+            type: "number",
+            validate: {
+              min: 18,
+              max: 100,
+            },
+          },
+        };
+      }
+      UserWithValidation.setAdapter(adapter);
+
+      // 默认不启用验证，应该成功（即使数据不符合验证规则）
+      await UserWithValidation.createMany([
+        { name: "NoValidation1", email: "invalid-email", age: 10 },
+        { name: "NoValidation2", email: "invalid-email2", age: 200 },
+      ]);
+      expect(true).toBe(true); // 如果没有抛出错误，测试通过
+
+      // 启用验证，应该抛出错误
+      await assertRejects(async () => {
+        await UserWithValidation.createMany([
+          { name: "WithValidation1", email: "invalid-email", age: 10 },
+        ], { enableValidation: true });
+      });
+    }, {
+      sanitizeOps: false,
+      sanitizeResources: false,
+    });
   });
 
   describe("实例方法", () => {
@@ -574,7 +682,7 @@ describe("MongoModel", () => {
       // 清理测试数据
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
     });
 
@@ -658,7 +766,7 @@ describe("MongoModel", () => {
     beforeEach(async () => {
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
     });
 
@@ -682,7 +790,7 @@ describe("MongoModel", () => {
     beforeEach(async () => {
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
     });
 
@@ -712,7 +820,7 @@ describe("MongoModel", () => {
     beforeEach(async () => {
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
     });
 
@@ -738,7 +846,7 @@ describe("MongoModel", () => {
     beforeEach(async () => {
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
       await User.create({
         name: "User1",
@@ -772,13 +880,144 @@ describe("MongoModel", () => {
       sanitizeOps: false,
       sanitizeResources: false,
     });
+
+    it("应该支持 enableHooks 选项", async () => {
+      let beforeUpdateCalled = 0;
+      let afterUpdateCalled = 0;
+      let beforeSaveCalled = 0;
+      let afterSaveCalled = 0;
+
+      class UserWithHooks extends MongoModel {
+        static override collectionName = "model_users";
+        static override primaryKey = "_id";
+
+        static override beforeUpdate(instance: any) {
+          beforeUpdateCalled++;
+          instance.hookData = "beforeUpdate";
+        }
+
+        static override afterUpdate(instance: any) {
+          afterUpdateCalled++;
+        }
+
+        static override beforeSave(instance: any) {
+          beforeSaveCalled++;
+        }
+
+        static override afterSave(instance: any) {
+          afterSaveCalled++;
+        }
+      }
+      UserWithHooks.setAdapter(adapter);
+
+      // 创建测试数据（会调用 beforeSave 和 afterSave 钩子）
+      await UserWithHooks.create({
+        name: "HookUser1",
+        email: "hookuser1@test.com",
+        age: 20,
+        status: "active",
+      });
+      await UserWithHooks.create({
+        name: "HookUser2",
+        email: "hookuser2@test.com",
+        age: 25,
+        status: "active",
+      });
+
+      // 重置计数器（因为 create 会调用钩子）
+      beforeUpdateCalled = 0;
+      afterUpdateCalled = 0;
+      beforeSaveCalled = 0;
+      afterSaveCalled = 0;
+
+      // 默认不启用钩子（使用更具体的条件，避免与其他测试冲突）
+      await UserWithHooks.updateMany({
+        email: { $in: ["hookuser1@test.com", "hookuser2@test.com"] },
+      }, {
+        status: "updated",
+      });
+      expect(beforeUpdateCalled).toBe(0);
+      expect(afterUpdateCalled).toBe(0);
+      expect(beforeSaveCalled).toBe(0);
+      expect(afterSaveCalled).toBe(0);
+
+      // 启用钩子（使用更具体的条件，避免与其他测试冲突）
+      const affected = await UserWithHooks.updateMany({
+        email: { $in: ["hookuser1@test.com", "hookuser2@test.com"] },
+      }, {
+        status: "hooked",
+      }, { enableHooks: true });
+      expect(affected).toBe(2);
+      expect(beforeUpdateCalled).toBeGreaterThanOrEqual(1);
+      expect(beforeSaveCalled).toBeGreaterThanOrEqual(1);
+      // afterUpdate 和 afterSave 在 updateMany 中不会调用（因为 updateMany 不返回实例）
+    }, {
+      sanitizeOps: false,
+      sanitizeResources: false,
+    });
+
+    it("应该支持 enableValidation 选项", async () => {
+      class UserWithValidation extends MongoModel {
+        static override collectionName = "model_users";
+        static override primaryKey = "_id";
+        static override schema: ModelSchema = {
+          email: {
+            type: "string",
+            validate: {
+              required: true,
+              format: "email",
+            },
+          },
+          age: {
+            type: "number",
+            validate: {
+              min: 18,
+              max: 100,
+            },
+          },
+        };
+      }
+      UserWithValidation.setAdapter(adapter);
+
+      // 创建测试数据
+      await UserWithValidation.create({
+        name: "ValidationUser1",
+        email: "validationuser1@test.com",
+        age: 20,
+        status: "active",
+      });
+      await UserWithValidation.create({
+        name: "ValidationUser2",
+        email: "validationuser2@test.com",
+        age: 25,
+        status: "active",
+      });
+
+      // 默认不启用验证，应该成功（即使数据不符合验证规则）
+      // 注意：不更新 email 字段，避免唯一性约束冲突（数据库层面的约束，不是验证问题）
+      await UserWithValidation.updateMany({ status: "active" }, {
+        age: 10,
+      });
+      expect(true).toBe(true); // 如果没有抛出错误，测试通过
+
+      // 启用验证，应该抛出错误（email 格式不正确）
+      await assertRejects(async () => {
+        await UserWithValidation.updateMany({ status: "active" }, {
+          email: "invalid-email-format",
+          age: 10,
+        }, { enableValidation: true });
+      });
+    }, {
+      sanitizeOps: false,
+      sanitizeResources: false,
+    });
   });
 
   describe("deleteMany", () => {
     beforeEach(async () => {
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
       await User.create({
         name: "User1",
@@ -819,7 +1058,7 @@ describe("MongoModel", () => {
     beforeEach(async () => {
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
       for (let i = 1; i <= 10; i++) {
         await User.create({
@@ -850,7 +1089,7 @@ describe("MongoModel", () => {
     beforeEach(async () => {
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
       const user = await User.create({
         name: "Inc",
@@ -887,7 +1126,7 @@ describe("MongoModel", () => {
     beforeEach(async () => {
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
     });
 
@@ -924,7 +1163,7 @@ describe("MongoModel", () => {
     beforeEach(async () => {
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
     });
 
@@ -974,7 +1213,7 @@ describe("MongoModel", () => {
     beforeEach(async () => {
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
       await User.create({ name: "User1", email: "user1@test.com", age: 20 });
       await User.create({ name: "User2", email: "user2@test.com", age: 25 });
@@ -996,7 +1235,7 @@ describe("MongoModel", () => {
     beforeEach(async () => {
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
       for (let i = 1; i <= 10; i++) {
         await User.create({
@@ -1203,7 +1442,7 @@ describe("MongoModel", () => {
 
     it("应该支持链式查询 restore", async () => {
       class SoftDeleteUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override softDelete = true;
         static override deletedAtField = "deleted_at";
       }
@@ -1231,7 +1470,7 @@ describe("MongoModel", () => {
 
     it("应该支持链式查询 forceDelete", async () => {
       class SoftDeleteUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override softDelete = true;
         static override deletedAtField = "deleted_at";
       }
@@ -1263,7 +1502,7 @@ describe("MongoModel", () => {
 
     it("应该支持链式查询 restoreById", async () => {
       class SoftDeleteUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override softDelete = true;
         static override deletedAtField = "deleted_at";
       }
@@ -1289,7 +1528,7 @@ describe("MongoModel", () => {
 
     it("应该支持链式查询 forceDeleteById", async () => {
       class SoftDeleteUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override softDelete = true;
         static override deletedAtField = "deleted_at";
       }
@@ -1540,7 +1779,7 @@ describe("MongoModel", () => {
       // 清理测试数据
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
       await User.create({ name: "Cache", email: "cache@test.com", age: 25 });
 
@@ -1561,13 +1800,13 @@ describe("MongoModel", () => {
     beforeEach(async () => {
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
     });
 
     it("应该调用 beforeCreate 钩子", async () => {
       class HookUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static beforeCreateCalled = false;
         static beforeCreateData: any = null;
@@ -1596,7 +1835,7 @@ describe("MongoModel", () => {
 
     it("应该调用 afterCreate 钩子", async () => {
       class HookUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static afterCreateCalled = false;
         static afterCreateData: any = null;
@@ -1624,7 +1863,7 @@ describe("MongoModel", () => {
 
     it("应该调用 beforeUpdate 钩子", async () => {
       class HookUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static beforeUpdateCalled = false;
 
@@ -1657,7 +1896,7 @@ describe("MongoModel", () => {
 
     it("应该调用 afterUpdate 钩子", async () => {
       class HookUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static afterUpdateCalled = false;
 
@@ -1683,7 +1922,7 @@ describe("MongoModel", () => {
 
     it("应该调用 beforeSave 钩子（实例方法）", async () => {
       class HookUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static beforeSaveCalled = false;
 
@@ -1709,7 +1948,7 @@ describe("MongoModel", () => {
 
     it("应该调用 afterSave 钩子（实例方法）", async () => {
       class HookUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static afterSaveCalled = false;
 
@@ -1733,7 +1972,7 @@ describe("MongoModel", () => {
 
     it("应该调用 beforeDelete 钩子", async () => {
       class HookUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static beforeDeleteCalled = false;
 
@@ -1759,7 +1998,7 @@ describe("MongoModel", () => {
 
     it("应该调用 afterDelete 钩子", async () => {
       class HookUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static afterDeleteCalled = false;
 
@@ -1785,7 +2024,7 @@ describe("MongoModel", () => {
 
     it("应该调用 beforeValidate 钩子", async () => {
       class HookUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static beforeValidateCalled = false;
 
@@ -1811,7 +2050,7 @@ describe("MongoModel", () => {
 
     it("应该调用 afterValidate 钩子", async () => {
       class HookUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static afterValidateCalled = false;
 
@@ -1838,7 +2077,7 @@ describe("MongoModel", () => {
     beforeEach(async () => {
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
     });
 
@@ -1913,7 +2152,7 @@ describe("MongoModel", () => {
 
     it("应该支持 restoreById", async () => {
       class SoftDeleteUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override softDelete = true;
         static override deletedAtField = "deleted_at";
@@ -1947,7 +2186,7 @@ describe("MongoModel", () => {
 
     it("应该支持 forceDeleteById", async () => {
       class SoftDeleteUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override softDelete = true;
         static override deletedAtField = "deleted_at";
@@ -1976,7 +2215,7 @@ describe("MongoModel", () => {
 
     it("应该支持 scope 作用域查询", async () => {
       class ScopedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override scopes = {
           active: () => ({ status: "active" }),
@@ -2009,7 +2248,7 @@ describe("MongoModel", () => {
 
     it("应该支持 scope 链式查询", async () => {
       class ScopedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override scopes = {
           active: () => ({ status: "active" }),
@@ -2043,13 +2282,13 @@ describe("MongoModel", () => {
     beforeEach(async () => {
       const db = (adapter as any).db;
       if (db) {
-        await db.collection("users").deleteMany({});
+        await db.collection("model_users").deleteMany({});
       }
     });
 
     it("应该验证必填字段", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           name: {
@@ -2085,7 +2324,7 @@ describe("MongoModel", () => {
 
     it("应该验证字段类型", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           age: {
@@ -2122,7 +2361,7 @@ describe("MongoModel", () => {
 
     it("应该验证最小值", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           age: {
@@ -2159,7 +2398,7 @@ describe("MongoModel", () => {
 
     it("应该验证最大值", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           age: {
@@ -2196,7 +2435,7 @@ describe("MongoModel", () => {
 
     it("应该验证正则表达式", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           email: {
@@ -2233,7 +2472,7 @@ describe("MongoModel", () => {
 
     it("应该验证枚举值", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           status: {
@@ -2273,7 +2512,7 @@ describe("MongoModel", () => {
 
     it("应该验证自定义验证函数", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           age: {
@@ -2317,7 +2556,7 @@ describe("MongoModel", () => {
 
     it("应该验证跨字段相等（equals）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           password: {
@@ -2363,7 +2602,7 @@ describe("MongoModel", () => {
 
     it("应该验证跨字段不相等（notEquals）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           oldPassword: {
@@ -2409,7 +2648,7 @@ describe("MongoModel", () => {
 
     it("应该验证跨字段自定义比较（compare）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           startDate: {
@@ -2460,7 +2699,7 @@ describe("MongoModel", () => {
 
     it("应该验证唯一性（unique）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           email: {
@@ -2498,7 +2737,7 @@ describe("MongoModel", () => {
 
     it("应该验证唯一性（更新时排除当前记录）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           email: {
@@ -2558,7 +2797,7 @@ describe("MongoModel", () => {
 
       // 先创建一个分类集合
       class Category extends MongoModel {
-        static override collectionName = "categories";
+        static override collectionName = "model_categories";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           name: {
@@ -2573,7 +2812,7 @@ describe("MongoModel", () => {
       const category = await Category.create({ name: "Tech" });
 
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           categoryId: {
@@ -2619,7 +2858,7 @@ describe("MongoModel", () => {
 
     it("应该验证不存在性（notExists）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           email: {
@@ -2638,7 +2877,7 @@ describe("MongoModel", () => {
 
       // 创建被禁止邮箱集合
       class BannedEmail extends MongoModel {
-        static override collectionName = "banned_emails";
+        static override collectionName = "model_banned_emails";
         static override primaryKey = "_id";
       }
       BannedEmail.setAdapter(adapter);
@@ -2668,7 +2907,7 @@ describe("MongoModel", () => {
 
     it("应该验证条件验证（when）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           hasDiscount: {
@@ -2726,7 +2965,7 @@ describe("MongoModel", () => {
 
     it("应该验证条件必填（requiredWhen）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           userType: {
@@ -2783,7 +3022,7 @@ describe("MongoModel", () => {
 
     it("应该验证异步自定义验证（asyncCustom）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           username: {
@@ -2851,7 +3090,7 @@ describe("MongoModel", () => {
 
     it("应该验证验证组（groups）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           password: {
@@ -2905,7 +3144,7 @@ describe("MongoModel", () => {
 
     it("应该验证数组（array）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           tags: {
@@ -2988,7 +3227,7 @@ describe("MongoModel", () => {
 
     it("应该验证格式（format - email）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           email: {
@@ -3026,7 +3265,7 @@ describe("MongoModel", () => {
 
     it("应该验证格式（format - url）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           website: {
@@ -3065,7 +3304,7 @@ describe("MongoModel", () => {
 
     it("应该验证格式（format - ipv4）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           ipAddress: {
@@ -3104,7 +3343,7 @@ describe("MongoModel", () => {
 
     it("应该验证格式（format - uuid）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           uuid: {
@@ -3143,7 +3382,7 @@ describe("MongoModel", () => {
 
     it("应该验证格式（format - date）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           birthDate: {
@@ -3182,7 +3421,7 @@ describe("MongoModel", () => {
 
     it("应该验证格式（format - time）", async () => {
       class ValidatedUser extends MongoModel {
-        static override collectionName = "users";
+        static override collectionName = "model_users";
         static override primaryKey = "_id";
         static override schema: ModelSchema = {
           workTime: {
@@ -3228,7 +3467,7 @@ describe("MongoModel", () => {
       }
 
       class IndexedUser extends MongoModel {
-        static override collectionName = "indexed_users";
+        static override collectionName = "model_indexed_users";
         static override primaryKey = "_id";
         static override indexes = [
           { field: "email", unique: true },
@@ -3253,7 +3492,7 @@ describe("MongoModel", () => {
       }
 
       class IndexedUser extends MongoModel {
-        static override collectionName = "indexed_users_force";
+        static override collectionName = "model_indexed_users_force";
         static override primaryKey = "_id";
         static override indexes = [
           { field: "email", unique: true },
@@ -3281,7 +3520,7 @@ describe("MongoModel", () => {
       }
 
       class IndexedUser extends MongoModel {
-        static override collectionName = "indexed_users_drop";
+        static override collectionName = "model_indexed_users_drop";
         static override primaryKey = "_id";
         static override indexes = [
           { field: "email", unique: true },
@@ -3311,7 +3550,7 @@ describe("MongoModel", () => {
       }
 
       class IndexedUser extends MongoModel {
-        static override collectionName = "indexed_users_get";
+        static override collectionName = "model_indexed_users_get";
         static override primaryKey = "_id";
         static override indexes = [
           { field: "email", unique: true },
@@ -3345,7 +3584,7 @@ describe("MongoModel", () => {
       }
 
       class NoIndexUser extends MongoModel {
-        static override collectionName = "no_index_users";
+        static override collectionName = "model_no_index_users";
         static override primaryKey = "_id";
       }
       NoIndexUser.setAdapter(adapter);

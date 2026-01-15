@@ -5,7 +5,8 @@
 
 import { getEnv } from "@dreamer/runtime-adapter";
 import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
-import { MongoDBAdapter } from "../../src/adapters/mongodb.ts";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
+import type { DatabaseAdapter } from "../../src/types.ts";
 
 /**
  * 获取环境变量，带默认值
@@ -46,14 +47,17 @@ function createMongoConfig() {
 }
 
 describe("MongoDB 连接池耗尽测试", () => {
-  let adapter: MongoDBAdapter;
+  let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    adapter = new MongoDBAdapter();
     const config = createMongoConfig();
 
     try {
-      await adapter.connect(config);
+      // 使用 initDatabase 初始化全局 dbManager
+      await initDatabase(config);
+
+      // 从全局 dbManager 获取适配器
+      adapter = getDatabase();
     } catch (error) {
       console.warn(
         `MongoDB not available, skipping tests: ${
@@ -65,7 +69,8 @@ describe("MongoDB 连接池耗尽测试", () => {
   });
 
   afterAll(async () => {
-    await adapter?.close();
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    await closeDatabase();
   });
 
   it("应该在连接池耗尽时正确处理并发请求", async () => {
@@ -77,7 +82,7 @@ describe("MongoDB 连接池耗尽测试", () => {
     // 创建多个并发查询，超过最大连接数
     const promises = Array.from(
       { length: 5 },
-      () => adapter.query("test_collection", {}),
+      () => adapter.query("pool_exhaustion_test_collection", {}),
     );
 
     // 所有查询应该都能完成（连接池会排队等待）

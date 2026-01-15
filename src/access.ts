@@ -6,13 +6,14 @@
 
 import {
   autoInitDatabase,
+  closeDatabase as closeDatabaseImpl,
   getDatabaseManager as getManager,
   hasConnection,
   initDatabase,
   isDatabaseInitialized as checkInitialized,
 } from "./init-database.ts";
-import type { DatabaseAdapter } from "./types.ts";
 import type { DatabaseManager } from "./manager.ts";
+import type { DatabaseAdapter } from "./types.ts";
 
 // 重新导出 initDatabase 以保持向后兼容性（ORM 模型需要）
 export { initDatabase };
@@ -71,7 +72,12 @@ export function isDatabaseInitialized(): boolean {
   return checkInitialized();
 }
 
+/**
+ * 关闭所有数据库连接
+ * 这是一个便捷方法，实际调用 init-database.ts 中的完整实现
+ * 确保所有连接完全关闭，避免连接泄漏
+ */
 export async function closeDatabase(): Promise<void> {
-  const dbManager = getManager();
-  await dbManager.closeAll();
+  // 调用 init-database.ts 中的完整实现，包含所有清理逻辑和等待时间
+  await closeDatabaseImpl();
 }

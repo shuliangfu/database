@@ -12,7 +12,8 @@ import {
   expect,
   it,
 } from "@dreamer/test";
-import { MongoDBAdapter } from "../../src/adapters/mongodb.ts";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
+import type { DatabaseAdapter } from "../../src/types.ts";
 
 /**
  * 获取环境变量（跨运行时，带默认值）
@@ -22,17 +23,17 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
 }
 
 describe("事务测试", () => {
-  let adapter: MongoDBAdapter;
+  let adapter: DatabaseAdapter;
 
   beforeEach(async () => {
-    adapter = new MongoDBAdapter();
     // 注意：需要实际的 MongoDB 数据库连接
     const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
     const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
     const mongoDatabase = getEnvWithDefault("MONGODB_DATABASE", "test");
 
     try {
-      await adapter.connect({
+      // 使用 initDatabase 初始化全局 dbManager
+      await initDatabase({
         type: "mongodb",
         connection: {
           host: mongoHost,
@@ -45,10 +46,13 @@ describe("事务测试", () => {
         },
       });
 
+      // 从全局 dbManager 获取适配器
+      adapter = getDatabase();
+
       // 清空测试集合
-      const db = adapter.getDatabase();
+      const db = (adapter as any).getDatabase();
       if (db) {
-        await db.collection("accounts").deleteMany({});
+        await db.collection("transaction_accounts").deleteMany({});
       }
     } catch (error) {
       // MongoDB 不可用，跳过测试
@@ -60,9 +64,7 @@ describe("事务测试", () => {
       );
       // 确保清理已创建的资源
       try {
-        if (adapter && adapter.isConnected()) {
-          await adapter.close();
-        }
+        await closeDatabase();
       } catch {
         // 忽略关闭错误
       }
@@ -74,10 +76,10 @@ describe("事务测试", () => {
     if (adapter) {
       try {
         // 清理测试数据
-        const db = adapter.getDatabase();
+        const db = (adapter as any).getDatabase();
         if (db) {
           try {
-            await db.collection("accounts").deleteMany({});
+            await db.collection("transaction_accounts").deleteMany({});
           } catch {
             // 忽略错误
           }
@@ -85,9 +87,9 @@ describe("事务测试", () => {
       } catch {
         // 忽略错误
       }
-      // 确保关闭连接
+      // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
       try {
-        await adapter.close();
+        await closeDatabase();
       } catch {
         // 忽略关闭错误
       }
@@ -123,27 +125,27 @@ describe("事务测试", () => {
       }
 
       // 插入初始数据
-      await adapter.execute("insert", "accounts", {
+      await adapter.execute("insert", "transaction_accounts", {
         name: "Alice",
         balance: 1000,
       });
 
       await adapter.transaction(async (db) => {
         // 更新数据
-        await db.execute("update", "accounts", {
+        await db.execute("update", "transaction_accounts", {
           filter: { name: "Alice" },
           update: { $inc: { balance: -100 } },
         });
 
         // 插入新数据
-        await db.execute("insert", "accounts", {
+        await db.execute("insert", "transaction_accounts", {
           name: "Bob",
           balance: 100,
         });
       });
 
       // 验证事务已提交
-      const accounts = await adapter.query("accounts", {});
+      const accounts = await adapter.query("transaction_accounts", {});
       expect(accounts.length).toBe(2);
       const alice = accounts.find((a: any) => a.name === "Alice");
       const bob = accounts.find((a: any) => a.name === "Bob");
@@ -185,7 +187,7 @@ describe("事务测试", () => {
       }
 
       // 插入初始数据
-      await adapter.execute("insert", "accounts", {
+      await adapter.execute("insert", "transaction_accounts", {
         name: "Alice",
         balance: 1000,
       });
@@ -193,7 +195,7 @@ describe("事务测试", () => {
       try {
         await adapter.transaction(async (db) => {
           // 更新数据
-          await db.execute("update", "accounts", {
+          await db.execute("update", "transaction_accounts", {
             filter: { name: "Alice" },
             update: { $inc: { balance: -100 } },
           });
@@ -204,7 +206,7 @@ describe("事务测试", () => {
       }
 
       // 验证事务已回滚
-      const accounts = await adapter.query("accounts", { name: "Alice" });
+      const accounts = await adapter.query("transaction_accounts", { name: "Alice" });
       expect(accounts.length).toBe(1);
       expect(accounts[0].balance).toBe(1000); // 余额未改变
     }, {

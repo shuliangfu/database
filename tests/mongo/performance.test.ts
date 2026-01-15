@@ -12,7 +12,8 @@ import {
   expect,
   it,
 } from "@dreamer/test";
-import { MongoDBAdapter } from "../../src/adapters/mongodb.ts";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
+import type { DatabaseAdapter } from "../../src/types.ts";
 
 /**
  * 获取环境变量，带默认值
@@ -22,10 +23,9 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
 }
 
 describe("MongoDB 性能测试", () => {
-  let adapter: MongoDBAdapter;
+  let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    adapter = new MongoDBAdapter();
     const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
     const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
     const mongoDatabase = getEnvWithDefault(
@@ -39,7 +39,8 @@ describe("MongoDB 性能测试", () => {
     ) === "true";
 
     try {
-      await adapter.connect({
+      // 使用 initDatabase 初始化全局 dbManager
+      await initDatabase({
         type: "mongodb",
         connection: {
           host: mongoHost,
@@ -51,6 +52,9 @@ describe("MongoDB 性能测试", () => {
           directConnection: directConnection,
         },
       });
+
+      // 从全局 dbManager 获取适配器
+      adapter = getDatabase();
     } catch (error) {
       console.warn(
         `MongoDB not available, skipping tests: ${
@@ -66,12 +70,17 @@ describe("MongoDB 性能测试", () => {
       try {
         const db = adapter.getDatabase();
         if (db) {
-          await db.collection("test_perf_data").drop().catch(() => {});
+          await db.collection("performance_test_perf_data").drop().catch(() => {});
         }
-        await adapter.close();
       } catch {
-        // 忽略关闭错误
+        // 忽略错误
       }
+    }
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    try {
+      await closeDatabase();
+    } catch {
+      // 忽略关闭错误
     }
   });
 
@@ -80,7 +89,7 @@ describe("MongoDB 性能测试", () => {
 
     const db = adapter.getDatabase();
     if (db) {
-      await db.collection("test_perf_data").deleteMany({});
+      await db.collection("performance_test_perf_data").deleteMany({});
     }
   });
 
@@ -98,13 +107,13 @@ describe("MongoDB 性能测试", () => {
         value: i + 1,
       }));
 
-      await adapter.execute("insertMany", "test_perf_data", documents);
+      await adapter.execute("insertMany", "performance_test_perf_data", documents);
 
       // 执行大量并发查询
       const startTime = Date.now();
       const promises = Array.from(
         { length: 100 },
-        (_, i) => adapter.query("test_perf_data", { value: i + 1 }),
+        (_, i) => adapter.query("performance_test_perf_data", { value: i + 1 }),
       );
 
       const results = await Promise.all(promises);
@@ -126,7 +135,7 @@ describe("MongoDB 性能测试", () => {
       const startTime = Date.now();
 
       for (let i = 0; i < iterations; i++) {
-        await adapter.query("test_perf_data", {});
+        await adapter.query("performance_test_perf_data", {});
       }
 
       const duration = Date.now() - startTime;
@@ -148,7 +157,7 @@ describe("MongoDB 性能测试", () => {
 
       for (let i = 0; i < iterations; i++) {
         await adapter.transaction(async (db) => {
-          await db.execute("insert", "test_perf_data", {
+          await db.execute("insert", "performance_test_perf_data", {
             name: `TX User ${i}`,
             email: `tx${i}@test.com`,
             value: i,
@@ -179,11 +188,11 @@ describe("MongoDB 性能测试", () => {
         value: i + 1,
       }));
 
-      await adapter.execute("insertMany", "test_perf_data", documents);
+      await adapter.execute("insertMany", "performance_test_perf_data", documents);
 
       const duration = Date.now() - startTime;
 
-      const count = await adapter.query("test_perf_data", {});
+      const count = await adapter.query("performance_test_perf_data", {});
       expect(count.length).toBeGreaterThanOrEqual(batchSize);
       expect(duration).toBeLessThan(10000); // 应该在10秒内完成
     }, { sanitizeOps: false, sanitizeResources: false });
@@ -201,10 +210,10 @@ describe("MongoDB 性能测试", () => {
         value: i + 1,
       }));
 
-      await adapter.execute("insertMany", "test_perf_data", documents);
+      await adapter.execute("insertMany", "performance_test_perf_data", documents);
 
       const startTime = Date.now();
-      const results = await adapter.query("test_perf_data", {
+      const results = await adapter.query("performance_test_perf_data", {
         value: { $gt: 1000, $lt: 2000 },
       });
       const duration = Date.now() - startTime;

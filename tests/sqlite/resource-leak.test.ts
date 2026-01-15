@@ -4,23 +4,29 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { SQLiteAdapter } from "../../src/adapters/sqlite.ts";
+import type { DatabaseAdapter } from "../../src/types.ts";
 
 describe("资源泄漏测试", () => {
-  let adapter: SQLiteAdapter;
+  let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    adapter = new SQLiteAdapter();
-    await adapter.connect({
+    // 使用 initDatabase 初始化全局 dbManager
+    await initDatabase({
       type: "sqlite",
       connection: {
         filename: ":memory:",
       },
     });
+
+    // 从全局 dbManager 获取适配器
+    adapter = getDatabase();
   });
 
   afterAll(async () => {
-    await adapter?.close();
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    await closeDatabase();
   });
 
   it("应该在关闭连接后释放所有资源", async () => {
@@ -72,7 +78,7 @@ describe("资源泄漏测试", () => {
     });
 
     // 等待一小段时间让资源释放
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    
 
     const statusAfter = await adapter.getPoolStatus();
 

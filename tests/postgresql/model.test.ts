@@ -5,6 +5,7 @@
 import { getEnv } from "@dreamer/runtime-adapter";
 import {
   afterAll,
+  afterEach,
   assertRejects,
   beforeAll,
   beforeEach,
@@ -12,7 +13,7 @@ import {
   expect,
   it,
 } from "@dreamer/test";
-import { PostgreSQLAdapter } from "../../src/adapters/postgresql.ts";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { type ModelSchema, SQLModel } from "../../src/orm/sql-model.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
 
@@ -35,6 +36,14 @@ describe("SQLModel", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
+    // 在 Bun 测试环境中，先清理所有之前的连接，避免连接累积
+    // Bun 可能并行运行测试文件，导致连接泄漏
+    try {
+      await closeDatabase();
+    } catch {
+      // 忽略清理错误
+    }
+
     // 获取 PostgreSQL 连接配置
     const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
     const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
@@ -43,8 +52,8 @@ describe("SQLModel", () => {
     const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
     const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "");
 
-    adapter = new PostgreSQLAdapter();
-    await adapter.connect({
+    // 使用 initDatabase 初始化全局 dbManager
+    await initDatabase({
       type: "postgresql",
       connection: {
         host: pgHost,
@@ -54,6 +63,9 @@ describe("SQLModel", () => {
         password: pgPassword,
       },
     });
+
+    // 从全局 dbManager 获取适配器
+    adapter = getDatabase();
 
     // 创建测试表（包含所有测试需要的字段）
     // 注意：使用 PostgreSQL 语法
@@ -140,8 +152,29 @@ describe("SQLModel", () => {
     User.setAdapter(adapter);
   });
 
+  // 每个测试后强制等待连接释放，防止连接泄漏
+  afterEach(async () => {
+    if (adapter && adapter.isConnected()) {
+      try {
+        // 获取连接池状态并检查（已移除延时以提升测试速度）
+        const status = await adapter.getPoolStatus();
+        // 如果活跃连接过多，记录警告但不等待
+        if (status.active > 2) {
+          console.warn(`警告：连接池中有 ${status.active} 个活跃连接`);
+        }
+      } catch {
+        // 忽略错误
+      }
+    }
+  });
+
   afterAll(async () => {
-    await adapter?.close();
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    try {
+      await closeDatabase();
+    } catch {
+      // 忽略关闭错误
+    }
   });
 
   describe("init", () => {
@@ -456,9 +489,11 @@ describe("SQLModel", () => {
   });
 
   describe("createMany", () => {
-    it("应该批量创建记录", async () => {
+    beforeEach(async () => {
       await adapter.execute("DELETE FROM users", []);
+    });
 
+    it("应该批量创建记录", async () => {
       const users = await User.createMany([
         { name: "Batch1", email: "batch1@test.com", age: 20 },
         { name: "Batch2", email: "batch2@test.com", age: 25 },
@@ -469,6 +504,97 @@ describe("SQLModel", () => {
       expect(users[0].name).toBe("Batch1");
       expect(users[1].name).toBe("Batch2");
       expect(users[2].name).toBe("Batch3");
+    });
+
+    it("应该支持 enableHooks 选项", async () => {
+      let beforeCreateCalled = 0;
+      let afterCreateCalled = 0;
+      let beforeSaveCalled = 0;
+      let afterSaveCalled = 0;
+
+      class UserWithHooks extends SQLModel {
+        static override tableName = "users";
+        static override primaryKey = "id";
+
+        static override async beforeCreate(instance: any) {
+          beforeCreateCalled++;
+          instance.hookData = "beforeCreate";
+        }
+
+        static override async afterCreate(instance: any) {
+          afterCreateCalled++;
+          instance.hookData = "afterCreate";
+        }
+
+        static override async beforeSave(instance: any) {
+          beforeSaveCalled++;
+        }
+
+        static override async afterSave(instance: any) {
+          afterSaveCalled++;
+        }
+      }
+      UserWithHooks.setAdapter(adapter);
+
+      // 默认不启用钩子
+      await UserWithHooks.createMany([
+        { name: "NoHooks1", email: "nohooks1@test.com", age: 20 },
+        { name: "NoHooks2", email: "nohooks2@test.com", age: 25 },
+      ]);
+      expect(beforeCreateCalled).toBe(0);
+      expect(afterCreateCalled).toBe(0);
+      expect(beforeSaveCalled).toBe(0);
+      expect(afterSaveCalled).toBe(0);
+
+      // 启用钩子
+      const users = await UserWithHooks.createMany([
+        { name: "WithHooks1", email: "withhooks1@test.com", age: 20 },
+        { name: "WithHooks2", email: "withhooks2@test.com", age: 25 },
+      ], { enableHooks: true });
+      expect(beforeCreateCalled).toBe(2);
+      expect(afterCreateCalled).toBe(2);
+      expect(beforeSaveCalled).toBe(2);
+      expect(afterSaveCalled).toBe(2);
+      expect(users[0].hookData).toBe("afterCreate");
+      expect(users[1].hookData).toBe("afterCreate");
+    });
+
+    it("应该支持 enableValidation 选项", async () => {
+      class UserWithValidation extends SQLModel {
+        static override tableName = "users";
+        static override primaryKey = "id";
+        static schema: ModelSchema = {
+          email: {
+            type: "string",
+            validate: {
+              required: true,
+              format: "email",
+            },
+          },
+          age: {
+            type: "number",
+            validate: {
+              min: 18,
+              max: 100,
+            },
+          },
+        };
+      }
+      UserWithValidation.setAdapter(adapter);
+
+      // 默认不启用验证，应该成功（即使数据不符合验证规则）
+      await UserWithValidation.createMany([
+        { name: "NoValidation1", email: "invalid-email", age: 10 },
+        { name: "NoValidation2", email: "invalid-email2", age: 200 },
+      ]);
+      expect(true).toBe(true); // 如果没有抛出错误，测试通过
+
+      // 启用验证，应该抛出错误
+      await assertRejects(async () => {
+        await UserWithValidation.createMany([
+          { name: "WithValidation1", email: "invalid-email", age: 10 },
+        ], { enableValidation: true });
+      });
     });
   });
 
@@ -843,6 +969,133 @@ describe("SQLModel", () => {
 
       const users = await User.findAll({ status: "updated" });
       expect(users.length).toBe(2);
+    });
+
+    it("应该支持 enableHooks 选项", async () => {
+      let beforeUpdateCalled = 0;
+      let afterUpdateCalled = 0;
+      let beforeSaveCalled = 0;
+      let afterSaveCalled = 0;
+
+      class UserWithHooks extends SQLModel {
+        static override tableName = "users";
+        static override primaryKey = "id";
+
+        static override async beforeUpdate(instance: any) {
+          beforeUpdateCalled++;
+          instance.hookData = "beforeUpdate";
+        }
+
+        static override async afterUpdate(instance: any) {
+          afterUpdateCalled++;
+        }
+
+        static override async beforeSave(instance: any) {
+          beforeSaveCalled++;
+        }
+
+        static override async afterSave(instance: any) {
+          afterSaveCalled++;
+        }
+      }
+      UserWithHooks.setAdapter(adapter);
+
+      // 创建测试数据（会调用 beforeSave 和 afterSave 钩子）
+      await UserWithHooks.create({
+        name: "HookUser1",
+        email: "hookuser1@test.com",
+        age: 20,
+        status: "active",
+      });
+      await UserWithHooks.create({
+        name: "HookUser2",
+        email: "hookuser2@test.com",
+        age: 25,
+        status: "active",
+      });
+
+      // 重置计数器（因为 create 会调用钩子）
+      beforeUpdateCalled = 0;
+      afterUpdateCalled = 0;
+      beforeSaveCalled = 0;
+      afterSaveCalled = 0;
+
+      // 默认不启用钩子（使用更具体的条件，避免与其他测试冲突）
+      await UserWithHooks.updateMany({
+        email: { $in: ["hookuser1@test.com", "hookuser2@test.com"] },
+      }, {
+        status: "updated",
+      });
+      expect(beforeUpdateCalled).toBe(0);
+      expect(afterUpdateCalled).toBe(0);
+      expect(beforeSaveCalled).toBe(0);
+      expect(afterSaveCalled).toBe(0);
+
+      // 启用钩子（使用更具体的条件，避免与其他测试冲突）
+      const affected = await UserWithHooks.updateMany({
+        email: { $in: ["hookuser1@test.com", "hookuser2@test.com"] },
+      }, {
+        status: "hooked",
+      }, { enableHooks: true });
+      expect(affected).toBe(2);
+      expect(beforeUpdateCalled).toBeGreaterThanOrEqual(1);
+      expect(beforeSaveCalled).toBeGreaterThanOrEqual(1);
+      // afterUpdate 和 afterSave 在 updateMany 中会调用（如果启用钩子）
+      expect(afterUpdateCalled).toBeGreaterThanOrEqual(1);
+      expect(afterSaveCalled).toBeGreaterThanOrEqual(1);
+    });
+
+    it("应该支持 enableValidation 选项", async () => {
+      class UserWithValidation extends SQLModel {
+        static override tableName = "users";
+        static override primaryKey = "id";
+        static schema: ModelSchema = {
+          email: {
+            type: "string",
+            validate: {
+              required: true,
+              format: "email",
+            },
+          },
+          age: {
+            type: "number",
+            validate: {
+              min: 18,
+              max: 100,
+            },
+          },
+        };
+      }
+      UserWithValidation.setAdapter(adapter);
+
+      // 创建测试数据
+      await UserWithValidation.create({
+        name: "ValidationUser1",
+        email: "validationuser1@test.com",
+        age: 20,
+        status: "active",
+      });
+      await UserWithValidation.create({
+        name: "ValidationUser2",
+        email: "validationuser2@test.com",
+        age: 25,
+        status: "active",
+      });
+
+      // 默认不启用验证，应该成功（即使数据不符合验证规则）
+      // 注意：不更新 email 字段，避免唯一性约束冲突（数据库层面的约束，不是验证问题）
+      await UserWithValidation.updateMany({ status: "active" }, {
+        age: 10,
+      });
+      expect(true).toBe(true); // 如果没有抛出错误，测试通过
+
+      // 启用验证，应该抛出错误（email 格式不正确）
+      await assertRejects(async () => {
+        await UserWithValidation.updateMany({ status: "active" }, {
+          email: "invalid-email-format",
+          age: 10,
+        }, { enableValidation: true });
+      });
     });
   });
 

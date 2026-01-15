@@ -4,7 +4,8 @@
 
 import { getEnv } from "@dreamer/runtime-adapter";
 import { afterEach, beforeEach, describe, expect, it } from "@dreamer/test";
-import { PostgreSQLAdapter } from "../../src/adapters/postgresql.ts";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
+import type { DatabaseAdapter } from "../../src/types.ts";
 
 /**
  * 获取环境变量（跨运行时，带默认值）
@@ -14,10 +15,9 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
 }
 
 describe("事务测试", () => {
-  let adapter: PostgreSQLAdapter;
+  let adapter: DatabaseAdapter;
 
   beforeEach(async () => {
-    adapter = new PostgreSQLAdapter();
     // 注意：需要实际的 PostgreSQL 数据库连接
     // 如果环境变量未设置，跳过测试
     const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
@@ -30,7 +30,8 @@ describe("事务测试", () => {
     const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "");
 
     try {
-      await adapter.connect({
+      // 使用 initDatabase 初始化全局 dbManager
+      await initDatabase({
         type: "postgresql",
         connection: {
           host: pgHost,
@@ -40,6 +41,9 @@ describe("事务测试", () => {
           password: pgPassword,
         },
       });
+
+      // 从全局 dbManager 获取适配器
+      adapter = getDatabase();
 
       // 创建测试表
       await adapter.execute(
@@ -63,9 +67,7 @@ describe("事务测试", () => {
       );
       // 确保清理已创建的资源
       try {
-        if (adapter && adapter.isConnected()) {
-          await adapter.close();
-        }
+        await closeDatabase();
       } catch {
         // 忽略关闭错误
       }
@@ -87,9 +89,9 @@ describe("事务测试", () => {
       } catch {
         // 忽略错误
       }
-      // 确保关闭连接
+      // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
       try {
-        await adapter.close();
+        await closeDatabase();
       } catch {
         // 忽略关闭错误
       }

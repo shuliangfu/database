@@ -4,6 +4,7 @@
  * @module
  */
 
+import { createLogger } from "@dreamer/logger";
 import { IS_BUN, IS_DENO } from "@dreamer/runtime-adapter";
 import {
   createConfigError,
@@ -52,6 +53,11 @@ interface SQLiteStatement {
  */
 export class SQLiteAdapter extends BaseAdapter {
   protected db: SQLiteDatabase | null = null;
+  private logger = createLogger({
+    level: "warn",
+    format: "text",
+    tags: ["database", "sqlite"],
+  });
 
   /**
    * 创建 Bun 原生 SQLite API 的适配器包装
@@ -422,6 +428,16 @@ export class SQLiteAdapter extends BaseAdapter {
   }
 
   /**
+   * 获取底层数据库实例（SQLite Database）
+   * 用于直接操作 SQLite 数据库
+   *
+   * @returns SQLite 数据库实例，如果未连接则返回 null
+   */
+  override getDatabase(): SQLiteDatabase | null {
+    return this.db;
+  }
+
+  /**
    * 获取连接池状态
    * SQLite 是文件数据库，不需要连接池，返回模拟状态
    */
@@ -489,7 +505,9 @@ export class SQLiteAdapter extends BaseAdapter {
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        console.warn(`SQLite 关闭连接时出错: ${message}`);
+        this.logger.warn(`SQLite 关闭连接时出错（已忽略）: ${message}`, {
+          error: message,
+        });
       } finally {
         // 无论成功与否，都清理状态
         this.db = null;

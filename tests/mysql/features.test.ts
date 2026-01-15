@@ -12,7 +12,8 @@ import {
   expect,
   it,
 } from "@dreamer/test";
-import { MySQLAdapter } from "../../src/adapters/mysql.ts";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
+import type { DatabaseAdapter } from "../../src/types.ts";
 
 /**
  * 获取环境变量，带默认值
@@ -22,10 +23,9 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
 }
 
 describe("MySQL/MariaDB 特有功能", () => {
-  let adapter: MySQLAdapter;
+  let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    adapter = new MySQLAdapter();
     const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
     const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
     const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
@@ -33,7 +33,8 @@ describe("MySQL/MariaDB 特有功能", () => {
     const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
 
     try {
-      await adapter.connect({
+      // 使用 initDatabase 初始化全局 dbManager
+      await initDatabase({
         type: "mysql",
         connection: {
           host: mysqlHost,
@@ -43,6 +44,9 @@ describe("MySQL/MariaDB 特有功能", () => {
           password: mysqlPassword,
         },
       });
+
+      // 从全局 dbManager 获取适配器
+      adapter = getDatabase();
     } catch (error) {
       console.warn(
         `MySQL not available, skipping tests: ${
@@ -59,10 +63,15 @@ describe("MySQL/MariaDB 特有功能", () => {
         // 清理测试存储过程和函数
         await adapter.execute("DROP PROCEDURE IF EXISTS test_procedure", []);
         await adapter.execute("DROP FUNCTION IF EXISTS test_function", []);
-        await adapter.close();
       } catch {
-        // 忽略关闭错误
+        // 忽略错误
       }
+    }
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    try {
+      await closeDatabase();
+    } catch {
+      // 忽略关闭错误
     }
   });
 

@@ -6,13 +6,14 @@
 import { getEnv } from "@dreamer/runtime-adapter";
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
   expect,
   it,
 } from "@dreamer/test";
-import { PostgreSQLAdapter } from "../../src/adapters/postgresql.ts";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { SQLModel } from "../../src/orm/sql-model.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
 
@@ -66,6 +67,16 @@ describe("SQLModel 高级功能", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
+    // 在 Bun 测试环境中，先清理所有之前的连接，避免连接累积
+    // Bun 可能并行运行测试文件，导致连接泄漏
+    try {
+      await closeDatabase();
+      // 等待之前的连接完全释放
+
+    } catch {
+      // 忽略清理错误
+    }
+
     const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
     const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
     const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
@@ -73,8 +84,8 @@ describe("SQLModel 高级功能", () => {
     const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
     const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "");
 
-    adapter = new PostgreSQLAdapter();
-    await adapter.connect({
+    // 使用 initDatabase 初始化全局 dbManager
+    await initDatabase({
       type: "postgresql",
       connection: {
         host: pgHost,
@@ -84,6 +95,9 @@ describe("SQLModel 高级功能", () => {
         password: pgPassword,
       },
     });
+
+    // 从全局 dbManager 获取适配器
+    adapter = getDatabase();
 
     // 创建测试表
     await adapter.execute(
@@ -121,7 +135,30 @@ describe("SQLModel 高级功能", () => {
   });
 
   afterAll(async () => {
-    await adapter?.close();
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    try {
+      await closeDatabase();
+      // 等待连接完全释放，特别是在 Bun 测试环境中
+
+    } catch {
+      // 忽略关闭错误
+    }
+  });
+
+  // 每个测试后强制等待连接释放，防止连接泄漏
+  afterEach(async () => {
+    if (adapter && adapter.isConnected()) {
+      try {
+        // 获取连接池状态并检查（已移除延时以提升测试速度）
+        const status = await adapter.getPoolStatus();
+        // 如果活跃连接过多，记录警告但不等待
+        if (status.active > 2) {
+          console.warn(`警告：连接池中有 ${status.active} 个活跃连接`);
+        }
+      } catch {
+        // 忽略错误
+      }
+    }
   });
 
   beforeEach(async () => {

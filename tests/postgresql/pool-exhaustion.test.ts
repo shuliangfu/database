@@ -5,7 +5,8 @@
 
 import { getEnv } from "@dreamer/runtime-adapter";
 import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
-import { PostgreSQLAdapter } from "../../src/adapters/postgresql.ts";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
+import type { DatabaseAdapter } from "../../src/types.ts";
 
 /**
  * 获取环境变量，带默认值
@@ -15,7 +16,7 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
 }
 
 describe("连接池耗尽测试", () => {
-  let adapter: PostgreSQLAdapter;
+  let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
     const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
@@ -25,8 +26,8 @@ describe("连接池耗尽测试", () => {
     const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
     const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "");
 
-    adapter = new PostgreSQLAdapter();
-    await adapter.connect({
+    // 使用 initDatabase 初始化全局 dbManager
+    await initDatabase({
       type: "postgresql",
       connection: {
         host: pgHost,
@@ -40,10 +41,14 @@ describe("连接池耗尽测试", () => {
         max: 2, // 设置较小的最大连接数以便测试
       },
     });
+
+    // 从全局 dbManager 获取适配器
+    adapter = getDatabase();
   });
 
   afterAll(async () => {
-    await adapter?.close();
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    await closeDatabase();
   });
 
   it("应该在连接池耗尽时正确处理并发请求", async () => {

@@ -4,6 +4,7 @@
  * @module
  */
 
+import { createLogger } from "@dreamer/logger";
 import { type ClientSession, type Db, MongoClient } from "mongodb";
 import {
   createConnectionError,
@@ -26,6 +27,11 @@ import {
 export class MongoDBAdapter extends BaseAdapter {
   protected client: MongoClient | null = null;
   protected db: Db | null = null;
+  private logger = createLogger({
+    level: "warn",
+    format: "text",
+    tags: ["database", "mongodb"],
+  });
 
   /**
    * 连接 MongoDB 数据库
@@ -491,7 +497,7 @@ export class MongoDBAdapter extends BaseAdapter {
   /**
    * 获取数据库实例（用于直接操作 MongoDB）
    */
-  getDatabase(): Db | null {
+  override getDatabase(): Db | null {
     return this.db;
   }
 
@@ -608,7 +614,9 @@ export class MongoDBAdapter extends BaseAdapter {
       } catch (error) {
         // 关闭失败或超时，忽略错误（状态已清理）
         const message = error instanceof Error ? error.message : String(error);
-        console.warn(`MongoDB 关闭连接时出错（已忽略）: ${message}`);
+        this.logger.warn(`MongoDB 关闭连接时出错（已忽略）: ${message}`, {
+          error: message,
+        });
       }
     }
   }

@@ -5,7 +5,9 @@
 
 import { getEnv } from "@dreamer/runtime-adapter";
 import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { MongoDBAdapter } from "../../src/adapters/mongodb.ts";
+import type { DatabaseAdapter } from "../../src/types.ts";
 
 /**
  * 获取环境变量，带默认值
@@ -45,14 +47,17 @@ function createMongoConfig() {
 }
 
 describe("资源泄漏测试", () => {
-  let adapter: MongoDBAdapter;
+  let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    adapter = new MongoDBAdapter();
     const config = createMongoConfig();
 
     try {
-      await adapter.connect(config);
+      // 使用 initDatabase 初始化全局 dbManager
+      await initDatabase(config);
+
+      // 从全局 dbManager 获取适配器
+      adapter = getDatabase();
     } catch (error) {
       console.warn(
         `MongoDB not available, skipping tests: ${
@@ -64,7 +69,8 @@ describe("资源泄漏测试", () => {
   });
 
   afterAll(async () => {
-    await adapter?.close();
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    await closeDatabase();
   });
 
   it("应该在关闭连接后释放所有资源", async () => {
@@ -80,7 +86,7 @@ describe("资源泄漏测试", () => {
     await testAdapter.connect(config);
 
     // 执行一些操作
-    await testAdapter.query("test_collection", {});
+    await testAdapter.query("resource_leak_test_collection", {});
 
     // 关闭连接
     await testAdapter.close();
@@ -109,11 +115,11 @@ describe("资源泄漏测试", () => {
 
     // 执行事务
     await adapter.transaction(async (db) => {
-      await db.query("test_collection", {});
+      await db.query("resource_leak_test_collection", {});
     });
 
     // 等待一小段时间让连接释放
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    
 
     const statusAfter = await adapter.getPoolStatus();
 
@@ -129,7 +135,7 @@ describe("资源泄漏测试", () => {
 
     // 执行多次查询
     for (let i = 0; i < 10; i++) {
-      await adapter.query("test_collection", {});
+      await adapter.query("resource_leak_test_collection", {});
     }
 
     const status = await adapter.getPoolStatus();

@@ -11,7 +11,7 @@ import {
   expect,
   it,
 } from "@dreamer/test";
-import { PostgreSQLAdapter } from "../../src/adapters/postgresql.ts";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
 
 /**
@@ -32,8 +32,8 @@ describe("PostgreSQL 长时间运行集成测试", () => {
     const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
     const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "");
 
-    adapter = new PostgreSQLAdapter();
-    await adapter.connect({
+    // 使用 initDatabase 初始化全局 dbManager
+    await initDatabase({
       type: "postgresql",
       connection: {
         host: pgHost,
@@ -47,6 +47,9 @@ describe("PostgreSQL 长时间运行集成测试", () => {
         max: 5,
       },
     });
+
+    // 从全局 dbManager 获取适配器
+    adapter = getDatabase();
 
     // 创建测试表
     await adapter.execute(
@@ -63,7 +66,8 @@ describe("PostgreSQL 长时间运行集成测试", () => {
   });
 
   afterAll(async () => {
-    await adapter?.close();
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    await closeDatabase();
   });
 
   it("应该在长时间运行后连接仍然正常", async () => {
@@ -87,7 +91,7 @@ describe("PostgreSQL 长时间运行集成测试", () => {
       }
 
       // 添加小延迟，模拟真实场景
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      
     }
 
     // 最终验证

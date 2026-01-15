@@ -11,6 +11,7 @@ import {
   expect,
   it,
 } from "@dreamer/test";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { MongoDBAdapter } from "../../src/adapters/mongodb.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
 
@@ -55,10 +56,13 @@ describe("MongoDB 故障恢复集成测试", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    adapter = new MongoDBAdapter();
     const config = createMongoConfig();
 
-    await adapter.connect(config);
+    // 使用 initDatabase 初始化全局 dbManager
+    await initDatabase(config);
+
+    // 从全局 dbManager 获取适配器
+    adapter = getDatabase();
   });
 
   afterAll(async () => {
@@ -69,10 +73,15 @@ describe("MongoDB 故障恢复集成测试", () => {
         if (db) {
           await db.collection("fault_recovery_test").deleteMany({});
         }
-        await adapter.close();
       } catch {
         // 忽略错误
       }
+    }
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    try {
+      await closeDatabase();
+    } catch {
+      // 忽略关闭错误
     }
   });
 
@@ -94,7 +103,7 @@ describe("MongoDB 故障恢复集成测试", () => {
 
     // 验证可以正常查询
     const results = await adapter.query("find", {
-      collection: "fault_recovery_test",
+      collection: "fault_recovery_fault_recovery_test",
       filter: {},
       options: { limit: 1 },
     });
@@ -124,7 +133,7 @@ describe("MongoDB 故障恢复集成测试", () => {
 
     // 验证可以继续执行正常查询
     const results = await adapter.query("find", {
-      collection: "fault_recovery_test",
+      collection: "fault_recovery_fault_recovery_test",
       filter: {},
       options: { limit: 1 },
     });
@@ -160,7 +169,7 @@ describe("MongoDB 故障恢复集成测试", () => {
 
     // 验证可以继续执行正常操作
     const results = await adapter.query("find", {
-      collection: "fault_recovery_test",
+      collection: "fault_recovery_fault_recovery_test",
       filter: {},
       options: { limit: 1 },
     });
@@ -193,7 +202,7 @@ describe("MongoDB 故障恢复集成测试", () => {
 
     // 验证可以继续执行正常查询
     const results = await adapter.query("find", {
-      collection: "fault_recovery_test",
+      collection: "fault_recovery_fault_recovery_test",
       filter: {},
       options: { limit: 1 },
     });

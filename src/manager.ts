@@ -156,13 +156,21 @@ export class DatabaseManager {
 
   /**
    * 关闭所有连接
+   * 确保所有连接完全关闭，避免连接泄漏
    */
   async closeAll(): Promise<void> {
-    // 并行关闭所有连接以提高效率
-    const closePromises = Array.from(this.adapters.values()).map((adapter) =>
-      adapter.close()
-    );
-    await Promise.allSettled(closePromises);
+    // 串行关闭所有连接，确保每个连接都完全关闭
+    // 并行关闭可能导致连接池竞争，导致连接泄漏
+    const adapters = Array.from(this.adapters.values());
+
+    for (let i = 0; i < adapters.length; i++) {
+      const adapter = adapters[i];
+      try {
+        await adapter.close();
+      } catch {
+        // 忽略关闭错误
+      }
+    }
     this.adapters.clear();
   }
 

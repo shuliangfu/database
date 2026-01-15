@@ -12,7 +12,9 @@ import {
   expect,
   it,
 } from "@dreamer/test";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { MongoDBAdapter } from "../../src/adapters/mongodb.ts";
+import type { DatabaseAdapter } from "../../src/types.ts";
 
 /**
  * 获取环境变量，带默认值
@@ -22,10 +24,9 @@ function getEnvWithDefault(key: string, defaultValue: string = ""): string {
 }
 
 describe("MongoDB 错误处理", () => {
-  let adapter: MongoDBAdapter;
+  let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    adapter = new MongoDBAdapter();
     const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
     const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
     const mongoDatabase = getEnvWithDefault(
@@ -39,7 +40,8 @@ describe("MongoDB 错误处理", () => {
     ) === "true";
 
     try {
-      await adapter.connect({
+      // 使用 initDatabase 初始化全局 dbManager
+      await initDatabase({
         type: "mongodb",
         connection: {
           host: mongoHost,
@@ -51,6 +53,9 @@ describe("MongoDB 错误处理", () => {
           directConnection: directConnection,
         },
       });
+
+      // 从全局 dbManager 获取适配器
+      adapter = getDatabase();
     } catch (error) {
       console.warn(
         `MongoDB not available, skipping tests: ${
@@ -62,12 +67,11 @@ describe("MongoDB 错误处理", () => {
   });
 
   afterAll(async () => {
-    if (adapter) {
-      try {
-        await adapter.close();
-      } catch {
-        // 忽略关闭错误
-      }
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    try {
+      await closeDatabase();
+    } catch {
+      // 忽略关闭错误
     }
   });
 
@@ -178,7 +182,7 @@ describe("MongoDB 错误处理", () => {
 
       await assertRejects(
         async () => {
-          await adapter.execute("invalidOperation", "test_collection", {});
+          await adapter.execute("invalidOperation", "error_handling_test_collection", {});
         },
         Error,
       );
@@ -199,7 +203,7 @@ describe("MongoDB 错误处理", () => {
 
       await assertRejects(
         async () => {
-          await adapter.execute("insert", "test_collection", undefined);
+          await adapter.execute("insert", "error_handling_test_collection", undefined);
         },
         Error,
       );
@@ -217,13 +221,13 @@ describe("MongoDB 错误处理", () => {
         return;
       }
 
-      const collection = db.collection("test_unique_error");
+      const collection = db.collection("error_handling_test_unique_error");
 
       // 创建唯一索引
       await collection.createIndex({ email: 1 }, { unique: true });
 
       // 插入第一个文档
-      await adapter.execute("insert", "test_unique_error", {
+      await adapter.execute("insert", "error_handling_test_unique_error", {
         name: "User 1",
         email: "unique@test.com",
       });
@@ -231,7 +235,7 @@ describe("MongoDB 错误处理", () => {
       // 尝试插入重复的 email
       await assertRejects(
         async () => {
-          await adapter.execute("insert", "test_unique_error", {
+          await adapter.execute("insert", "error_handling_test_unique_error", {
             name: "User 2",
             email: "unique@test.com",
           });
@@ -254,7 +258,7 @@ describe("MongoDB 错误处理", () => {
       await assertRejects(
         async () => {
           await adapter.transaction(async (db) => {
-            await db.execute("insert", "test_tx_error", {
+            await db.execute("insert", "error_handling_test_tx_error", {
               name: "TX User",
             });
             // 故意抛出错误

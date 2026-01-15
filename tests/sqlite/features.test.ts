@@ -11,28 +11,32 @@ import {
   expect,
   it,
 } from "@dreamer/test";
+import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { SQLiteAdapter } from "../../src/adapters/sqlite.ts";
+import type { DatabaseAdapter } from "../../src/types.ts";
 
 describe("SQLite 特有功能", () => {
-  let adapter: SQLiteAdapter;
+  let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    adapter = new SQLiteAdapter();
-    await adapter.connect({
+    // 使用 initDatabase 初始化全局 dbManager
+    await initDatabase({
       type: "sqlite",
       connection: {
         filename: ":memory:",
       },
     });
+
+    // 从全局 dbManager 获取适配器
+    adapter = getDatabase();
   });
 
   afterAll(async () => {
-    if (adapter) {
-      try {
-        await adapter.close();
-      } catch {
-        // 忽略关闭错误
-      }
+    // 使用 closeDatabase 关闭全局 dbManager 管理的所有连接
+    try {
+      await closeDatabase();
+    } catch {
+      // 忽略关闭错误
     }
   });
 
@@ -86,7 +90,7 @@ describe("SQLite 特有功能", () => {
       );
 
       expect(results.length).toBeGreaterThan(0);
-      expect(results.some((r) => r.title.includes("Tutorial"))).toBe(true);
+      expect(results.some((r: any) => r.title.includes("Tutorial"))).toBe(true);
     }, { sanitizeOps: false, sanitizeResources: false });
 
     it("应该支持 FTS5 高级搜索", async () => {
@@ -375,6 +379,14 @@ describe("SQLite 特有功能", () => {
       }
 
       await adapter.execute("PRAGMA foreign_keys = ON", []);
+
+      // 先删除表（如果存在），避免表已存在的错误
+      try {
+        await adapter.execute("DROP TABLE IF EXISTS test_fk_child", []);
+        await adapter.execute("DROP TABLE IF EXISTS test_fk_parent", []);
+      } catch {
+        // 忽略删除错误
+      }
 
       await adapter.execute(
         `CREATE TABLE test_fk_parent (
