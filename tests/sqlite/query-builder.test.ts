@@ -24,7 +24,7 @@ describe("SQLQueryBuilder", () => {
 
     // 创建测试表（使用 SQLite 语法）
     await adapter.execute(
-      `CREATE TABLE IF NOT EXISTS users (
+      `CREATE TABLE IF NOT EXISTS sqlite_users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         email TEXT UNIQUE NOT NULL,
@@ -34,7 +34,7 @@ describe("SQLQueryBuilder", () => {
     );
 
     await adapter.execute(
-      `CREATE TABLE IF NOT EXISTS posts (
+      `CREATE TABLE IF NOT EXISTS sqlite_posts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
         title TEXT NOT NULL,
@@ -127,39 +127,39 @@ describe("SQLQueryBuilder", () => {
     it("应该添加 INNER JOIN", () => {
       const builder = new SQLQueryBuilder(adapter);
       builder
-        .select(["users.name", "posts.title"])
+        .select(["sqlite_users.name", "sqlite_posts.title"])
         .from("sqlite_users")
-        .join("posts", "users.id = posts.user_id");
+        .join("sqlite_posts", "sqlite_users.id = sqlite_posts.user_id");
 
-      expect(builder.toSQL()).toContain("INNER JOIN posts");
-      expect(builder.toSQL()).toContain("ON users.id = posts.user_id");
+      expect(builder.toSQL()).toContain("INNER JOIN sqlite_posts");
+      expect(builder.toSQL()).toContain("ON sqlite_users.id = sqlite_posts.user_id");
     });
 
     it("应该添加 LEFT JOIN", () => {
       const builder = new SQLQueryBuilder(adapter);
       builder
-        .select(["users.name", "posts.title"])
+        .select(["sqlite_users.name", "sqlite_posts.title"])
         .from("sqlite_users")
-        .leftJoin("posts", "users.id = posts.user_id");
+        .leftJoin("sqlite_posts", "sqlite_users.id = sqlite_posts.user_id");
 
-      expect(builder.toSQL()).toContain("LEFT JOIN posts");
+      expect(builder.toSQL()).toContain("LEFT JOIN sqlite_posts");
     });
 
     it("应该添加 RIGHT JOIN", () => {
       const builder = new SQLQueryBuilder(adapter);
       builder
-        .select(["users.name", "posts.title"])
+        .select(["sqlite_users.name", "sqlite_posts.title"])
         .from("sqlite_users")
-        .rightJoin("posts", "users.id = posts.user_id");
+        .rightJoin("sqlite_posts", "sqlite_users.id = sqlite_posts.user_id");
 
-      expect(builder.toSQL()).toContain("RIGHT JOIN posts");
+      expect(builder.toSQL()).toContain("RIGHT JOIN sqlite_posts");
     });
   });
 
   describe("orderBy", () => {
     it("应该添加 ORDER BY 子句", () => {
       const builder = new SQLQueryBuilder(adapter);
-      builder.select(["*"]).from("users").orderBy("age", "DESC");
+      builder.select(["*"]).from("sqlite_users").orderBy("age", "DESC");
 
       expect(builder.toSQL()).toContain("ORDER BY age DESC");
     });
@@ -180,14 +180,14 @@ describe("SQLQueryBuilder", () => {
   describe("limit 和 offset", () => {
     it("应该添加 LIMIT 子句", () => {
       const builder = new SQLQueryBuilder(adapter);
-      builder.select(["*"]).from("users").limit(10);
+      builder.select(["*"]).from("sqlite_users").limit(10);
 
       expect(builder.toSQL()).toContain("LIMIT 10");
     });
 
     it("应该添加 OFFSET 子句", () => {
       const builder = new SQLQueryBuilder(adapter);
-      builder.select(["*"]).from("users").limit(10).offset(5);
+      builder.select(["*"]).from("sqlite_users").limit(10).offset(5);
 
       expect(builder.toSQL()).toContain("LIMIT 10");
       expect(builder.toSQL()).toContain("OFFSET 5");
@@ -197,7 +197,7 @@ describe("SQLQueryBuilder", () => {
   describe("insert", () => {
     it("应该构建 INSERT 语句", () => {
       const builder = new SQLQueryBuilder(adapter);
-      builder.insert("users", {
+      builder.insert("sqlite_users", {
         name: "David",
         email: "david@example.com",
         age: 28,
@@ -228,7 +228,7 @@ describe("SQLQueryBuilder", () => {
   describe("delete", () => {
     it("应该构建 DELETE 语句", () => {
       const builder = new SQLQueryBuilder(adapter);
-      builder.delete("users").where("id = ?", [1]);
+      builder.delete("sqlite_users").where("id = ?", [1]);
 
       expect(builder.toSQL()).toContain("DELETE FROM sqlite_users");
       expect(builder.toSQL()).toContain("WHERE id = ?");
@@ -278,7 +278,7 @@ describe("SQLQueryBuilder", () => {
     it("应该执行 INSERT 操作", async () => {
       const builder = new SQLQueryBuilder(adapter);
       const result = await builder
-        .insert("users", {
+        .insert("sqlite_users", {
           name: "Test User",
           email: "test@example.com",
           age: 25,
@@ -319,7 +319,7 @@ describe("SQLQueryBuilder", () => {
 
       const builder = new SQLQueryBuilder(adapter);
       await builder
-        .delete("users")
+        .delete("sqlite_users")
         .where("email = ?", ["delete@example.com"])
         .executeUpdate();
 
@@ -344,7 +344,7 @@ describe("SQLQueryBuilder", () => {
 
       const sql = builder.toSQL();
       expect(sql).toContain("SELECT id, name");
-      expect(sql).toContain("FROM users");
+      expect(sql).toContain("FROM sqlite_users");
       expect(sql).toContain("WHERE age > ?");
       expect(sql).toContain("ORDER BY name ASC");
       expect(sql).toContain("LIMIT 10");

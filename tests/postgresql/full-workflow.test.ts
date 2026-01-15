@@ -34,7 +34,7 @@ describe("PostgreSQL 完整工作流程集成测试", () => {
     try {
       await closeDatabase();
       // 等待之前的连接完全释放
-      
+
     } catch {
       // 忽略清理错误
     }
@@ -85,19 +85,19 @@ describe("PostgreSQL 完整工作流程集成测试", () => {
   afterAll(async () => {
     await closeDatabase();
     // 等待连接完全释放，特别是在 Bun 测试环境中
-    
+
   });
 
   // 每个测试后强制等待连接释放，防止连接泄漏
   afterEach(async () => {
     try {
       // 等待连接池释放空闲连接
-      
+
       if (adapter && adapter.isConnected()) {
         const status = await adapter.getPoolStatus();
         // 如果活跃连接过多，等待更长时间
         if (status.active > 2) {
-          
+
         }
       }
     } catch {
