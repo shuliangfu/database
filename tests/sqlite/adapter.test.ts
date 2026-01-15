@@ -702,7 +702,7 @@ describe("SQLiteAdapter", () => {
       });
 
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_users (
+        `CREATE TABLE IF NOT EXISTS sqlite_test_users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           email TEXT,
@@ -736,7 +736,7 @@ describe("SQLiteAdapter", () => {
       });
 
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_users (
+        `CREATE TABLE IF NOT EXISTS sqlite_test_users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           email TEXT,
@@ -827,7 +827,7 @@ describe("SQLiteAdapter", () => {
       });
 
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_users (
+        `CREATE TABLE IF NOT EXISTS sqlite_test_users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           email TEXT,
@@ -869,7 +869,7 @@ describe("SQLiteAdapter", () => {
       });
 
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_users (
+        `CREATE TABLE IF NOT EXISTS sqlite_test_users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           email TEXT,
@@ -915,7 +915,7 @@ describe("SQLiteAdapter", () => {
       });
 
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_users (
+        `CREATE TABLE IF NOT EXISTS sqlite_test_users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           email TEXT,
@@ -944,7 +944,7 @@ describe("SQLiteAdapter", () => {
       });
 
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_users (
+        `CREATE TABLE IF NOT EXISTS sqlite_test_users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           email TEXT,
@@ -1000,7 +1000,7 @@ describe("SQLiteAdapter", () => {
       });
 
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_users (
+        `CREATE TABLE IF NOT EXISTS sqlite_test_users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           email TEXT,
@@ -1058,7 +1058,7 @@ describe("SQLiteAdapter", () => {
       });
 
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_users (
+        `CREATE TABLE IF NOT EXISTS sqlite_test_users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           email TEXT,
@@ -1106,7 +1106,7 @@ describe("SQLiteAdapter", () => {
       });
 
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_users (
+        `CREATE TABLE IF NOT EXISTS sqlite_test_users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           email TEXT,
@@ -1141,7 +1141,7 @@ describe("SQLiteAdapter", () => {
       });
 
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_users (
+        `CREATE TABLE IF NOT EXISTS sqlite_test_users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           email TEXT,
@@ -1176,7 +1176,7 @@ describe("SQLiteAdapter", () => {
       });
 
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_users (
+        `CREATE TABLE IF NOT EXISTS sqlite_test_users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           email TEXT,
@@ -1224,7 +1224,7 @@ describe("SQLiteAdapter", () => {
       });
 
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_users (
+        `CREATE TABLE IF NOT EXISTS sqlite_test_users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           email TEXT,
@@ -1269,7 +1269,7 @@ describe("SQLiteAdapter", () => {
       });
 
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_users (
+        `CREATE TABLE IF NOT EXISTS sqlite_test_users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           email TEXT,
@@ -1320,7 +1320,7 @@ describe("SQLiteAdapter", () => {
       });
 
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_users (
+        `CREATE TABLE IF NOT EXISTS sqlite_test_users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           email TEXT,
@@ -1390,7 +1390,7 @@ describe("SQLiteAdapter", () => {
       });
 
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_users (
+        `CREATE TABLE IF NOT EXISTS sqlite_test_users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           email TEXT,
@@ -1423,7 +1423,7 @@ describe("SQLiteAdapter", () => {
       });
 
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_users (
+        `CREATE TABLE IF NOT EXISTS sqlite_test_users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           email TEXT,
@@ -1456,7 +1456,7 @@ describe("SQLiteAdapter", () => {
       });
 
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_users (
+        `CREATE TABLE IF NOT EXISTS sqlite_test_users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           email TEXT,
@@ -1537,7 +1537,7 @@ describe("SQLiteAdapter", () => {
       });
 
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_users (
+        `CREATE TABLE IF NOT EXISTS sqlite_test_users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           email TEXT,
@@ -1577,7 +1577,7 @@ describe("SQLiteAdapter", () => {
       });
 
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_users (
+        `CREATE TABLE IF NOT EXISTS sqlite_test_users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           email TEXT,
@@ -1641,7 +1641,7 @@ describe("SQLiteAdapter", () => {
       });
 
       await adapter.execute(
-        `CREATE TABLE IF NOT EXISTS test_users (
+        `CREATE TABLE IF NOT EXISTS sqlite_test_users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           email TEXT,
