@@ -194,7 +194,7 @@ describe("MySQL/MariaDB 性能测试", () => {
 
       expect(parseInt(count[0].count)).toBeGreaterThanOrEqual(batchSize);
       expect(duration).toBeLessThan(10000); // 应该在10秒内完成
-    }, { sanitizeOps: false, sanitizeResources: false });
+    }, { sanitizeOps: false, sanitizeResources: false, timeout: 10000 });
 
     it("应该能够处理大量数据的查询", async () => {
       if (!adapter) {
@@ -221,7 +221,7 @@ describe("MySQL/MariaDB 性能测试", () => {
 
       expect(results.length).toBe(999);
       expect(duration).toBeLessThan(2000); // 应该在2秒内完成
-    }, { sanitizeOps: false, sanitizeResources: false });
+    }, { sanitizeOps: false, sanitizeResources: false, timeout: 10000 });
   });
 }, {
   sanitizeOps: false,

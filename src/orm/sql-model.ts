@@ -276,6 +276,37 @@ export class ValidationError extends Error {
 /**
  * SQL 查找查询构建器类型（用于打破循环引用）
  */
+/**
+ * SQL 数组查询构建器类型（返回纯 JSON 对象）
+ */
+export type SQLArrayQueryBuilder<T extends typeof SQLModel> = {
+  sort: (
+    sort: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc",
+  ) => SQLArrayQueryBuilder<T>;
+  skip: (n: number) => SQLArrayQueryBuilder<T>;
+  limit: (n: number) => SQLArrayQueryBuilder<T>;
+  fields: (fields: string[]) => SQLArrayQueryBuilder<T>;
+  includeTrashed: () => SQLArrayQueryBuilder<T>;
+  onlyTrashed: () => SQLArrayQueryBuilder<T>;
+  findAll: () => Promise<Record<string, any>[]>;
+  findOne: () => Promise<Record<string, any> | null>;
+  one: () => Promise<Record<string, any> | null>;
+  all: () => Promise<Record<string, any>[]>;
+  count: () => Promise<number>;
+  exists: () => Promise<boolean>;
+  distinct: (field: string) => Promise<any[]>;
+  paginate: (
+    page: number,
+    pageSize: number,
+  ) => Promise<{
+    data: Record<string, any>[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }>;
+};
+
 export type SQLFindQueryBuilder<T extends typeof SQLModel> = {
   sort: (
     sort: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc",
@@ -289,6 +320,7 @@ export type SQLFindQueryBuilder<T extends typeof SQLModel> = {
   findOne: () => Promise<InstanceType<T> | null>;
   one: () => Promise<InstanceType<T> | null>;
   all: () => Promise<InstanceType<T>[]>;
+  asArray: () => SQLArrayQueryBuilder<T>;
   count: () => Promise<number>;
   exists: () => Promise<boolean>;
   distinct: (field: string) => Promise<any[]>;
@@ -335,6 +367,7 @@ export type SQLQueryBuilder<T extends typeof SQLModel> = {
   findOne: () => Promise<InstanceType<T> | null>;
   one: () => Promise<InstanceType<T> | null>;
   all: () => Promise<InstanceType<T>[]>;
+  asArray: () => SQLArrayQueryBuilder<T>;
   findById: (
     id: number | string,
     fields?: string[],
@@ -2447,6 +2480,213 @@ export abstract class SQLModel {
   }
 
   /**
+   * 创建数组查询构建器（返回纯 JSON 对象）
+   * 私有辅助方法，用于消除代码重复
+   * @param getState 获取查询状态的函数（通过闭包访问局部变量）
+   * @returns 数组查询构建器
+   */
+  private static createArrayQueryBuilder<T extends typeof SQLModel>(
+    this: T,
+    getState: () => {
+      _condition: WhereCondition | number | string;
+      _fields: string[] | undefined;
+      _sort:
+        | Record<string, 1 | -1 | "asc" | "desc">
+        | "asc"
+        | "desc"
+        | undefined;
+      _skip: number | undefined;
+      _limit: number | undefined;
+      _includeTrashed: boolean;
+      _onlyTrashed: boolean;
+    },
+  ): SQLArrayQueryBuilder<T> {
+    const arrayBuilder: SQLArrayQueryBuilder<T> = {
+      sort: (
+        sort: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc",
+      ) => {
+        const state = getState();
+        state._sort = sort;
+        return arrayBuilder;
+      },
+      skip: (n: number) => {
+        const state = getState();
+        state._skip = Math.max(0, Math.floor(n));
+        return arrayBuilder;
+      },
+      limit: (n: number) => {
+        const state = getState();
+        state._limit = Math.max(1, Math.floor(n));
+        return arrayBuilder;
+      },
+      fields: (fields: string[]) => {
+        const state = getState();
+        state._fields = fields;
+        return arrayBuilder;
+      },
+      includeTrashed: () => {
+        const state = getState();
+        state._includeTrashed = true;
+        state._onlyTrashed = false;
+        return arrayBuilder;
+      },
+      onlyTrashed: () => {
+        const state = getState();
+        state._onlyTrashed = true;
+        state._includeTrashed = false;
+        return arrayBuilder;
+      },
+      findAll: async (): Promise<Record<string, any>[]> => {
+        await this.ensureAdapter();
+        const state = getState();
+        const { where, params } = this.buildWhereClause(
+          state._condition,
+          state._includeTrashed,
+          state._onlyTrashed,
+        );
+        const adapter = (this as any).adapter as
+          | DatabaseAdapter
+          | null
+          | undefined;
+        const columns = state._fields && state._fields.length > 0
+          ? state._fields.map((f) =>
+            SQLModel.escapeFieldName.call(this, f, adapter)
+          )
+            .join(", ")
+          : "*";
+        const orderBy = this.buildOrderByClause(state._sort);
+        const useLimit = typeof state._limit === "number";
+        const useSkip = typeof state._skip === "number";
+        let sql = `SELECT ${columns} FROM ${this.tableName} WHERE ${where}`;
+        if (orderBy) {
+          sql = `${sql} ORDER BY ${orderBy}`;
+        }
+        const extraParams: any[] = [];
+        if (useLimit) {
+          sql = `${sql} LIMIT ?`;
+          extraParams.push(Math.max(1, Math.floor(state._limit!)));
+        }
+        if (useLimit && useSkip) {
+          sql = `${sql} OFFSET ?`;
+          extraParams.push(Math.max(0, Math.floor(state._skip!)));
+        }
+        // ensureAdapter() 已确保 adapter 不为 null
+        const results = await this.adapter.query(sql, [
+          ...params,
+          ...extraParams,
+        ]);
+        // 返回纯 JSON 对象数组，不创建模型实例
+        // 使用展开运算符创建新对象，移除原型链，性能优于 JSON.parse(JSON.stringify())
+        return results.map((row: any) => ({ ...row }));
+      },
+      findOne: async (): Promise<Record<string, any> | null> => {
+        await this.ensureAdapter();
+        const state = getState();
+        const { where, params } = this.buildWhereClause(
+          state._condition,
+          state._includeTrashed,
+          state._onlyTrashed,
+        );
+        const adapter = (this as any).adapter as
+          | DatabaseAdapter
+          | null
+          | undefined;
+        const columns = state._fields && state._fields.length > 0
+          ? state._fields.map((f) =>
+            SQLModel.escapeFieldName.call(this, f, adapter)
+          )
+            .join(", ")
+          : "*";
+        const orderBy = this.buildOrderByClause(state._sort);
+        let sql = `SELECT ${columns} FROM ${this.tableName} WHERE ${where}`;
+        if (orderBy) {
+          sql = `${sql} ORDER BY ${orderBy}`;
+        }
+        sql = `${sql} LIMIT 1`;
+        // ensureAdapter() 已确保 adapter 不为 null
+        const results = await this.adapter.query(sql, params);
+        if (results.length === 0) {
+          return null;
+        }
+        // 返回纯 JSON 对象，不创建模型实例
+        // 使用展开运算符创建新对象，移除原型链，性能优于 JSON.parse(JSON.stringify())
+        return { ...results[0] };
+      },
+      one: async (): Promise<Record<string, any> | null> => {
+        return await arrayBuilder.findOne();
+      },
+      all: async (): Promise<Record<string, any>[]> => {
+        return await arrayBuilder.findAll();
+      },
+      count: async (): Promise<number> => {
+        await this.ensureAdapter();
+        const state = getState();
+        const { where, params } = this.buildWhereClause(
+          state._condition,
+          state._includeTrashed,
+          state._onlyTrashed,
+        );
+        const sql =
+          `SELECT COUNT(*) as count FROM ${this.tableName} WHERE ${where}`;
+        // ensureAdapter() 已确保 adapter 不为 null
+        const results = await this.adapter.query(sql, params);
+        return results.length > 0 ? (parseInt(results[0].count) || 0) : 0;
+      },
+      exists: async (): Promise<boolean> => {
+        await this.ensureAdapter();
+        const state = getState();
+        return await this.exists(
+          state._condition,
+          state._includeTrashed,
+          state._onlyTrashed,
+        );
+      },
+      distinct: async (field: string): Promise<any[]> => {
+        const state = getState();
+        const cond = typeof state._condition === "number" ||
+            typeof state._condition === "string"
+          ? { [this.primaryKey]: state._condition }
+          : (state._condition as any);
+        return await this.distinct(
+          field,
+          cond,
+          state._includeTrashed,
+          state._onlyTrashed,
+        );
+      },
+      paginate: async (
+        page: number,
+        pageSize: number,
+      ): Promise<{
+        data: Record<string, any>[];
+        total: number;
+        page: number;
+        pageSize: number;
+        totalPages: number;
+      }> => {
+        const state = getState();
+        // 使用链式查询构建器中已有的条件、排序、字段等设置
+        const paginateResult = await this.paginate(
+          state._condition as any,
+          page,
+          pageSize,
+          state._sort || { [this.primaryKey]: -1 },
+          state._fields,
+          state._includeTrashed,
+          state._onlyTrashed,
+        );
+        // 将数据转换为纯 JSON 对象数组
+        // 使用展开运算符创建新对象，移除原型链，性能优于 JSON.parse(JSON.stringify())
+        return {
+          ...paginateResult,
+          data: paginateResult.data.map((item: any) => ({ ...item })),
+        };
+      },
+    };
+    return arrayBuilder;
+  }
+
+  /**
    * 查询构建器（支持链式调用，可查找单条或多条记录）
    * @param condition 查询条件（可以是 ID、条件对象）
    * @param fields 要查询的字段数组（可选，用于字段投影）
@@ -2474,18 +2714,20 @@ export abstract class SQLModel {
       sort?: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc";
     },
   ): SQLFindQueryBuilder<T> {
-    // 创建查询构建器状态
-    const _condition: WhereCondition | number | string = condition;
-    let _fields: string[] | undefined = fields;
-    let _sort:
-      | Record<string, 1 | -1 | "asc" | "desc">
-      | "asc"
-      | "desc"
-      | undefined = options?.sort;
-    let _skip: number | undefined;
-    let _limit: number | undefined;
-    let _includeTrashed = includeTrashed;
-    let _onlyTrashed = onlyTrashed;
+    // 创建共享状态对象，确保 asArray() 中的修改能够持久化
+    const state = {
+      _condition: condition as WhereCondition | number | string,
+      _fields: fields,
+      _sort: options?.sort as
+        | Record<string, 1 | -1 | "asc" | "desc">
+        | "asc"
+        | "desc"
+        | undefined,
+      _skip: undefined as number | undefined,
+      _limit: undefined as number | undefined,
+      _includeTrashed: includeTrashed,
+      _onlyTrashed: onlyTrashed,
+    };
 
     // 执行查询单条记录的函数
     const executeFindOne = async (): Promise<InstanceType<T> | null> => {
@@ -2494,11 +2736,11 @@ export abstract class SQLModel {
 
       // 生成缓存键（条件生成：只在有缓存适配器时才生成）
       const cacheKey = this.generateCacheKey(
-        _condition,
-        _fields,
-        { sort: _sort, skip: _skip, limit: _limit },
-        _includeTrashed,
-        _onlyTrashed,
+        state._condition,
+        state._fields,
+        { sort: state._sort, skip: state._skip, limit: state._limit },
+        state._includeTrashed,
+        state._onlyTrashed,
       );
 
       // 尝试从缓存获取
@@ -2515,33 +2757,35 @@ export abstract class SQLModel {
       }
 
       const { where, params } = this.buildWhereClause(
-        _condition,
-        _includeTrashed,
-        _onlyTrashed,
+        state._condition,
+        state._includeTrashed,
+        state._onlyTrashed,
       );
       const adapter = (this as any).adapter as
         | DatabaseAdapter
         | null
         | undefined;
-      const columns = _fields && _fields.length > 0
-        ? _fields.map((f) => SQLModel.escapeFieldName.call(this, f, adapter))
+      const columns = state._fields && state._fields.length > 0
+        ? state._fields.map((f) =>
+          SQLModel.escapeFieldName.call(this, f, adapter)
+        )
           .join(", ")
         : "*";
-      const orderBy = this.buildOrderByClause(_sort);
+      const orderBy = this.buildOrderByClause(state._sort);
       let sql = `SELECT ${columns} FROM ${this.tableName} WHERE ${where}`;
       if (orderBy) {
         sql = `${sql} ORDER BY ${orderBy}`;
       }
       const extraParams: any[] = [];
-      if (typeof _limit === "number") {
+      if (typeof state._limit === "number") {
         sql = `${sql} LIMIT ?`;
-        extraParams.push(Math.max(1, Math.floor(_limit)));
+        extraParams.push(Math.max(1, Math.floor(state._limit)));
       } else {
         sql = `${sql} LIMIT 1`;
       }
-      if (typeof _limit === "number" && typeof _skip === "number") {
+      if (typeof state._limit === "number" && typeof state._skip === "number") {
         sql = `${sql} OFFSET ?`;
-        extraParams.push(Math.max(0, Math.floor(_skip)));
+        extraParams.push(Math.max(0, Math.floor(state._skip)));
       }
       // ensureAdapter() 已确保 adapter 不为 null
       const results = await this.adapter.query(sql, [
@@ -2581,11 +2825,11 @@ export abstract class SQLModel {
 
       // 生成缓存键（条件生成：只在有缓存适配器时才生成）
       const cacheKey = this.generateCacheKey(
-        _condition,
-        _fields,
-        { sort: _sort, skip: _skip, limit: _limit },
-        _includeTrashed,
-        _onlyTrashed,
+        state._condition,
+        state._fields,
+        { sort: state._sort, skip: state._skip, limit: state._limit },
+        state._includeTrashed,
+        state._onlyTrashed,
       );
 
       // 尝试从缓存获取
@@ -2604,21 +2848,23 @@ export abstract class SQLModel {
       }
 
       const { where, params } = this.buildWhereClause(
-        _condition,
-        _includeTrashed,
-        _onlyTrashed,
+        state._condition,
+        state._includeTrashed,
+        state._onlyTrashed,
       );
       const adapter = (this as any).adapter as
         | DatabaseAdapter
         | null
         | undefined;
-      const columns = _fields && _fields.length > 0
-        ? _fields.map((f) => SQLModel.escapeFieldName.call(this, f, adapter))
+      const columns = state._fields && state._fields.length > 0
+        ? state._fields.map((f) =>
+          SQLModel.escapeFieldName.call(this, f, adapter)
+        )
           .join(", ")
         : "*";
-      const orderBy = this.buildOrderByClause(_sort);
-      const useLimit = typeof _limit === "number";
-      const useSkip = typeof _skip === "number";
+      const orderBy = this.buildOrderByClause(state._sort);
+      const useLimit = typeof state._limit === "number";
+      const useSkip = typeof state._skip === "number";
       let sql = `SELECT ${columns} FROM ${this.tableName} WHERE ${where}`;
       if (orderBy) {
         sql = `${sql} ORDER BY ${orderBy}`;
@@ -2626,11 +2872,11 @@ export abstract class SQLModel {
       const extraParams: any[] = [];
       if (useLimit) {
         sql = `${sql} LIMIT ?`;
-        extraParams.push(Math.max(1, Math.floor(_limit!)));
+        extraParams.push(Math.max(1, Math.floor(state._limit!)));
       }
       if (useLimit && useSkip) {
         sql = `${sql} OFFSET ?`;
-        extraParams.push(Math.max(0, Math.floor(_skip!)));
+        extraParams.push(Math.max(0, Math.floor(state._skip!)));
       }
       // ensureAdapter() 已确保 adapter 不为 null
       const results = await this.adapter.query(sql, [
@@ -2670,41 +2916,53 @@ export abstract class SQLModel {
       sort: (
         sort: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc",
       ) => {
-        _sort = sort;
+        state._sort = sort;
         return builder;
       },
       skip: (n: number) => {
-        _skip = Math.max(0, Math.floor(n));
+        state._skip = Math.max(0, Math.floor(n));
         return builder;
       },
       limit: (n: number) => {
-        _limit = Math.max(1, Math.floor(n));
+        state._limit = Math.max(1, Math.floor(n));
         return builder;
       },
       fields: (fields: string[]) => {
-        _fields = fields;
+        state._fields = fields;
         return builder;
       },
       includeTrashed: () => {
-        _includeTrashed = true;
-        _onlyTrashed = false;
+        state._includeTrashed = true;
+        state._onlyTrashed = false;
         return builder;
       },
       onlyTrashed: () => {
-        _onlyTrashed = true;
-        _includeTrashed = false;
+        state._onlyTrashed = true;
+        state._includeTrashed = false;
         return builder;
       },
       findAll: () => executeFindAll(),
       findOne: () => executeFindOne(),
       one: () => executeFindOne(),
       all: () => executeFindAll(),
+      /**
+       * 将查询结果转换为纯 JSON 对象数组格式
+       * 返回一个可以继续链式调用的构建器，最终返回纯 JSON 对象数组（不是模型实例）
+       * @returns 返回数组查询构建器
+       * @example
+       * const users = await User.find({ status: 'active' }).asArray().findAll();
+       * const user = await User.find(123).asArray().findOne(); // 返回纯 JSON 对象或 null
+       */
+      asArray: (): SQLArrayQueryBuilder<T> => {
+        // 返回共享状态对象的引用，确保 asArray() 中的修改能够持久化
+        return this.createArrayQueryBuilder(() => state);
+      },
       count: async (): Promise<number> => {
         await this.ensureAdapter();
         const { where, params } = this.buildWhereClause(
-          _condition,
-          _includeTrashed,
-          _onlyTrashed,
+          state._condition,
+          state._includeTrashed,
+          state._onlyTrashed,
         );
         const sql =
           `SELECT COUNT(*) as count FROM ${this.tableName} WHERE ${where}`;
@@ -2718,17 +2976,23 @@ export abstract class SQLModel {
       exists: async (): Promise<boolean> => {
         await this.ensureAdapter();
         return await this.exists(
-          _condition,
-          _includeTrashed,
-          _onlyTrashed,
+          state._condition,
+          state._includeTrashed,
+          state._onlyTrashed,
         );
       },
       distinct: async (field: string): Promise<any[]> => {
         const cond =
-          typeof _condition === "number" || typeof _condition === "string"
-            ? { [this.primaryKey]: _condition }
-            : (_condition as any);
-        return await this.distinct(field, cond, _includeTrashed, _onlyTrashed);
+          typeof state._condition === "number" ||
+            typeof state._condition === "string"
+            ? { [this.primaryKey]: state._condition }
+            : (state._condition as any);
+        return await this.distinct(
+          field,
+          cond,
+          state._includeTrashed,
+          state._onlyTrashed,
+        );
       },
       paginate: async (
         page: number,
@@ -2742,13 +3006,13 @@ export abstract class SQLModel {
       }> => {
         // 使用链式查询构建器中已有的条件、排序、字段等设置
         return await this.paginate(
-          _condition as any,
+          state._condition as any,
           page,
           pageSize,
-          _sort || { [this.primaryKey]: -1 },
-          _fields,
-          _includeTrashed,
-          _onlyTrashed,
+          state._sort || { [this.primaryKey]: -1 },
+          state._fields,
+          state._includeTrashed,
+          state._onlyTrashed,
         );
       },
       // Promise 接口方法（用于直接 await）
@@ -5072,64 +5336,67 @@ export abstract class SQLModel {
    * 链式查询构建器
    */
   static query<T extends typeof SQLModel>(this: T): SQLQueryBuilder<T> {
-    let _condition: WhereCondition | number | string = {};
-    let _fields: string[] | undefined;
-    let _sort:
-      | Record<string, 1 | -1 | "asc" | "desc">
-      | "asc"
-      | "desc"
-      | undefined;
-    let _skip: number | undefined;
-    let _limit: number | undefined;
-    let _includeTrashed = false;
-    let _onlyTrashed = false;
+    // 创建共享状态对象，确保 asArray() 中的修改能够持久化
+    const state = {
+      _condition: {} as WhereCondition | number | string,
+      _fields: undefined as string[] | undefined,
+      _sort: undefined as
+        | Record<string, 1 | -1 | "asc" | "desc">
+        | "asc"
+        | "desc"
+        | undefined,
+      _skip: undefined as number | undefined,
+      _limit: undefined as number | undefined,
+      _includeTrashed: false,
+      _onlyTrashed: false,
+    };
 
     const builder = {
       where: (condition: WhereCondition | number | string) => {
-        _condition = condition;
+        state._condition = condition;
         return builder;
       },
       fields: (fields: string[]) => {
-        _fields = fields;
+        state._fields = fields;
         return builder;
       },
       sort: (
         sort: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc",
       ) => {
-        _sort = sort;
+        state._sort = sort;
         return builder;
       },
       skip: (n: number) => {
-        _skip = Math.max(0, Math.floor(n));
+        state._skip = Math.max(0, Math.floor(n));
         return builder;
       },
       limit: (n: number) => {
-        _limit = Math.max(1, Math.floor(n));
+        state._limit = Math.max(1, Math.floor(n));
         return builder;
       },
       includeTrashed: () => {
-        _includeTrashed = true;
-        _onlyTrashed = false;
+        state._includeTrashed = true;
+        state._onlyTrashed = false;
         return builder;
       },
       onlyTrashed: () => {
-        _onlyTrashed = true;
-        _includeTrashed = false;
+        state._onlyTrashed = true;
+        state._includeTrashed = false;
         return builder;
       },
       findAll: async (): Promise<InstanceType<T>[]> => {
         await this.ensureAdapter();
         const { where, params } = this.buildWhereClause(
-          _condition as any,
-          _includeTrashed,
-          _onlyTrashed,
+          state._condition as any,
+          state._includeTrashed,
+          state._onlyTrashed,
         );
-        const columns = _fields && _fields.length > 0
-          ? _fields.join(", ")
+        const columns = state._fields && state._fields.length > 0
+          ? state._fields.join(", ")
           : "*";
-        const orderBy = this.buildOrderByClause(_sort);
-        const useLimit = typeof _limit === "number";
-        const useSkip = typeof _skip === "number";
+        const orderBy = this.buildOrderByClause(state._sort);
+        const useLimit = typeof state._limit === "number";
+        const useSkip = typeof state._skip === "number";
         let sql = `SELECT ${columns} FROM ${this.tableName} WHERE ${where}`;
         if (orderBy) {
           sql = `${sql} ORDER BY ${orderBy}`;
@@ -5137,11 +5404,11 @@ export abstract class SQLModel {
         const extraParams: any[] = [];
         if (useLimit) {
           sql = `${sql} LIMIT ?`;
-          extraParams.push(Math.max(1, Math.floor(_limit!)));
+          extraParams.push(Math.max(1, Math.floor(state._limit!)));
         }
         if (useLimit && useSkip) {
           sql = `${sql} OFFSET ?`;
-          extraParams.push(Math.max(0, Math.floor(_skip!)));
+          extraParams.push(Math.max(0, Math.floor(state._skip!)));
         }
         // ensureAdapter() 已确保 adapter 不为 null
         const results = await this.adapter.query(sql, [
@@ -5157,14 +5424,14 @@ export abstract class SQLModel {
       findOne: async (): Promise<InstanceType<T> | null> => {
         await this.ensureAdapter();
         const { where, params } = this.buildWhereClause(
-          _condition as any,
-          _includeTrashed,
-          _onlyTrashed,
+          state._condition as any,
+          state._includeTrashed,
+          state._onlyTrashed,
         );
-        const columns = _fields && _fields.length > 0
-          ? _fields.join(", ")
+        const columns = state._fields && state._fields.length > 0
+          ? state._fields.join(", ")
           : "*";
-        const orderBy = this.buildOrderByClause(_sort);
+        const orderBy = this.buildOrderByClause(state._sort);
         let sql = `SELECT ${columns} FROM ${this.tableName} WHERE ${where}`;
         if (orderBy) {
           sql = `${sql} ORDER BY ${orderBy}`;
@@ -5185,6 +5452,18 @@ export abstract class SQLModel {
       all: async (): Promise<InstanceType<T>[]> => {
         return await builder.findAll();
       },
+      /**
+       * 将查询结果转换为纯 JSON 对象数组格式
+       * 返回一个可以继续链式调用的构建器，最终返回纯 JSON 对象数组（不是模型实例）
+       * @returns 返回数组查询构建器
+       * @example
+       * const users = await User.query().where({ status: 'active' }).asArray().findAll();
+       * const user = await User.query().where({ id: 123 }).asArray().findOne(); // 返回纯 JSON 对象或 null
+       */
+      asArray: (): SQLArrayQueryBuilder<T> => {
+        // 返回共享状态对象的引用，确保 asArray() 中的修改能够持久化
+        return this.createArrayQueryBuilder(() => state);
+      },
       findById: async (
         id: number | string,
         fields?: string[],
@@ -5195,9 +5474,9 @@ export abstract class SQLModel {
       count: async (): Promise<number> => {
         await this.ensureAdapter();
         const { where, params } = this.buildWhereClause(
-          _condition as any,
-          _includeTrashed,
-          _onlyTrashed,
+          state._condition as any,
+          state._includeTrashed,
+          state._onlyTrashed,
         );
         const sql =
           `SELECT COUNT(*) as count FROM ${this.tableName} WHERE ${where}`;
@@ -5208,9 +5487,9 @@ export abstract class SQLModel {
       exists: async (): Promise<boolean> => {
         await this.ensureAdapter();
         return await this.exists(
-          _condition as any,
-          _includeTrashed,
-          _onlyTrashed,
+          state._condition as any,
+          state._includeTrashed,
+          state._onlyTrashed,
         );
       },
       update: async (
@@ -5219,12 +5498,16 @@ export abstract class SQLModel {
       ): Promise<number | InstanceType<T>> => {
         if (returnLatest) {
           return await this.update(
-            _condition as any,
+            state._condition as any,
             data,
             true,
           ) as InstanceType<T>;
         }
-        return await this.update(_condition as any, data, false) as number;
+        return await this.update(
+          state._condition as any,
+          data,
+          false,
+        ) as number;
       },
       updateById: async (
         id: number | string,
@@ -5234,7 +5517,7 @@ export abstract class SQLModel {
         return await this.updateById(id, data);
       },
       updateMany: async (data: Record<string, any>): Promise<number> => {
-        return await this.updateMany(_condition as any, data);
+        return await this.updateMany(state._condition as any, data);
       },
       increment: async (
         field: string,
@@ -5242,7 +5525,7 @@ export abstract class SQLModel {
         returnLatest: boolean = false, // 统一接口：与 MongoModel 保持一致
       ): Promise<number | InstanceType<T>> => {
         return await this.increment(
-          _condition as any,
+          state._condition as any,
           field,
           amount,
           returnLatest,
@@ -5254,7 +5537,7 @@ export abstract class SQLModel {
         returnLatest: boolean = false, // 统一接口：与 MongoModel 保持一致
       ): Promise<number | InstanceType<T>> => {
         return await this.decrement(
-          _condition as any,
+          state._condition as any,
           field,
           amount,
           returnLatest,
@@ -5267,12 +5550,12 @@ export abstract class SQLModel {
       deleteMany: async (
         options?: { returnIds?: boolean },
       ): Promise<number | { count: number; ids: any[] }> => {
-        return await this.deleteMany(_condition as any, options);
+        return await this.deleteMany(state._condition as any, options);
       },
       restore: async (
         options?: { returnIds?: boolean },
       ): Promise<number | { count: number; ids: any[] }> => {
-        return await this.restore(_condition as any, options);
+        return await this.restore(state._condition as any, options);
       },
       restoreById: async (id: number | string): Promise<number> => {
         await this.ensureAdapter();
@@ -5281,7 +5564,7 @@ export abstract class SQLModel {
       forceDelete: async (
         options?: { returnIds?: boolean },
       ): Promise<number | { count: number; ids: any[] }> => {
-        return await this.forceDelete(_condition as any, options);
+        return await this.forceDelete(state._condition as any, options);
       },
       forceDeleteById: async (id: number | string): Promise<number> => {
         await this.ensureAdapter();
@@ -5289,10 +5572,16 @@ export abstract class SQLModel {
       },
       distinct: async (field: string): Promise<any[]> => {
         const cond =
-          typeof _condition === "number" || typeof _condition === "string"
-            ? { [this.primaryKey]: _condition }
-            : (_condition as any);
-        return await this.distinct(field, cond, _includeTrashed, _onlyTrashed);
+          typeof state._condition === "number" ||
+            typeof state._condition === "string"
+            ? { [this.primaryKey]: state._condition }
+            : (state._condition as any);
+        return await this.distinct(
+          field,
+          cond,
+          state._includeTrashed,
+          state._onlyTrashed,
+        );
       },
       upsert: async (
         data: Record<string, any>,
@@ -5300,7 +5589,7 @@ export abstract class SQLModel {
         resurrect: boolean = false, // 统一接口：与 MongoModel 保持一致
       ): Promise<InstanceType<T>> => {
         return await this.upsert(
-          _condition as any,
+          state._condition as any,
           data,
           returnLatest,
           resurrect,
@@ -5311,9 +5600,10 @@ export abstract class SQLModel {
         resurrect: boolean = false, // 统一接口：与 MongoModel 保持一致
       ): Promise<InstanceType<T>> => {
         const cond =
-          typeof _condition === "number" || typeof _condition === "string"
-            ? { [this.primaryKey]: _condition }
-            : (_condition as any);
+          typeof state._condition === "number" ||
+            typeof state._condition === "string"
+            ? { [this.primaryKey]: state._condition }
+            : (state._condition as any);
         return await this.findOrCreate(cond, data, resurrect);
       },
       findOneAndUpdate: async (
@@ -5321,20 +5611,20 @@ export abstract class SQLModel {
         options?: { returnDocument?: "before" | "after" }, // 统一接口：与 MongoModel 保持一致
       ): Promise<InstanceType<T> | null> => {
         return await this.findOneAndUpdate(
-          _condition as any,
+          state._condition as any,
           data,
           options ?? { returnDocument: "after" },
         );
       },
       findOneAndDelete: async (): Promise<InstanceType<T> | null> => {
         const existing = await this.find(
-          _condition as any,
-          _fields,
-          _includeTrashed,
-          _onlyTrashed,
+          state._condition as any,
+          state._fields,
+          state._includeTrashed,
+          state._onlyTrashed,
         );
         if (!existing) return null;
-        const deleted = await this.delete(_condition as any);
+        const deleted = await this.delete(state._condition as any);
         return deleted > 0 ? existing as InstanceType<T> : null;
       },
       findOneAndReplace: async (
@@ -5342,7 +5632,7 @@ export abstract class SQLModel {
         returnLatest: boolean = true, // 统一接口：与 MongoModel 保持一致
       ): Promise<InstanceType<T> | null> => {
         return await (this as typeof SQLModel).findOneAndReplace(
-          _condition as any,
+          state._condition as any,
           replacement,
           returnLatest,
         ) as InstanceType<T> | null;
@@ -5351,13 +5641,21 @@ export abstract class SQLModel {
         fieldOrMap: string | Record<string, number>,
         amount: number = 1,
       ): Promise<number> => {
-        return await this.incrementMany(_condition as any, fieldOrMap, amount);
+        return await this.incrementMany(
+          state._condition as any,
+          fieldOrMap,
+          amount,
+        );
       },
       decrementMany: async (
         fieldOrMap: string | Record<string, number>,
         amount: number = 1,
       ): Promise<number> => {
-        return await this.decrementMany(_condition as any, fieldOrMap, amount);
+        return await this.decrementMany(
+          state._condition as any,
+          fieldOrMap,
+          amount,
+        );
       },
       paginate: async (
         page: number,
@@ -5371,13 +5669,13 @@ export abstract class SQLModel {
       }> => {
         // 使用链式查询构建器中已有的条件、排序、字段等设置
         return await this.paginate(
-          _condition as any,
+          state._condition as any,
           page,
           pageSize,
-          _sort || { [this.primaryKey]: -1 },
-          _fields,
-          _includeTrashed,
-          _onlyTrashed,
+          state._sort || { [this.primaryKey]: -1 },
+          state._fields,
+          state._includeTrashed,
+          state._onlyTrashed,
         );
       },
     };

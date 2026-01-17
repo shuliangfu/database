@@ -296,6 +296,38 @@ export type LifecycleHook<T = any> = (
  * 使用递归类型定义，避免循环引用
  */
 /**
+ * MongoDB 数组查询构建器类型（返回纯 JSON 对象）
+ */
+export type MongoArrayQueryBuilder<T extends typeof MongoModel> = {
+  sort: (
+    sort: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc",
+  ) => MongoArrayQueryBuilder<T>;
+  skip: (n: number) => MongoArrayQueryBuilder<T>;
+  limit: (n: number) => MongoArrayQueryBuilder<T>;
+  fields: (fields: string[]) => MongoArrayQueryBuilder<T>;
+  includeTrashed: () => MongoArrayQueryBuilder<T>;
+  onlyTrashed: () => MongoArrayQueryBuilder<T>;
+  findAll: () => Promise<Record<string, any>[]>;
+  findOne: () => Promise<Record<string, any> | null>;
+  one: () => Promise<Record<string, any> | null>;
+  all: () => Promise<Record<string, any>[]>;
+  count: () => Promise<number>;
+  exists: () => Promise<boolean>;
+  distinct: (field: string) => Promise<any[]>;
+  aggregate: (pipeline: any[]) => Promise<any[]>;
+  paginate: (
+    page: number,
+    pageSize: number,
+  ) => Promise<{
+    data: Record<string, any>[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }>;
+};
+
+/**
  * 查找查询构建器类型（用于打破循环引用）
  */
 export type MongoFindQueryBuilder<T extends typeof MongoModel> = {
@@ -311,6 +343,7 @@ export type MongoFindQueryBuilder<T extends typeof MongoModel> = {
   findOne: () => Promise<InstanceType<T> | null>;
   one: () => Promise<InstanceType<T> | null>;
   all: () => Promise<InstanceType<T>[]>;
+  asArray: () => MongoArrayQueryBuilder<T>;
   count: () => Promise<number>;
   exists: () => Promise<boolean>;
   distinct: (field: string) => Promise<any[]>;
@@ -347,6 +380,7 @@ export type MongoQueryBuilder<T extends typeof MongoModel> = {
   findOne: () => Promise<InstanceType<T> | null>;
   one: () => Promise<InstanceType<T> | null>;
   all: () => Promise<InstanceType<T>[]>;
+  asArray: () => MongoArrayQueryBuilder<T>;
   findById: (id: string, fields?: string[]) => Promise<InstanceType<T> | null>;
   count: () => Promise<number>;
   exists: () => Promise<boolean>;
@@ -2432,6 +2466,257 @@ export abstract class MongoModel {
   }
 
   /**
+   * 创建数组查询构建器（返回纯 JSON 对象）
+   * 私有辅助方法，用于消除代码重复
+   * @param getState 获取查询状态的函数（通过闭包访问局部变量）
+   * @returns 数组查询构建器
+   */
+  private static createArrayQueryBuilder<T extends typeof MongoModel>(
+    this: T,
+    getState: () => {
+      _condition: MongoWhereCondition | string;
+      _fields: string[] | undefined;
+      _sort:
+        | Record<string, 1 | -1 | "asc" | "desc">
+        | "asc"
+        | "desc"
+        | undefined;
+      _skip: number | undefined;
+      _limit: number | undefined;
+      _includeTrashed: boolean;
+      _onlyTrashed: boolean;
+    },
+  ): MongoArrayQueryBuilder<T> {
+    const arrayBuilder: MongoArrayQueryBuilder<T> = {
+      sort: (
+        sort: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc",
+      ) => {
+        const state = getState();
+        state._sort = sort;
+        return arrayBuilder;
+      },
+      skip: (n: number) => {
+        const state = getState();
+        state._skip = Math.max(0, Math.floor(n));
+        return arrayBuilder;
+      },
+      limit: (n: number) => {
+        const state = getState();
+        state._limit = Math.max(1, Math.floor(n));
+        return arrayBuilder;
+      },
+      fields: (fields: string[]) => {
+        const state = getState();
+        state._fields = fields;
+        return arrayBuilder;
+      },
+      includeTrashed: () => {
+        const state = getState();
+        state._includeTrashed = true;
+        state._onlyTrashed = false;
+        return arrayBuilder;
+      },
+      onlyTrashed: () => {
+        const state = getState();
+        state._onlyTrashed = true;
+        state._includeTrashed = false;
+        return arrayBuilder;
+      },
+      findAll: async (): Promise<Record<string, any>[]> => {
+        // 自动初始化（懒加载）
+        await this.ensureAdapter();
+        const state = getState();
+        const projection = this.buildProjection(state._fields);
+        const queryOptions: any = {};
+        if (Object.keys(projection).length > 0) {
+          queryOptions.projection = projection;
+        }
+        const normalizedSort = this.normalizeSort(state._sort);
+        if (normalizedSort) {
+          queryOptions.sort = normalizedSort;
+        }
+        if (typeof state._skip === "number") {
+          queryOptions.skip = state._skip;
+        }
+        if (typeof state._limit === "number") {
+          queryOptions.limit = state._limit;
+        }
+
+        let filter: any = {};
+        if (typeof state._condition === "string") {
+          filter._id = this.normalizeId(state._condition);
+        } else if (state._condition instanceof ObjectId) {
+          filter._id = state._condition;
+        } else {
+          filter = this.normalizeCondition(state._condition);
+        }
+        const queryFilter = this.applySoftDeleteFilter(
+          filter,
+          state._includeTrashed,
+          state._onlyTrashed,
+        );
+
+        const results = await this.adapter.query(
+          this.collectionName,
+          queryFilter,
+          queryOptions,
+        );
+
+        // 返回纯 JSON 对象数组，不创建模型实例
+        // 使用展开运算符创建新对象，移除原型链，性能优于 JSON.parse(JSON.stringify())
+        return results.map((row: any) => ({ ...row }));
+      },
+      findOne: async (): Promise<Record<string, any> | null> => {
+        // 自动初始化（懒加载）
+        await this.ensureAdapter();
+        const state = getState();
+        const projection = this.buildProjection(state._fields);
+        const queryOptions: any = { limit: 1 };
+        if (Object.keys(projection).length > 0) {
+          queryOptions.projection = projection;
+        }
+        const normalizedSort = this.normalizeSort(state._sort);
+        if (normalizedSort) {
+          queryOptions.sort = normalizedSort;
+        }
+        if (typeof state._skip === "number") {
+          queryOptions.skip = state._skip;
+        }
+        if (typeof state._limit === "number") {
+          queryOptions.limit = state._limit;
+        }
+
+        let filter: any = {};
+        if (typeof state._condition === "string") {
+          filter._id = this.normalizeId(state._condition);
+        } else if (state._condition instanceof ObjectId) {
+          filter._id = state._condition;
+        } else {
+          filter = this.normalizeCondition(state._condition);
+        }
+        const queryFilter = this.applySoftDeleteFilter(
+          filter,
+          state._includeTrashed,
+          state._onlyTrashed,
+        );
+
+        const results = await this.adapter.query(
+          this.collectionName,
+          queryFilter,
+          queryOptions,
+        );
+        if (results.length === 0) {
+          return null;
+        }
+        // 返回纯 JSON 对象，不创建模型实例
+        // 使用展开运算符创建新对象，移除原型链，性能优于 JSON.parse(JSON.stringify())
+        return { ...results[0] };
+      },
+      one: async (): Promise<Record<string, any> | null> => {
+        return await arrayBuilder.findOne();
+      },
+      all: async (): Promise<Record<string, any>[]> => {
+        return await arrayBuilder.findAll();
+      },
+      count: async (): Promise<number> => {
+        // 自动初始化（懒加载）
+        await this.ensureAdapter();
+        const state = getState();
+        const db = (this.adapter as any as MongoDBAdapter).getDatabase();
+        if (!db) {
+          throw new Error("Database not connected");
+        }
+
+        let filter: any = {};
+        if (typeof state._condition === "string") {
+          filter[this.primaryKey] = state._condition;
+        } else {
+          filter = state._condition;
+        }
+        const queryFilter = this.applySoftDeleteFilter(
+          filter,
+          state._includeTrashed,
+          state._onlyTrashed,
+        );
+        const count = await db.collection(this.collectionName)
+          .countDocuments(
+            queryFilter,
+          );
+        return count;
+      },
+      exists: async (): Promise<boolean> => {
+        await this.ensureAdapter();
+        const state = getState();
+        return await this.exists(
+          state._condition as any,
+          state._includeTrashed,
+          state._onlyTrashed,
+        );
+      },
+      distinct: async (field: string): Promise<any[]> => {
+        const state = getState();
+        const cond = typeof state._condition === "string"
+          ? { [this.primaryKey]: state._condition }
+          : (state._condition as any);
+        return await this.distinct(
+          field,
+          cond,
+          state._includeTrashed,
+          state._onlyTrashed,
+        );
+      },
+      aggregate: async (pipeline: any[]): Promise<any[]> => {
+        const state = getState();
+        let match: any = {};
+        if (typeof state._condition === "string") {
+          match[this.primaryKey] = state._condition;
+        } else if (
+          state._condition && Object.keys(state._condition).length > 0
+        ) {
+          match = state._condition;
+        }
+        const effective = Object.keys(match).length > 0
+          ? [{ $match: match }, ...pipeline]
+          : pipeline;
+        return await this.aggregate(
+          effective,
+          state._includeTrashed,
+          state._onlyTrashed,
+        );
+      },
+      paginate: async (
+        page: number,
+        pageSize: number,
+      ): Promise<{
+        data: Record<string, any>[];
+        total: number;
+        page: number;
+        pageSize: number;
+        totalPages: number;
+      }> => {
+        const state = getState();
+        // 使用链式查询构建器中已有的条件、排序、字段等设置
+        const paginateResult = await this.paginate(
+          state._condition as any,
+          page,
+          pageSize,
+          state._sort || { [this.primaryKey]: -1 },
+          state._fields,
+          state._includeTrashed,
+          state._onlyTrashed,
+        );
+        // 将数据转换为纯 JSON 对象数组
+        // 使用展开运算符创建新对象，移除原型链，性能优于 JSON.parse(JSON.stringify())
+        return {
+          ...paginateResult,
+          data: paginateResult.data.map((item: any) => ({ ...item })),
+        };
+      },
+    };
+    return arrayBuilder;
+  }
+
+  /**
    * 查询构建器（支持链式调用，可查找单条或多条记录）
    * @param condition 查询条件（可以是 ID、条件对象）
    * @param fields 要查询的字段数组（可选，用于字段投影）
@@ -2459,18 +2744,20 @@ export abstract class MongoModel {
       sort?: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc";
     },
   ): MongoFindQueryBuilder<T> {
-    // 创建查询构建器状态
-    const _condition: MongoWhereCondition | string = condition;
-    let _fields: string[] | undefined = fields;
-    let _sort:
-      | Record<string, 1 | -1 | "asc" | "desc">
-      | "asc"
-      | "desc"
-      | undefined = options?.sort;
-    let _skip: number | undefined;
-    let _limit: number | undefined;
-    let _includeTrashed = includeTrashed;
-    let _onlyTrashed = onlyTrashed;
+    // 创建共享状态对象，确保 asArray() 中的修改能够持久化
+    const state = {
+      _condition: condition as MongoWhereCondition | string,
+      _fields: fields,
+      _sort: options?.sort as
+        | Record<string, 1 | -1 | "asc" | "desc">
+        | "asc"
+        | "desc"
+        | undefined,
+      _skip: undefined as number | undefined,
+      _limit: undefined as number | undefined,
+      _includeTrashed: includeTrashed,
+      _onlyTrashed: onlyTrashed,
+    };
 
     // 执行查询单条记录的函数
     const executeFindOne = async (): Promise<InstanceType<T> | null> => {
@@ -2479,11 +2766,11 @@ export abstract class MongoModel {
 
       // 生成缓存键
       const cacheKey = this.generateCacheKey(
-        _condition,
-        _fields,
-        { sort: _sort, skip: _skip, limit: _limit },
-        _includeTrashed,
-        _onlyTrashed,
+        state._condition,
+        state._fields,
+        { sort: state._sort, skip: state._skip, limit: state._limit },
+        state._includeTrashed,
+        state._onlyTrashed,
       );
 
       // 尝试从缓存获取
@@ -2515,40 +2802,40 @@ export abstract class MongoModel {
       let filter: any = {};
 
       // 如果是字符串，作为主键查询
-      if (typeof _condition === "string") {
+      if (typeof state._condition === "string") {
         // MongoDB 总是使用 _id 字段作为主键，无论 primaryKey 是什么
         // 所以查询时应该使用 _id 字段
-        filter._id = this.normalizeId(_condition);
-      } else if (_condition instanceof ObjectId) {
+        filter._id = this.normalizeId(state._condition);
+      } else if (state._condition instanceof ObjectId) {
         // 如果传入的是 ObjectId 对象，直接使用
-        filter._id = _condition;
+        filter._id = state._condition;
       } else {
         // 规范化查询条件，将主键字段（如果是字符串）转换为 ObjectId
         // 如果 primaryKey !== "_id"，会自动映射到 _id 字段
-        filter = this.normalizeCondition(_condition);
+        filter = this.normalizeCondition(state._condition);
       }
 
-      const projection = this.buildProjection(_fields);
+      const projection = this.buildProjection(state._fields);
       const queryOptions: any = { limit: 1 };
       if (Object.keys(projection).length > 0) {
         queryOptions.projection = projection;
       }
-      const normalizedSort = this.normalizeSort(_sort);
+      const normalizedSort = this.normalizeSort(state._sort);
       if (normalizedSort) {
         queryOptions.sort = normalizedSort;
       }
-      if (typeof _skip === "number") {
-        queryOptions.skip = _skip;
+      if (typeof state._skip === "number") {
+        queryOptions.skip = state._skip;
       }
-      if (typeof _limit === "number") {
-        queryOptions.limit = _limit;
+      if (typeof state._limit === "number") {
+        queryOptions.limit = state._limit;
       }
 
       // 软删除：自动过滤已删除的记录（默认排除软删除）
       const queryFilter = this.applySoftDeleteFilter(
         filter,
-        _includeTrashed,
-        _onlyTrashed,
+        state._includeTrashed,
+        state._onlyTrashed,
       );
 
       const results = await this.adapter.query(
@@ -2589,35 +2876,35 @@ export abstract class MongoModel {
     const executeFindAll = async (): Promise<InstanceType<T>[]> => {
       // 自动初始化（懒加载）
       await this.ensureAdapter();
-      const projection = this.buildProjection(_fields);
+      const projection = this.buildProjection(state._fields);
       const queryOptions: any = {};
       if (Object.keys(projection).length > 0) {
         queryOptions.projection = projection;
       }
-      const normalizedSort = this.normalizeSort(_sort);
+      const normalizedSort = this.normalizeSort(state._sort);
       if (normalizedSort) {
         queryOptions.sort = normalizedSort;
       }
-      if (typeof _skip === "number") {
-        queryOptions.skip = _skip;
+      if (typeof state._skip === "number") {
+        queryOptions.skip = state._skip;
       }
-      if (typeof _limit === "number") {
-        queryOptions.limit = _limit;
+      if (typeof state._limit === "number") {
+        queryOptions.limit = state._limit;
       }
 
       let filter: any = {};
-      if (typeof _condition === "string") {
+      if (typeof state._condition === "string") {
         // MongoDB 总是使用 _id 字段作为主键，无论 primaryKey 是什么
-        filter._id = this.normalizeId(_condition);
+        filter._id = this.normalizeId(state._condition);
       } else {
         // 规范化查询条件，将主键字段（如果是字符串）转换为 ObjectId
         // 如果 primaryKey !== "_id"，会自动映射到 _id 字段
-        filter = this.normalizeCondition(_condition);
+        filter = this.normalizeCondition(state._condition);
       }
       const queryFilter = this.applySoftDeleteFilter(
         filter,
-        _includeTrashed,
-        _onlyTrashed,
+        state._includeTrashed,
+        state._onlyTrashed,
       );
 
       const results = await this.adapter.query(
@@ -2652,35 +2939,47 @@ export abstract class MongoModel {
       sort: (
         sort: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc",
       ) => {
-        _sort = sort;
+        state._sort = sort;
         return builder;
       },
       skip: (n: number) => {
-        _skip = Math.max(0, Math.floor(n));
+        state._skip = Math.max(0, Math.floor(n));
         return builder;
       },
       limit: (n: number) => {
-        _limit = Math.max(1, Math.floor(n));
+        state._limit = Math.max(1, Math.floor(n));
         return builder;
       },
       fields: (fields: string[]) => {
-        _fields = fields;
+        state._fields = fields;
         return builder;
       },
       includeTrashed: () => {
-        _includeTrashed = true;
-        _onlyTrashed = false;
+        state._includeTrashed = true;
+        state._onlyTrashed = false;
         return builder;
       },
       onlyTrashed: () => {
-        _onlyTrashed = true;
-        _includeTrashed = false;
+        state._onlyTrashed = true;
+        state._includeTrashed = false;
         return builder;
       },
       findAll: () => executeFindAll(),
       findOne: () => executeFindOne(),
       one: () => executeFindOne(),
       all: () => executeFindAll(),
+      /**
+       * 将查询结果转换为纯 JSON 对象数组格式
+       * 返回一个可以继续链式调用的构建器，最终返回纯 JSON 对象数组（不是模型实例）
+       * @returns 返回数组查询构建器
+       * @example
+       * const users = await User.find({ status: 'active' }).asArray().findAll();
+       * const user = await User.find('123').asArray().findOne(); // 返回纯 JSON 对象或 null
+       */
+      asArray: (): MongoArrayQueryBuilder<T> => {
+        // 返回共享状态对象的引用，确保 asArray() 中的修改能够持久化
+        return this.createArrayQueryBuilder(() => state);
+      },
       count: async (): Promise<number> => {
         // 自动初始化（懒加载）
         await this.ensureAdapter();
@@ -2690,15 +2989,15 @@ export abstract class MongoModel {
         }
 
         let filter: any = {};
-        if (typeof _condition === "string") {
-          filter[this.primaryKey] = _condition;
+        if (typeof state._condition === "string") {
+          filter[this.primaryKey] = state._condition;
         } else {
-          filter = _condition;
+          filter = state._condition;
         }
         const queryFilter = this.applySoftDeleteFilter(
           filter,
-          _includeTrashed,
-          _onlyTrashed,
+          state._includeTrashed,
+          state._onlyTrashed,
         );
         const count = await db.collection(this.collectionName).countDocuments(
           queryFilter,
@@ -2708,28 +3007,39 @@ export abstract class MongoModel {
       exists: async (): Promise<boolean> => {
         await this.ensureAdapter();
         return await this.exists(
-          _condition as any,
-          _includeTrashed,
-          _onlyTrashed,
+          state._condition as any,
+          state._includeTrashed,
+          state._onlyTrashed,
         );
       },
       distinct: async (field: string): Promise<any[]> => {
-        const cond = typeof _condition === "string"
-          ? { [this.primaryKey]: _condition }
-          : (_condition as any);
-        return await this.distinct(field, cond, _includeTrashed, _onlyTrashed);
+        const cond = typeof state._condition === "string"
+          ? { [this.primaryKey]: state._condition }
+          : (state._condition as any);
+        return await this.distinct(
+          field,
+          cond,
+          state._includeTrashed,
+          state._onlyTrashed,
+        );
       },
       aggregate: async (pipeline: any[]): Promise<any[]> => {
         let match: any = {};
-        if (typeof _condition === "string") {
-          match[this.primaryKey] = _condition;
-        } else if (_condition && Object.keys(_condition).length > 0) {
-          match = _condition;
+        if (typeof state._condition === "string") {
+          match[this.primaryKey] = state._condition;
+        } else if (
+          state._condition && Object.keys(state._condition).length > 0
+        ) {
+          match = state._condition;
         }
         const effective = Object.keys(match).length > 0
           ? [{ $match: match }, ...pipeline]
           : pipeline;
-        return await this.aggregate(effective, _includeTrashed, _onlyTrashed);
+        return await this.aggregate(
+          effective,
+          state._includeTrashed,
+          state._onlyTrashed,
+        );
       },
       paginate: async (
         page: number,
@@ -2743,13 +3053,13 @@ export abstract class MongoModel {
       }> => {
         // 使用链式查询构建器中已有的条件、排序、字段等设置
         return await this.paginate(
-          _condition as any,
+          state._condition as any,
           page,
           pageSize,
-          _sort || { [this.primaryKey]: -1 },
-          _fields,
-          _includeTrashed,
-          _onlyTrashed,
+          state._sort || { [this.primaryKey]: -1 },
+          state._fields,
+          state._includeTrashed,
+          state._onlyTrashed,
         );
       },
       // Promise 接口方法（用于直接 await）
@@ -5343,81 +5653,84 @@ export abstract class MongoModel {
    *   .findAll();
    */
   static query<T extends typeof MongoModel>(this: T): MongoQueryBuilder<T> {
-    let _condition: MongoWhereCondition | string = {};
-    let _fields: string[] | undefined;
-    let _sort:
-      | Record<string, 1 | -1 | "asc" | "desc">
-      | "asc"
-      | "desc"
-      | undefined;
-    let _skip: number | undefined;
-    let _limit: number | undefined;
-    let _includeTrashed = false;
-    let _onlyTrashed = false;
+    // 创建共享状态对象，确保 asArray() 中的修改能够持久化
+    const state = {
+      _condition: {} as MongoWhereCondition | string,
+      _fields: undefined as string[] | undefined,
+      _sort: undefined as
+        | Record<string, 1 | -1 | "asc" | "desc">
+        | "asc"
+        | "desc"
+        | undefined,
+      _skip: undefined as number | undefined,
+      _limit: undefined as number | undefined,
+      _includeTrashed: false,
+      _onlyTrashed: false,
+    };
 
     // 使用类型断言确保 builder 的类型是 MongoQueryBuilder<T>
     const builder: MongoQueryBuilder<T> = {
       where: (condition: MongoWhereCondition | string) => {
-        _condition = condition;
+        state._condition = condition;
         return builder;
       },
       fields: (fields: string[]) => {
-        _fields = fields;
+        state._fields = fields;
         return builder;
       },
       sort: (
         sort: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc",
       ) => {
-        _sort = sort;
+        state._sort = sort;
         return builder;
       },
       skip: (n: number) => {
-        _skip = Math.max(0, Math.floor(n));
+        state._skip = Math.max(0, Math.floor(n));
         return builder;
       },
       limit: (n: number) => {
-        _limit = Math.max(1, Math.floor(n));
+        state._limit = Math.max(1, Math.floor(n));
         return builder;
       },
       includeTrashed: () => {
-        _includeTrashed = true;
-        _onlyTrashed = false;
+        state._includeTrashed = true;
+        state._onlyTrashed = false;
         return builder;
       },
       onlyTrashed: () => {
-        _onlyTrashed = true;
-        _includeTrashed = false;
+        state._onlyTrashed = true;
+        state._includeTrashed = false;
         return builder;
       },
       findAll: async (): Promise<InstanceType<T>[]> => {
         // 自动初始化（懒加载）
         await this.ensureAdapter();
-        const projection = this.buildProjection(_fields);
+        const projection = this.buildProjection(state._fields);
         const queryOptions: any = {};
         if (Object.keys(projection).length > 0) {
           queryOptions.projection = projection;
         }
-        const normalizedSort = this.normalizeSort(_sort);
+        const normalizedSort = this.normalizeSort(state._sort);
         if (normalizedSort) {
           queryOptions.sort = normalizedSort;
         }
-        if (typeof _skip === "number") {
-          queryOptions.skip = _skip;
+        if (typeof state._skip === "number") {
+          queryOptions.skip = state._skip;
         }
-        if (typeof _limit === "number") {
-          queryOptions.limit = _limit;
+        if (typeof state._limit === "number") {
+          queryOptions.limit = state._limit;
         }
 
         let filter: any = {};
-        if (typeof _condition === "string") {
-          filter[this.primaryKey] = _condition;
+        if (typeof state._condition === "string") {
+          filter[this.primaryKey] = state._condition;
         } else {
-          filter = _condition;
+          filter = state._condition;
         }
         const queryFilter = this.applySoftDeleteFilter(
           filter,
-          _includeTrashed,
-          _onlyTrashed,
+          state._includeTrashed,
+          state._onlyTrashed,
         );
 
         const results = await this.adapter.query(
@@ -5437,26 +5750,26 @@ export abstract class MongoModel {
       findOne: async (): Promise<InstanceType<T> | null> => {
         // 自动初始化（懒加载）
         await this.ensureAdapter();
-        const projection = this.buildProjection(_fields);
+        const projection = this.buildProjection(state._fields);
         const queryOptions: any = { limit: 1 };
         if (Object.keys(projection).length > 0) {
           queryOptions.projection = projection;
         }
-        const normalizedSort = this.normalizeSort(_sort);
+        const normalizedSort = this.normalizeSort(state._sort);
         if (normalizedSort) {
           queryOptions.sort = normalizedSort;
         }
 
         let filter: any = {};
-        if (typeof _condition === "string") {
-          filter[this.primaryKey] = _condition;
+        if (typeof state._condition === "string") {
+          filter[this.primaryKey] = state._condition;
         } else {
-          filter = _condition;
+          filter = state._condition;
         }
         const queryFilter = this.applySoftDeleteFilter(
           filter,
-          _includeTrashed,
-          _onlyTrashed,
+          state._includeTrashed,
+          state._onlyTrashed,
         );
 
         const results = await this.adapter.query(
@@ -5479,6 +5792,18 @@ export abstract class MongoModel {
       all: async (): Promise<InstanceType<T>[]> => {
         return await builder.findAll();
       },
+      /**
+       * 将查询结果转换为纯 JSON 对象数组格式
+       * 返回一个可以继续链式调用的构建器，最终返回纯 JSON 对象数组（不是模型实例）
+       * @returns 返回数组查询构建器
+       * @example
+       * const users = await User.query().where({ status: 'active' }).asArray().findAll();
+       * const user = await User.find('123').asArray().findOne(); // 返回纯 JSON 对象或 null
+       */
+      asArray: (): MongoArrayQueryBuilder<T> => {
+        // 返回共享状态对象的引用，确保 asArray() 中的修改能够持久化
+        return this.createArrayQueryBuilder(() => state);
+      },
       findById: async (
         id: string,
         fields?: string[],
@@ -5495,15 +5820,15 @@ export abstract class MongoModel {
         }
 
         let filter: any = {};
-        if (typeof _condition === "string") {
-          filter[this.primaryKey] = _condition;
+        if (typeof state._condition === "string") {
+          filter[this.primaryKey] = state._condition;
         } else {
-          filter = _condition;
+          filter = state._condition;
         }
         const queryFilter = this.applySoftDeleteFilter(
           filter,
-          _includeTrashed,
-          _onlyTrashed,
+          state._includeTrashed,
+          state._onlyTrashed,
         );
         const count = await db.collection(this.collectionName).countDocuments(
           queryFilter,
@@ -5513,9 +5838,9 @@ export abstract class MongoModel {
       exists: async (): Promise<boolean> => {
         await this.ensureAdapter();
         return await this.exists(
-          _condition as any,
-          _includeTrashed,
-          _onlyTrashed,
+          state._condition as any,
+          state._includeTrashed,
+          state._onlyTrashed,
         );
       },
       updateById: async (
@@ -5531,19 +5856,19 @@ export abstract class MongoModel {
       ): Promise<number | InstanceType<T>> => {
         if (returnLatest) {
           return await this.update(
-            _condition as any,
+            state._condition as any,
             data,
             true,
           ) as InstanceType<T>;
         }
         return await this.update(
-          _condition as any,
+          state._condition as any,
           data,
           false,
         ) as number;
       },
       updateMany: async (data: Record<string, any>): Promise<number> => {
-        return await this.updateMany(_condition as any, data);
+        return await this.updateMany(state._condition as any, data);
       },
       increment: async (
         field: string,
@@ -5551,7 +5876,7 @@ export abstract class MongoModel {
         returnLatest: boolean = false,
       ): Promise<number | InstanceType<T>> => {
         return await this.increment(
-          _condition as any,
+          state._condition as any,
           field,
           amount,
           returnLatest,
@@ -5563,7 +5888,7 @@ export abstract class MongoModel {
         returnLatest: boolean = false,
       ): Promise<number | InstanceType<T>> => {
         return await this.decrement(
-          _condition as any,
+          state._condition as any,
           field,
           amount,
           returnLatest,
@@ -5576,12 +5901,12 @@ export abstract class MongoModel {
       deleteMany: async (
         options?: { returnIds?: boolean },
       ): Promise<number | { count: number; ids: any[] }> => {
-        return await this.deleteMany(_condition as any, options);
+        return await this.deleteMany(state._condition as any, options);
       },
       restore: async (
         options?: { returnIds?: boolean },
       ): Promise<number | { count: number; ids: any[] }> => {
-        return await this.restore(_condition as any, options);
+        return await this.restore(state._condition as any, options);
       },
       restoreById: async (id: string): Promise<number> => {
         await this.ensureAdapter();
@@ -5590,53 +5915,67 @@ export abstract class MongoModel {
       forceDelete: async (
         options?: { returnIds?: boolean },
       ): Promise<number | { count: number; ids: any[] }> => {
-        return await this.forceDelete(_condition as any, options);
+        return await this.forceDelete(state._condition as any, options);
       },
       forceDeleteById: async (id: string): Promise<number> => {
         await this.ensureAdapter();
         return await this.forceDeleteById(id);
       },
       distinct: async (field: string): Promise<any[]> => {
-        const cond = typeof _condition === "string"
-          ? { [this.primaryKey]: _condition }
-          : (_condition as any);
-        return await this.distinct(field, cond, _includeTrashed, _onlyTrashed);
+        const cond = typeof state._condition === "string"
+          ? { [this.primaryKey]: state._condition }
+          : (state._condition as any);
+        return await this.distinct(
+          field,
+          cond,
+          state._includeTrashed,
+          state._onlyTrashed,
+        );
       },
       aggregate: async (pipeline: any[]): Promise<any[]> => {
         let match: any = {};
-        if (typeof _condition === "string") {
-          match[this.primaryKey] = _condition;
-        } else if (_condition && Object.keys(_condition).length > 0) {
-          match = _condition;
+        if (typeof state._condition === "string") {
+          match[this.primaryKey] = state._condition;
+        } else if (
+          state._condition && Object.keys(state._condition).length > 0
+        ) {
+          match = state._condition;
         }
         const effective = Object.keys(match).length > 0
           ? [{ $match: match }, ...pipeline]
           : pipeline;
-        return await this.aggregate(effective, _includeTrashed, _onlyTrashed);
+        return await this.aggregate(
+          effective,
+          state._includeTrashed,
+          state._onlyTrashed,
+        );
       },
       findOneAndUpdate: async (
         data: Record<string, any>,
         options?: { returnDocument?: "before" | "after" },
       ): Promise<InstanceType<T> | null> => {
         return await this.findOneAndUpdate(
-          _condition as any,
+          state._condition as any,
           data,
           options ?? { returnDocument: "after" },
-          _fields,
+          state._fields,
         );
       },
       findOneAndDelete: async (): Promise<InstanceType<T> | null> => {
-        return await this.findOneAndDelete(_condition as any, _fields);
+        return await this.findOneAndDelete(
+          state._condition as any,
+          state._fields,
+        );
       },
       findOneAndReplace: async (
         replacement: Record<string, any>,
         returnLatest: boolean = true,
       ): Promise<InstanceType<T> | null> => {
         return await this.findOneAndReplace(
-          _condition as any,
+          state._condition as any,
           replacement,
           returnLatest,
-          _fields,
+          state._fields,
         );
       },
       upsert: async (
@@ -5645,7 +5984,7 @@ export abstract class MongoModel {
         resurrect: boolean = false,
       ): Promise<InstanceType<T>> => {
         return await this.upsert(
-          _condition as any,
+          state._condition as any,
           data,
           returnLatest,
           resurrect,
@@ -5655,22 +5994,30 @@ export abstract class MongoModel {
         data: Record<string, any>,
         resurrect: boolean = false,
       ): Promise<InstanceType<T>> => {
-        const cond = typeof _condition === "string"
-          ? { [this.primaryKey]: _condition }
-          : (_condition as any);
+        const cond = typeof state._condition === "string"
+          ? { [this.primaryKey]: state._condition }
+          : (state._condition as any);
         return await this.findOrCreate(cond, data, resurrect);
       },
       incrementMany: async (
         fieldOrMap: string | Record<string, number>,
         amount: number = 1,
       ): Promise<number> => {
-        return await this.incrementMany(_condition as any, fieldOrMap, amount);
+        return await this.incrementMany(
+          state._condition as any,
+          fieldOrMap,
+          amount,
+        );
       },
       decrementMany: async (
         fieldOrMap: string | Record<string, number>,
         amount: number = 1,
       ): Promise<number> => {
-        return await this.decrementMany(_condition as any, fieldOrMap, amount);
+        return await this.decrementMany(
+          state._condition as any,
+          fieldOrMap,
+          amount,
+        );
       },
       paginate: async (
         page: number,
@@ -5684,13 +6031,13 @@ export abstract class MongoModel {
       }> => {
         // 使用链式查询构建器中已有的条件、排序、字段等设置
         return await this.paginate(
-          _condition as any,
+          state._condition as any,
           page,
           pageSize,
-          _sort || { [this.primaryKey]: -1 },
-          _fields,
-          _includeTrashed,
-          _onlyTrashed,
+          state._sort || { [this.primaryKey]: -1 },
+          state._fields,
+          state._includeTrashed,
+          state._onlyTrashed,
         );
       },
     };

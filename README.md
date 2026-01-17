@@ -4,6 +4,7 @@
 
 [![JSR](https://jsr.io/badges/@dreamer/database)](https://jsr.io/@dreamer/database)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Tests](https://img.shields.io/badge/tests-1,659%20passed-brightgreen)](./TEST_REPORT.md)
 
 ---
 
@@ -29,6 +30,7 @@
 - **MongoModel** - MongoDB ODM
 - **统一接口** - SQLModel 和 MongoModel 接口完全统一（91.7% 统一率）
 - **链式查询构建器** - 流畅的查询 API
+- **asArray() 方法** - 返回纯 JSON 对象数组，支持所有链式调用和聚合方法
 - **数据验证** - 30+ 种验证规则（详见验证规则章节）
 - **生命周期钩子** - beforeCreate、afterCreate、beforeUpdate、afterUpdate 等
 - **软删除支持** - 完整的软删除功能
@@ -212,6 +214,12 @@ const users = await User.query()
   .sort("created_at", "desc")
   .findAll();
 
+// 返回纯 JSON 对象数组（不是模型实例）
+const jsonUsers = await User.query()
+  .where("age", ">", 18)
+  .asArray()
+  .findAll();
+
 // 更新用户
 await User.updateById(user.id, { age: 26 });
 
@@ -276,6 +284,12 @@ const article = await Article.create({
 const articles = await Article.query()
   .where("status", "published")
   .sort("created_at", -1)
+  .findAll();
+
+// 返回纯 JSON 对象数组（不是模型实例）
+const jsonArticles = await Article.query()
+  .where("status", "published")
+  .asArray()
   .findAll();
 ```
 
@@ -1114,6 +1128,116 @@ const users = await User.query()
 // scope - 作用域查询
 const users = await User.scope("active").findAll();
 ```
+
+#### asArray() - 返回纯 JSON 对象数组
+
+`asArray()` 方法可以将查询结果转换为纯 JSON 对象数组，而不是模型实例。这对于需要纯数据格式的场景非常有用，比如 API 响应、数据序列化等。
+
+**特点：**
+- 返回纯 JSON 对象数组（`Record<string, any>[]`），不是模型实例
+- 支持所有链式调用方法（sort、limit、skip、fields 等）
+- 支持聚合方法（count、exists、distinct、paginate）
+- 返回的对象可以安全地进行 JSON 序列化
+- 返回的对象没有模型方法（如 `save`、`update` 等）
+
+**使用方式：**
+
+```typescript
+// 通过 find().asArray() 返回纯 JSON 对象数组
+const users = await User.find({ status: "active" })
+  .asArray()
+  .findAll();
+
+// 通过 find().asArray() 返回纯 JSON 对象或 null
+const user = await User.find({ status: "active" })
+  .asArray()
+  .findOne();
+
+// 通过 query().where().asArray() 返回纯 JSON 对象数组
+const users = await User.query()
+  .where({ status: "active" })
+  .asArray()
+  .findAll();
+
+// 支持链式调用 sort、limit、skip 等
+const users = await User.query()
+  .where({ status: "active" })
+  .asArray()
+  .sort({ age: "desc" })
+  .limit(10)
+  .skip(20)
+  .findAll();
+
+// 支持 fields 字段选择
+const user = await User.query()
+  .where({ status: "active" })
+  .asArray()
+  .fields(["name", "age"])
+  .findOne();
+
+// 支持聚合方法
+const count = await User.query()
+  .where({ status: "active" })
+  .asArray()
+  .count();
+
+const exists = await User.query()
+  .where({ status: "active" })
+  .asArray()
+  .exists();
+
+const ages = await User.query()
+  .where({ status: "active" })
+  .asArray()
+  .distinct("age");
+
+// 支持分页
+const result = await User.query()
+  .where({ status: "active" })
+  .asArray()
+  .paginate(1, 10);
+
+// 支持别名方法 all() 和 one()
+const users = await User.find({ status: "active" })
+  .asArray()
+  .all();
+
+const user = await User.find({ status: "active" })
+  .asArray()
+  .one();
+
+// 复杂链式调用
+const users = await User.query()
+  .where({ status: "active" })
+  .asArray()
+  .sort({ age: "desc" })
+  .skip(5)
+  .limit(10)
+  .findAll();
+
+// 验证返回的是纯 JSON 对象
+const users = await User.query()
+  .where({ status: "active" })
+  .asArray()
+  .findAll();
+
+// 可以安全地进行 JSON 序列化
+const json = JSON.stringify(users);
+const parsed = JSON.parse(json);
+
+// 返回的对象没有模型方法
+const user = await User.find({ status: "active" })
+  .asArray()
+  .findOne();
+
+console.log(typeof user?.save); // "undefined"
+console.log(user?.constructor.name); // "Object" 而不是 "User"
+```
+
+**注意事项：**
+- `asArray()` 返回的是纯 JSON 对象，不能调用模型方法（如 `save`、`update`、`delete` 等）
+- 如果需要模型实例的功能，请使用普通的 `find()` 或 `query()` 方法
+- 返回的对象使用浅拷贝（`{ ...row }`），性能优于 `JSON.parse(JSON.stringify())`
 
 ### 实例方法
 

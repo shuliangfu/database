@@ -1824,6 +1824,295 @@ describe("MongoModel MongoDB", () => {
     });
   });
 
+  // ==================== asArray 方法测试 ====================
+
+  describe("asArray 方法 - 返回纯 JSON 对象数组", () => {
+    beforeEach(async () => {
+      await clearCollection(COLLECTION_NAME);
+      for (let i = 1; i <= 10; i++) {
+        await User.create({
+          name: `AsArrayUser${i}`,
+          email: `asarrayuser${i}@test.com`,
+          age: 20 + i,
+          status: i % 2 === 0 ? "active" : "inactive",
+        });
+      }
+    });
+
+    it("应该通过 find().asArray().findAll() 返回纯 JSON 对象数组", async () => {
+      const users = await User.find({ status: "active" })
+        .asArray()
+        .findAll();
+
+      expect(Array.isArray(users)).toBe(true);
+      expect(users.length).toBeGreaterThan(0);
+
+      // 验证返回的是纯 JSON 对象，不是模型实例
+      const user = users[0];
+      expect(user).toBeTruthy();
+      expect(user.constructor.name).not.toBe("User");
+      expect(typeof user).toBe("object");
+      expect(user.name).toBeTruthy();
+      expect(user.email).toBeTruthy();
+      // 验证没有模型方法（如果有的话）
+      expect(typeof (user as any).save).toBe("undefined");
+    });
+
+    it("应该通过 find().asArray().findOne() 返回纯 JSON 对象或 null", async () => {
+      const user = await User.find({ status: "active" })
+        .asArray()
+        .findOne();
+
+      expect(user).toBeTruthy();
+      if (user) {
+        expect(user.constructor.name).not.toBe("User");
+        expect(typeof user).toBe("object");
+        expect(user.name).toBeTruthy();
+        expect(user.email).toBeTruthy();
+        // 验证没有模型方法
+        expect(typeof (user as any).save).toBe("undefined");
+      }
+    });
+
+    it("应该通过 query().where().asArray().findAll() 返回纯 JSON 对象数组", async () => {
+      const users = await User.query()
+        .where({ status: "active" })
+        .asArray()
+        .findAll();
+
+      expect(Array.isArray(users)).toBe(true);
+      expect(users.length).toBe(5);
+
+      // 验证返回的是纯 JSON 对象
+      users.forEach((user) => {
+        expect(user.constructor.name).not.toBe("User");
+        expect(typeof user).toBe("object");
+        expect(user.status).toBe("active");
+        expect(typeof (user as any).save).toBe("undefined");
+      });
+    });
+
+    it("应该通过 query().where().asArray().findOne() 返回纯 JSON 对象或 null", async () => {
+      const user = await User.query()
+        .where({ status: "active" })
+        .asArray()
+        .findOne();
+
+      expect(user).toBeTruthy();
+      if (user) {
+        expect(user.constructor.name).not.toBe("User");
+        expect(typeof user).toBe("object");
+        expect(user.status).toBe("active");
+        expect(typeof (user as any).save).toBe("undefined");
+      }
+    });
+
+    it("应该支持 asArray() 链式调用 sort", async () => {
+      const users = await User.query()
+        .where({ status: "active" })
+        .asArray()
+        .sort({ age: "desc" })
+        .findAll();
+
+      expect(users.length).toBe(5);
+      // 验证排序
+      for (let i = 1; i < users.length; i++) {
+        expect(users[i - 1].age).toBeGreaterThanOrEqual(users[i].age);
+      }
+      // 验证是纯 JSON 对象
+      expect(users[0].constructor.name).not.toBe("User");
+    });
+
+    it("应该支持 asArray() 链式调用 limit", async () => {
+      const users = await User.query()
+        .where({ status: "active" })
+        .asArray()
+        .limit(2)
+        .findAll();
+
+      expect(users.length).toBe(2);
+      expect(users[0].constructor.name).not.toBe("User");
+    });
+
+    it("应该支持 asArray() 链式调用 skip", async () => {
+      const users = await User.query()
+        .where({ status: "active" })
+        .asArray()
+        .skip(2)
+        .limit(2)
+        .findAll();
+
+      expect(users.length).toBe(2);
+      expect(users[0].constructor.name).not.toBe("User");
+    });
+
+    it("应该支持 asArray() 链式调用 fields", async () => {
+      const user = await User.query()
+        .where({ status: "active" })
+        .asArray()
+        .fields(["name", "age"])
+        .findOne();
+
+      expect(user).toBeTruthy();
+      if (user) {
+        expect(user.name).toBeTruthy();
+        expect(user.age).toBeTruthy();
+        // email 字段可能不存在（因为 fields 限制）
+        expect(user.constructor.name).not.toBe("User");
+      }
+    });
+
+    it("应该支持 asArray().count()", async () => {
+      const count = await User.query()
+        .where({ status: "active" })
+        .asArray()
+        .count();
+
+      expect(count).toBe(5);
+    });
+
+    it("应该支持 asArray().exists()", async () => {
+      const exists = await User.query()
+        .where({ status: "active" })
+        .asArray()
+        .exists();
+
+      expect(exists).toBe(true);
+    });
+
+    it("应该支持 asArray().distinct()", async () => {
+      const ages = await User.query()
+        .where({ status: "active" })
+        .asArray()
+        .distinct("age");
+
+      expect(Array.isArray(ages)).toBe(true);
+      expect(ages.length).toBeGreaterThan(0);
+    });
+
+    it("应该支持 asArray().paginate()", async () => {
+      const result = await User.query()
+        .where({ status: "active" })
+        .asArray()
+        .paginate(1, 2);
+
+      expect(result.data).toBeTruthy();
+      expect(Array.isArray(result.data)).toBe(true);
+      expect(result.data.length).toBe(2);
+      expect(result.total).toBe(5);
+      expect(result.page).toBe(1);
+      expect(result.pageSize).toBe(2);
+      expect(result.totalPages).toBe(3);
+
+      // 验证返回的数据是纯 JSON 对象
+      result.data.forEach((user) => {
+        expect(user.constructor.name).not.toBe("User");
+        expect(typeof (user as any).save).toBe("undefined");
+      });
+    });
+
+    it("应该支持 find().asArray().all()", async () => {
+      const users = await User.find({ status: "active" })
+        .asArray()
+        .all();
+
+      expect(Array.isArray(users)).toBe(true);
+      expect(users.length).toBe(5);
+      expect(users[0].constructor.name).not.toBe("User");
+    });
+
+    it("应该支持 find().asArray().one()", async () => {
+      const user = await User.find({ status: "active" })
+        .asArray()
+        .one();
+
+      expect(user).toBeTruthy();
+      if (user) {
+        expect(user.constructor.name).not.toBe("User");
+      }
+    });
+
+    it("应该支持 query().asArray().all()", async () => {
+      const users = await User.query()
+        .where({ status: "active" })
+        .asArray()
+        .all();
+
+      expect(Array.isArray(users)).toBe(true);
+      expect(users.length).toBe(5);
+      expect(users[0].constructor.name).not.toBe("User");
+    });
+
+    it("应该支持 query().asArray().one()", async () => {
+      const user = await User.query()
+        .where({ status: "active" })
+        .asArray()
+        .one();
+
+      expect(user).toBeTruthy();
+      if (user) {
+        expect(user.constructor.name).not.toBe("User");
+      }
+    });
+
+    it("应该支持 query().asArray() 不通过 where 直接使用", async () => {
+      const users = await User.query()
+        .asArray()
+        .limit(3)
+        .findAll();
+
+      expect(Array.isArray(users)).toBe(true);
+      expect(users.length).toBe(3);
+      expect(users[0].constructor.name).not.toBe("User");
+    });
+
+    it("应该在查询结果为空时返回空数组", async () => {
+      const users = await User.find({ status: "nonexistent" })
+        .asArray()
+        .findAll();
+
+      expect(Array.isArray(users)).toBe(true);
+      expect(users.length).toBe(0);
+    });
+
+    it("应该在查询结果为空时返回 null (findOne)", async () => {
+      const user = await User.find({ status: "nonexistent" })
+        .asArray()
+        .findOne();
+
+      expect(user).toBeNull();
+    });
+
+    it("应该支持复杂的链式调用", async () => {
+      const users = await User.query()
+        .where({ status: "active" })
+        .asArray()
+        .sort({ age: "desc" })
+        .skip(1)
+        .limit(2)
+        .findAll();
+
+      expect(users.length).toBe(2);
+      expect(users[0].constructor.name).not.toBe("User");
+      // 验证排序
+      expect(users[0].age).toBeGreaterThanOrEqual(users[1].age);
+    });
+
+    it("应该验证返回的对象可以 JSON 序列化", async () => {
+      const users = await User.query()
+        .where({ status: "active" })
+        .asArray()
+        .findAll();
+
+      // 验证可以 JSON 序列化（纯对象应该可以）
+      const json = JSON.stringify(users);
+      expect(json).toBeTruthy();
+      const parsed = JSON.parse(json);
+      expect(Array.isArray(parsed)).toBe(true);
+      expect(parsed.length).toBe(users.length);
+    });
+  });
+
   // ==================== 作用域 ====================
 
   describe("scope", () => {
