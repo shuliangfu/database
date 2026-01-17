@@ -92,12 +92,13 @@ export class MongoDBAdapter extends BaseAdapter {
         url += `?${urlParams.join("&")}`;
       }
 
-      // 连接选项
+      // 连接选项（与 MongoDB 官方驱动配置对应）
       const clientOptions: any = {
         // 默认选项
-        serverSelectionTimeoutMS: mongoOptions?.timeoutMS || 30000,
-        connectTimeoutMS: 5000, // 连接超时 5 秒
-        socketTimeoutMS: 5000, // Socket 超时 5 秒
+        serverSelectionTimeoutMS: mongoOptions?.serverSelectionTimeoutMS ||
+          30000,
+        connectTimeoutMS: mongoOptions?.connectTimeoutMS ?? 5000, // 连接超时 5 秒
+        socketTimeoutMS: mongoOptions?.socketTimeoutMS ?? 5000, // Socket 超时 5 秒
         // directConnection 必须手动设置为 true 才启用，默认不开启
         directConnection: mongoOptions?.directConnection ?? false,
       };
@@ -126,7 +127,7 @@ export class MongoDBAdapter extends BaseAdapter {
       const connectTimeout = new Promise<never>((_, reject) => {
         setTimeout(
           () => reject(new Error("MongoDB connection timeout")),
-          (mongoOptions?.timeoutMS || 30000) + 5000, // 比 serverSelectionTimeoutMS 多 5 秒
+          (mongoOptions?.serverSelectionTimeoutMS || 30000) + 5000, // 比 serverSelectionTimeoutMS 多 5 秒
         );
       });
 

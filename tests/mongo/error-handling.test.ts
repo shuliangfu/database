@@ -95,7 +95,7 @@ describe("MongoDB 错误处理", () => {
                 database: "test",
               },
               mongoOptions: {
-                timeoutMS: 2000, // 2秒超时
+                serverSelectionTimeoutMS: 2000, // 2秒超时
                 maxRetries: 0, // 不重试，快速失败
               },
             }),
@@ -126,7 +126,7 @@ describe("MongoDB 错误处理", () => {
                 database: "test",
               },
               mongoOptions: {
-                timeoutMS: 2000, // 2秒超时
+                serverSelectionTimeoutMS: 2000, // 2秒超时
                 maxRetries: 0, // 不重试，快速失败
               },
             }),

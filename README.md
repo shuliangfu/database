@@ -340,6 +340,22 @@ await initDatabase({
     port: 27017,
     database: "mydb",
   },
+  // MongoDB 特定配置选项（可选）
+  mongoOptions: {
+    // 服务器选择超时时间（毫秒），默认：30000
+    serverSelectionTimeoutMS: 30000,
+    // 连接超时时间（毫秒），默认：5000
+    connectTimeoutMS: 5000,
+    // Socket 超时时间（毫秒），默认：5000
+    socketTimeoutMS: 5000,
+    // 副本集名称（如果 MongoDB 开启了副本集，必须设置）
+    replicaSet: "rs0",
+    // 是否使用直接连接模式（单节点副本集建议设置为 true）
+    directConnection: true,
+    // 连接池配置
+    maxPoolSize: 10,
+    minPoolSize: 2,
+  },
 });
 ```
 

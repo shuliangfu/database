@@ -83,7 +83,9 @@ describe("MongoDB 特有功能", () => {
           // 清理测试集合
           await db.collection(COLLECTION_INDEX_DATA).drop().catch(() => {});
           await db.collection(COLLECTION_COLLECTION_OPS).drop().catch(() => {});
-          await db.collection(COLLECTION_VALIDATION_DATA).drop().catch(() => {});
+          await db.collection(COLLECTION_VALIDATION_DATA).drop().catch(
+            () => {},
+          );
         }
       } catch {
         // 忽略错误
@@ -508,7 +510,7 @@ describe("MongoDB 特有功能", () => {
       }
     }, { sanitizeOps: false, sanitizeResources: false });
 
-    it("应该支持 timeoutMS 配置", async () => {
+    it("应该支持 serverSelectionTimeoutMS 配置", async () => {
       if (!adapter) {
         console.log("MongoDB not available, skipping test");
         return;
@@ -535,7 +537,7 @@ describe("MongoDB 特有功能", () => {
           mongoOptions: {
             replicaSet: replicaSet,
             directConnection: directConnection,
-            timeoutMS: 30000,
+            serverSelectionTimeoutMS: 30000,
           },
         });
 

@@ -252,7 +252,21 @@ export interface MongoConfig {
      * 服务器选择超时时间（毫秒）
      * 默认值：30000
      */
-    timeoutMS?: number;
+    serverSelectionTimeoutMS?: number;
+
+    /**
+     * 连接超时时间（毫秒）
+     * 建立 TCP 连接到服务器的超时时间
+     * 默认值：5000（适配器默认值）
+     */
+    connectTimeoutMS?: number;
+
+    /**
+     * Socket 超时时间（毫秒）
+     * Socket 在连接建立后等待活动的超时时间（0 表示无超时）
+     * 默认值：5000（适配器默认值）
+     */
+    socketTimeoutMS?: number;
 
     /**
      * 最大重试次数

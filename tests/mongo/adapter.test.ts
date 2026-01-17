@@ -126,7 +126,7 @@ describe("MongoDBAdapter", () => {
             mongoOptions: {
               maxRetries: 0, // 禁用重试，快速失败
               retryDelay: 100,
-              timeoutMS: 1000, // 1秒超时
+              serverSelectionTimeoutMS: 1000, // 1秒超时
             },
           });
         },
@@ -1242,7 +1242,7 @@ describe("MongoDBAdapter", () => {
                 database: "invalid_db",
               },
               mongoOptions: {
-                timeoutMS: 2000, // 2秒超时
+                serverSelectionTimeoutMS: 2000, // 2秒超时
                 maxRetries: 0, // 不重试，快速失败
               },
             }),
@@ -1272,7 +1272,7 @@ describe("MongoDBAdapter", () => {
                 database: "",
               } as any,
               mongoOptions: {
-                timeoutMS: 2000, // 2秒超时
+                serverSelectionTimeoutMS: 2000, // 2秒超时
                 maxRetries: 0, // 不重试，快速失败
               },
             }),

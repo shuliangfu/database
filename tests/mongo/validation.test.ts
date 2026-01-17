@@ -35,7 +35,7 @@ describe("MongoModel 数据验证", () => {
           database: "test_mongo_validation",
         },
         mongoOptions: {
-          timeoutMS: 5000,
+          serverSelectionTimeoutMS: 5000,
           replicaSet: "rs0", // 指定副本集名称
           directConnection: true,
         },

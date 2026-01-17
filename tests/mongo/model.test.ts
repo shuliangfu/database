@@ -56,7 +56,7 @@ describe("MongoModel MongoDB", () => {
           database: mongoDatabase,
         },
         mongoOptions: {
-          timeoutMS: 5000,
+          serverSelectionTimeoutMS: 5000,
           directConnection: true,
         },
       });
