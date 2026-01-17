@@ -3,7 +3,14 @@
  * 测试从数据库连接到 CRUD 操作的完整流程
  */
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "@dreamer/test";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "@dreamer/test";
 import { getDatabase, initDatabase } from "../../src/access.ts";
 import { closeDatabase } from "../../src/init-database.ts";
 import { SQLModel } from "../../src/orm/sql-model.ts";

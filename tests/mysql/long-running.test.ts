@@ -4,13 +4,7 @@
  */
 
 import { getEnv } from "@dreamer/runtime-adapter";
-import {
-  afterAll,
-  beforeAll,
-  describe,
-  expect,
-  it,
-} from "@dreamer/test";
+import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
 
@@ -93,7 +87,6 @@ describe("MySQL 长时间运行集成测试", () => {
       }
 
       // 添加小延迟，模拟真实场景
-
     }
 
     // 最终验证

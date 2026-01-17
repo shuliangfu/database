@@ -76,7 +76,6 @@ describe("SQLModel 高级功能", () => {
     try {
       await closeDatabase();
       // 等待之前的连接完全释放
-
     } catch {
       // 忽略清理错误
     }
@@ -130,8 +129,14 @@ describe("SQLModel 高级功能", () => {
     );
 
     // 清空测试数据
-    await adapter.execute(`TRUNCATE TABLE ${TABLE_VIRTUALS} RESTART IDENTITY`, []);
-    await adapter.execute(`TRUNCATE TABLE ${TABLE_SCOPES} RESTART IDENTITY`, []);
+    await adapter.execute(
+      `TRUNCATE TABLE ${TABLE_VIRTUALS} RESTART IDENTITY`,
+      [],
+    );
+    await adapter.execute(
+      `TRUNCATE TABLE ${TABLE_SCOPES} RESTART IDENTITY`,
+      [],
+    );
 
     // 设置模型适配器
     UserWithVirtuals.setAdapter(adapter);
@@ -143,7 +148,6 @@ describe("SQLModel 高级功能", () => {
     try {
       await closeDatabase();
       // 等待连接完全释放，特别是在 Bun 测试环境中
-
     } catch {
       // 忽略关闭错误
     }
@@ -167,8 +171,14 @@ describe("SQLModel 高级功能", () => {
 
   beforeEach(async () => {
     // 清空测试数据
-    await adapter.execute(`TRUNCATE TABLE ${TABLE_VIRTUALS} RESTART IDENTITY`, []);
-    await adapter.execute(`TRUNCATE TABLE ${TABLE_SCOPES} RESTART IDENTITY`, []);
+    await adapter.execute(
+      `TRUNCATE TABLE ${TABLE_VIRTUALS} RESTART IDENTITY`,
+      [],
+    );
+    await adapter.execute(
+      `TRUNCATE TABLE ${TABLE_SCOPES} RESTART IDENTITY`,
+      [],
+    );
   });
 
   describe("虚拟字段（virtuals）", () => {

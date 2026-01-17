@@ -33,7 +33,6 @@ describe("access", () => {
   beforeEach(async () => {
     await closeDatabase();
     // 等待一小段时间，确保连接完全关闭
-    
   });
 
   afterAll(async () => {

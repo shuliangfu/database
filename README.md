@@ -1,6 +1,8 @@
 # @dreamer/database
 
-> 一个兼容 Deno 和 Bun 的数据库工具库，提供统一的抽象层支持多种数据库，提供完整的 ORM/ODM、查询构建器和迁移管理功能
+> 一个兼容 Deno 和 Bun
+> 的数据库工具库，提供统一的抽象层支持多种数据库，提供完整的
+> ORM/ODM、查询构建器和迁移管理功能
 
 [![JSR](https://jsr.io/badges/@dreamer/database)](https://jsr.io/@dreamer/database)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -10,13 +12,16 @@
 
 ## 🎯 功能
 
-一个经过性能优化的数据库工具库，通过统一的抽象层支持 PostgreSQL、MySQL、SQLite、MongoDB 等多种数据库，提供完整的 ORM/ODM、查询构建器和迁移管理功能。
+一个经过性能优化的数据库工具库，通过统一的抽象层支持
+PostgreSQL、MySQL、SQLite、MongoDB 等多种数据库，提供完整的
+ORM/ODM、查询构建器和迁移管理功能。
 
 ---
 
 ## ✨ 特性
 
 ### 多数据库适配器
+
 - **PostgreSQL 适配器**（PostgreSQLAdapter）- 完全支持 PostgreSQL 14+
 - **MySQL/MariaDB 适配器**（MySQLAdapter）- 完全支持 MySQL 8.0+
 - **SQLite 适配器**（SQLiteAdapter）- 支持 SQLite 3.35.0+，优先使用 Bun 原生 API
@@ -26,6 +31,7 @@
 - **多数据库实例支持** - 同时使用多个数据库连接
 
 ### ORM/ODM 功能
+
 - **SQLModel** - 关系型数据库 ORM（PostgreSQL、MySQL、SQLite）
 - **MongoModel** - MongoDB ODM
 - **统一接口** - SQLModel 和 MongoModel 接口完全统一（91.7% 统一率）
@@ -38,12 +44,14 @@
 - **关联关系** - belongsTo、hasOne、hasMany
 
 ### 查询构建器
+
 - **SQLQueryBuilder** - 关系型数据库查询构建器
 - **MongoQueryBuilder** - MongoDB 查询构建器
 - **链式 API** - 流畅的链式查询语法
 - **类型安全** - 完整的 TypeScript 类型支持
 
 ### 迁移管理
+
 - **MigrationManager** - 数据库迁移管理工具
 - **SQL 迁移支持** - PostgreSQL、MySQL、SQLite
 - **MongoDB 迁移支持** - MongoDB 集合迁移
@@ -51,6 +59,7 @@
 - **迁移回滚支持** - 支持迁移回滚
 
 ### 其他功能
+
 - **事务支持** - 基本事务、嵌套事务、保存点
 - **连接池管理** - 自动管理数据库连接池
 - **查询日志记录** - 支持日志级别过滤、慢查询检测
@@ -62,7 +71,7 @@
 
 ## 🎨 设计原则
 
-**所有 @dreamer/* 库都遵循以下原则**：
+__所有 @dreamer/_ 库都遵循以下原则_*：
 
 - **主包（@dreamer/xxx）**：用于服务端（兼容 Deno 和 Bun 运行时）
 - **统一接口**：使用适配器模式，提供统一的数据库接口，支持多种数据库后端
@@ -101,13 +110,13 @@ bunx jsr add @dreamer/database
 
 ## 🌍 环境兼容性
 
-| 环境 | 版本要求 | 状态 |
-|------|---------|------|
-| **Deno** | 2.5+ | ✅ 完全支持 |
-| **Bun** | 1.0+ | ✅ 完全支持 |
-| **服务端** | - | ✅ 支持（兼容 Deno 和 Bun 运行时，需要数据库驱动） |
-| **客户端** | - | ❌ 不支持（浏览器环境无法直接连接数据库） |
-| **依赖** | - | 📦 需要相应的数据库驱动（PostgreSQL、MySQL、SQLite、MongoDB） |
+| 环境       | 版本要求 | 状态                                                          |
+| ---------- | -------- | ------------------------------------------------------------- |
+| **Deno**   | 2.5+     | ✅ 完全支持                                                   |
+| **Bun**    | 1.0+     | ✅ 完全支持                                                   |
+| **服务端** | -        | ✅ 支持（兼容 Deno 和 Bun 运行时，需要数据库驱动）            |
+| **客户端** | -        | ❌ 不支持（浏览器环境无法直接连接数据库）                     |
+| **依赖**   | -        | 📦 需要相应的数据库驱动（PostgreSQL、MySQL、SQLite、MongoDB） |
 
 ---
 
@@ -116,7 +125,7 @@ bunx jsr add @dreamer/database
 ### 基础数据库操作
 
 ```typescript
-import { initDatabase, getDatabase } from "jsr:@dreamer/database";
+import { getDatabase, initDatabase } from "jsr:@dreamer/database";
 
 // 初始化 SQLite 数据库
 await initDatabase({
@@ -132,13 +141,13 @@ const db = getDatabase();
 // 执行 SQL 查询
 const users = await db.query(
   "SELECT * FROM users WHERE age > ?",
-  [18]
+  [18],
 );
 
 // 执行更新操作
 await db.execute(
   "INSERT INTO users (name, email) VALUES (?, ?)",
-  ["Alice", "alice@example.com"]
+  ["Alice", "alice@example.com"],
 );
 
 // 事务支持
@@ -157,7 +166,7 @@ await db.transaction(async (trx) => {
 ### SQLModel ORM
 
 ```typescript
-import { SQLModel, initDatabase } from "jsr:@dreamer/database";
+import { initDatabase, SQLModel } from "jsr:@dreamer/database";
 
 // 定义用户模型
 class User extends SQLModel {
@@ -230,7 +239,7 @@ await User.deleteById(user.id);
 ### MongoModel ODM
 
 ```typescript
-import { MongoModel, initDatabase } from "jsr:@dreamer/database";
+import { initDatabase, MongoModel } from "jsr:@dreamer/database";
 
 // 定义文章模型
 class Article extends MongoModel {
@@ -308,6 +317,7 @@ initDatabase(config: DatabaseConfig, connectionName?: string): Promise<Connectio
 ```
 
 **参数：**
+
 - `config: DatabaseConfig` - 数据库配置
 - `connectionName?: string` - 连接名称（默认为 'default'）
 
@@ -401,7 +411,8 @@ closeDatabase(): Promise<void>
 
 ## 📖 SQLModel 详细 API
 
-SQLModel 是关系型数据库（PostgreSQL、MySQL、SQLite）的 ORM 基类，提供完整的数据库操作功能。
+SQLModel 是关系型数据库（PostgreSQL、MySQL、SQLite）的 ORM
+基类，提供完整的数据库操作功能。
 
 ### 模型定义
 
@@ -560,7 +571,8 @@ class User extends SQLModel {
 }
 ```
 
-> 💡 **提示**：数据验证规则同时适用于 `SQLModel` 和 `MongoModel`，两者使用完全相同的验证规则。
+> 💡 **提示**：数据验证规则同时适用于 `SQLModel` 和
+> `MongoModel`，两者使用完全相同的验证规则。
 
 ### 静态查询方法
 
@@ -732,7 +744,9 @@ await User.deleteById(1);
 const count = await User.deleteMany({ status: "inactive" });
 
 // 支持 returnIds 选项返回删除的记录 ID
-const result = await User.deleteMany({ status: "inactive" }, { returnIds: true });
+const result = await User.deleteMany({ status: "inactive" }, {
+  returnIds: true,
+});
 // 返回: { count: number, ids: any[] }
 ```
 
@@ -790,21 +804,21 @@ await User.decrementMany({ status: "active" }, { views: 1, likes: 1 });
 // 如果记录不存在则创建，存在则更新
 const user = await User.upsert(
   { email: "alice@example.com" },
-  { name: "Alice", age: 25 }
+  { name: "Alice", age: 25 },
 );
 
 // 支持 returnLatest 选项
 const user = await User.upsert(
   { email: "alice@example.com" },
   { name: "Alice", age: 25 },
-  { returnLatest: true }
+  { returnLatest: true },
 );
 
 // 支持 resurrect 选项（恢复软删除的记录）
 const user = await User.upsert(
   { email: "alice@example.com" },
   { name: "Alice", age: 25 },
-  { returnLatest: true, resurrect: true }
+  { returnLatest: true, resurrect: true },
 );
 ```
 
@@ -816,14 +830,14 @@ const user = await User.upsert(
 // 如果记录存在则返回，不存在则创建
 const user = await User.findOrCreate(
   { email: "alice@example.com" },
-  { name: "Alice", age: 25 }
+  { name: "Alice", age: 25 },
 );
 
 // 支持 resurrect 选项（恢复软删除的记录）
 const user = await User.findOrCreate(
   { email: "alice@example.com" },
   { name: "Alice", age: 25 },
-  true // resurrect
+  true, // resurrect
 );
 ```
 
@@ -834,7 +848,7 @@ const user = await User.findOrCreate(
 ```typescript
 const user = await User.findOneAndUpdate(
   { email: "alice@example.com" },
-  { age: 26 }
+  { age: 26 },
 );
 ```
 
@@ -855,7 +869,7 @@ const user = await User.findOneAndDelete({ email: "alice@example.com" });
 const user = await User.findOneAndReplace(
   { email: "alice@example.com" },
   { name: "Alice Updated", age: 26 },
-  { returnLatest: true }
+  { returnLatest: true },
 );
 ```
 
@@ -914,7 +928,9 @@ await User.restoreById(1);
 await User.forceDelete({ status: "deleted" });
 
 // 支持 returnIds 选项
-const result = await User.forceDelete({ status: "deleted" }, { returnIds: true });
+const result = await User.forceDelete({ status: "deleted" }, {
+  returnIds: true,
+});
 ```
 
 #### forceDeleteById
@@ -1131,9 +1147,12 @@ const users = await User.scope("active").findAll();
 
 #### asArray() - 返回纯 JSON 对象数组
 
-`asArray()` 方法可以将查询结果转换为纯 JSON 对象数组，而不是模型实例。这对于需要纯数据格式的场景非常有用，比如 API 响应、数据序列化等。
+`asArray()` 方法可以将查询结果转换为纯 JSON
+对象数组，而不是模型实例。这对于需要纯数据格式的场景非常有用，比如 API
+响应、数据序列化等。
 
 **特点：**
+
 - 返回纯 JSON 对象数组（`Record<string, any>[]`），不是模型实例
 - 支持所有链式调用方法（sort、limit、skip、fields 等）
 - 支持聚合方法（count、exists、distinct、paginate）
@@ -1235,7 +1254,9 @@ console.log(user?.constructor.name); // "Object" 而不是 "User"
 ```
 
 **注意事项：**
-- `asArray()` 返回的是纯 JSON 对象，不能调用模型方法（如 `save`、`update`、`delete` 等）
+
+- `asArray()` 返回的是纯 JSON 对象，不能调用模型方法（如
+  `save`、`update`、`delete` 等）
 - 如果需要模型实例的功能，请使用普通的 `find()` 或 `query()` 方法
 - 返回的对象使用浅拷贝（`{ ...row }`），性能优于 `JSON.parse(JSON.stringify())`
 
@@ -1285,7 +1306,9 @@ const author = await post.belongsTo(User, "user_id", "id");
 const author = await post.belongsTo(User, "user_id", "id", ["name", "email"]);
 
 // 支持 includeTrashed 选项
-const author = await post.belongsTo(User, "user_id", "id", undefined, { includeTrashed: true });
+const author = await post.belongsTo(User, "user_id", "id", undefined, {
+  includeTrashed: true,
+});
 ```
 
 #### hasOne
@@ -1300,7 +1323,9 @@ const profile = await user.hasOne(Profile, "user_id", "id");
 const profile = await user.hasOne(Profile, "user_id", "id", ["bio", "avatar"]);
 
 // 支持 includeTrashed 选项
-const profile = await user.hasOne(Profile, "user_id", "id", undefined, { includeTrashed: true });
+const profile = await user.hasOne(Profile, "user_id", "id", undefined, {
+  includeTrashed: true,
+});
 ```
 
 #### hasMany
@@ -1321,10 +1346,25 @@ const posts = await user.hasMany(Post, "user_id", "id", undefined, {
 });
 
 // 支持 includeTrashed 选项
-const posts = await user.hasMany(Post, "user_id", "id", undefined, undefined, true);
+const posts = await user.hasMany(
+  Post,
+  "user_id",
+  "id",
+  undefined,
+  undefined,
+  true,
+);
 
 // 支持 onlyTrashed 选项
-const deletedPosts = await user.hasMany(Post, "user_id", "id", undefined, undefined, false, true);
+const deletedPosts = await user.hasMany(
+  Post,
+  "user_id",
+  "id",
+  undefined,
+  undefined,
+  false,
+  true,
+);
 ```
 
 ### 生命周期钩子
@@ -1410,7 +1450,10 @@ class Article extends MongoModel {
   static override schema = {
     title: { type: "string", validate: { required: true, max: 200 } },
     content: { type: "string", validate: { required: true } },
-    status: { type: "string", validate: { enum: ["draft", "published", "archived"] } },
+    status: {
+      type: "string",
+      validate: { enum: ["draft", "published", "archived"] },
+    },
   };
 
   // 软删除支持（可选）
@@ -1432,19 +1475,23 @@ class Article extends MongoModel {
 
 ### 数据验证规则
 
-MongoModel 的数据验证规则与 SQLModel 完全一致，详见 [SQLModel 文档](#数据验证规则)。
+MongoModel 的数据验证规则与 SQLModel 完全一致，详见
+[SQLModel 文档](#数据验证规则)。
 
 ### 静态查询方法
 
-MongoModel 的静态查询方法与 SQLModel 完全一致，详见 [SQLModel 文档](#静态查询方法)。
+MongoModel 的静态查询方法与 SQLModel 完全一致，详见
+[SQLModel 文档](#静态查询方法)。
 
 ### 静态操作方法
 
-MongoModel 的静态操作方法与 SQLModel 完全一致，详见 [SQLModel 文档](#静态操作方法)。
+MongoModel 的静态操作方法与 SQLModel 完全一致，详见
+[SQLModel 文档](#静态操作方法)。
 
 ### 链式查询构建器
 
-MongoModel 的链式查询构建器方法与 SQLModel 完全一致，详见 [SQLModel 文档](#链式查询构建器)。
+MongoModel 的链式查询构建器方法与 SQLModel 完全一致，详见
+[SQLModel 文档](#链式查询构建器)。
 
 ### MongoModel 独有方法
 
@@ -1518,7 +1565,8 @@ MongoModel 的关联查询方法与 SQLModel 完全一致，详见 [SQLModel 文
 
 ### 生命周期钩子
 
-MongoModel 的生命周期钩子与 SQLModel 完全一致，详见 [SQLModel 文档](#生命周期钩子)。
+MongoModel 的生命周期钩子与 SQLModel 完全一致，详见
+[SQLModel 文档](#生命周期钩子)。
 
 ---
 
@@ -1531,7 +1579,7 @@ SQL 查询构建器，用于构建复杂的 SQL 查询。
 #### 基本用法
 
 ```typescript
-import { SQLQueryBuilder, getDatabase } from "jsr:@dreamer/database";
+import { getDatabase, SQLQueryBuilder } from "jsr:@dreamer/database";
 
 const db = getDatabase();
 const builder = new SQLQueryBuilder(db);
@@ -1617,7 +1665,7 @@ MongoDB 查询构建器，用于构建复杂的 MongoDB 查询。
 #### 基本用法
 
 ```typescript
-import { MongoQueryBuilder, getDatabase } from "jsr:@dreamer/database";
+import { getDatabase, MongoQueryBuilder } from "jsr:@dreamer/database";
 
 const db = getDatabase();
 const builder = new MongoQueryBuilder(db);
@@ -1834,10 +1882,25 @@ const posts = await user.hasMany(Post, "user_id", "id", undefined, {
 });
 
 // 包含软删除记录
-const posts = await user.hasMany(Post, "user_id", "id", undefined, undefined, true);
+const posts = await user.hasMany(
+  Post,
+  "user_id",
+  "id",
+  undefined,
+  undefined,
+  true,
+);
 
 // 仅查询已删除记录
-const deletedPosts = await user.hasMany(Post, "user_id", "id", undefined, undefined, false, true);
+const deletedPosts = await user.hasMany(
+  Post,
+  "user_id",
+  "id",
+  undefined,
+  undefined,
+  false,
+  true,
+);
 ```
 
 ---
@@ -1847,7 +1910,7 @@ const deletedPosts = await user.hasMany(Post, "user_id", "id", undefined, undefi
 ### 创建迁移
 
 ```typescript
-import { MigrationManager, getDatabase } from "jsr:@dreamer/database";
+import { getDatabase, MigrationManager } from "jsr:@dreamer/database";
 
 const db = getDatabase();
 const manager = new MigrationManager({
@@ -1895,129 +1958,130 @@ console.log(status);
 
 ### 统一接口对比
 
-> 📋 **完整对比表格请查看：** [model-api-comparison.md](./docs/model-api-comparison.md)
+> 📋 **完整对比表格请查看：**
+> [model-api-comparison.md](./docs/model-api-comparison.md)
 
 #### 静态查询方法
 
-| 方法名 | SQLModel | MongoModel | 统一状态 |
-|--------|----------|------------|----------|
-| `find` | ✅ | ✅ | ✅ 已统一 |
-| `findAll` | ✅ | ✅ | ✅ 已统一 |
-| `findOne` | ✅ | ✅ | ✅ 已统一 |
-| `findById` | ✅ | ✅ | ✅ 已统一 |
-| `count` | ✅ | ✅ | ✅ 已统一 |
-| `exists` | ✅ | ✅ | ✅ 已统一 |
-| `paginate` | ✅ | ✅ | ✅ 已统一 |
-| `distinct` | ✅ | ✅ | ✅ 已统一 |
-| `findOrCreate` | ✅ | ✅ | ✅ 已统一 |
-| `findOneAndUpdate` | ✅ | ✅ | ✅ 已统一 |
-| `findOneAndDelete` | ✅ | ✅ | ✅ 已统一 |
-| `findOneAndReplace` | ✅ | ✅ | ✅ 已统一 |
-| `truncate` | ✅ | ✅ | ✅ 已统一 |
-| `aggregate` | ❌ | ✅ | ⚠️ 无法统一（SQL 不支持聚合管道） |
+| 方法名              | SQLModel | MongoModel | 统一状态                          |
+| ------------------- | -------- | ---------- | --------------------------------- |
+| `find`              | ✅       | ✅         | ✅ 已统一                         |
+| `findAll`           | ✅       | ✅         | ✅ 已统一                         |
+| `findOne`           | ✅       | ✅         | ✅ 已统一                         |
+| `findById`          | ✅       | ✅         | ✅ 已统一                         |
+| `count`             | ✅       | ✅         | ✅ 已统一                         |
+| `exists`            | ✅       | ✅         | ✅ 已统一                         |
+| `paginate`          | ✅       | ✅         | ✅ 已统一                         |
+| `distinct`          | ✅       | ✅         | ✅ 已统一                         |
+| `findOrCreate`      | ✅       | ✅         | ✅ 已统一                         |
+| `findOneAndUpdate`  | ✅       | ✅         | ✅ 已统一                         |
+| `findOneAndDelete`  | ✅       | ✅         | ✅ 已统一                         |
+| `findOneAndReplace` | ✅       | ✅         | ✅ 已统一                         |
+| `truncate`          | ✅       | ✅         | ✅ 已统一                         |
+| `aggregate`         | ❌       | ✅         | ⚠️ 无法统一（SQL 不支持聚合管道） |
 
 #### 静态操作方法
 
-| 方法名 | SQLModel | MongoModel | 统一状态 |
-|--------|----------|------------|----------|
-| `create` | ✅ | ✅ | ✅ 已统一 |
-| `createMany` | ✅ | ✅ | ✅ 已统一 |
-| `update` | ✅ | ✅ | ✅ 已统一 |
-| `updateById` | ✅ | ✅ | ✅ 已统一 |
-| `updateMany` | ✅ | ✅ | ✅ 已统一 |
-| `delete` | ✅ | ✅ | ✅ 已统一 |
-| `deleteById` | ✅ | ✅ | ✅ 已统一 |
-| `deleteMany` | ✅ | ✅ | ✅ 已统一 |
-| `increment` | ✅ | ✅ | ✅ 已统一 |
-| `decrement` | ✅ | ✅ | ✅ 已统一 |
-| `incrementMany` | ✅ | ✅ | ✅ 已统一 |
-| `decrementMany` | ✅ | ✅ | ✅ 已统一 |
-| `upsert` | ✅ | ✅ | ✅ 已统一 |
-| `restore` | ✅ | ✅ | ✅ 已统一 |
-| `restoreById` | ✅ | ✅ | ✅ 已统一 |
-| `forceDelete` | ✅ | ✅ | ✅ 已统一 |
-| `forceDeleteById` | ✅ | ✅ | ✅ 已统一 |
+| 方法名            | SQLModel | MongoModel | 统一状态  |
+| ----------------- | -------- | ---------- | --------- |
+| `create`          | ✅       | ✅         | ✅ 已统一 |
+| `createMany`      | ✅       | ✅         | ✅ 已统一 |
+| `update`          | ✅       | ✅         | ✅ 已统一 |
+| `updateById`      | ✅       | ✅         | ✅ 已统一 |
+| `updateMany`      | ✅       | ✅         | ✅ 已统一 |
+| `delete`          | ✅       | ✅         | ✅ 已统一 |
+| `deleteById`      | ✅       | ✅         | ✅ 已统一 |
+| `deleteMany`      | ✅       | ✅         | ✅ 已统一 |
+| `increment`       | ✅       | ✅         | ✅ 已统一 |
+| `decrement`       | ✅       | ✅         | ✅ 已统一 |
+| `incrementMany`   | ✅       | ✅         | ✅ 已统一 |
+| `decrementMany`   | ✅       | ✅         | ✅ 已统一 |
+| `upsert`          | ✅       | ✅         | ✅ 已统一 |
+| `restore`         | ✅       | ✅         | ✅ 已统一 |
+| `restoreById`     | ✅       | ✅         | ✅ 已统一 |
+| `forceDelete`     | ✅       | ✅         | ✅ 已统一 |
+| `forceDeleteById` | ✅       | ✅         | ✅ 已统一 |
 
 #### 查询构建器方法（`query()`）
 
 **查询方法：**
 
-| 方法名 | SQLModel | MongoModel | 统一状态 |
-|--------|----------|------------|----------|
-| `findAll()` | ✅ | ✅ | ✅ 已统一 |
-| `findOne()` | ✅ | ✅ | ✅ 已统一 |
-| `one()` | ✅ | ✅ | ✅ 已统一 |
-| `all()` | ✅ | ✅ | ✅ 已统一 |
-| `findById(id, fields?)` | ✅ | ✅ | ✅ 已统一 |
-| `count()` | ✅ | ✅ | ✅ 已统一 |
-| `exists()` | ✅ | ✅ | ✅ 已统一 |
-| `distinct(field)` | ✅ | ✅ | ✅ 已统一 |
-| `paginate(page, pageSize)` | ✅ | ✅ | ✅ 已统一 |
-| `aggregate(pipeline)` | ❌ | ✅ | ⚠️ 无法统一 |
+| 方法名                     | SQLModel | MongoModel | 统一状态    |
+| -------------------------- | -------- | ---------- | ----------- |
+| `findAll()`                | ✅       | ✅         | ✅ 已统一   |
+| `findOne()`                | ✅       | ✅         | ✅ 已统一   |
+| `one()`                    | ✅       | ✅         | ✅ 已统一   |
+| `all()`                    | ✅       | ✅         | ✅ 已统一   |
+| `findById(id, fields?)`    | ✅       | ✅         | ✅ 已统一   |
+| `count()`                  | ✅       | ✅         | ✅ 已统一   |
+| `exists()`                 | ✅       | ✅         | ✅ 已统一   |
+| `distinct(field)`          | ✅       | ✅         | ✅ 已统一   |
+| `paginate(page, pageSize)` | ✅       | ✅         | ✅ 已统一   |
+| `aggregate(pipeline)`      | ❌       | ✅         | ⚠️ 无法统一 |
 
 **操作方法：**
 
-| 方法名 | SQLModel | MongoModel | 统一状态 |
-|--------|----------|------------|----------|
-| `update(data, returnLatest?)` | ✅ | ✅ | ✅ 已统一 |
-| `updateById(id, data)` | ✅ | ✅ | ✅ 已统一 |
-| `updateMany(data)` | ✅ | ✅ | ✅ 已统一 |
-| `increment(field, amount?, returnLatest?)` | ✅ | ✅ | ✅ 已统一 |
-| `decrement(field, amount?, returnLatest?)` | ✅ | ✅ | ✅ 已统一 |
-| `deleteById(id)` | ✅ | ✅ | ✅ 已统一 |
-| `deleteMany(options?)` | ✅ | ✅ | ✅ 已统一 |
-| `restore(options?)` | ✅ | ✅ | ✅ 已统一 |
-| `restoreById(id)` | ✅ | ✅ | ✅ 已统一 |
-| `forceDelete(options?)` | ✅ | ✅ | ✅ 已统一 |
-| `forceDeleteById(id)` | ✅ | ✅ | ✅ 已统一 |
-| `upsert(data, returnLatest?, resurrect?)` | ✅ | ✅ | ✅ 已统一 |
-| `findOrCreate(data, resurrect?)` | ✅ | ✅ | ✅ 已统一 |
-| `findOneAndUpdate(data, options?)` | ✅ | ✅ | ✅ 已统一 |
-| `findOneAndDelete()` | ✅ | ✅ | ✅ 已统一 |
-| `findOneAndReplace(replacement, returnLatest?)` | ✅ | ✅ | ✅ 已统一 |
-| `incrementMany(fieldOrMap, amount?)` | ✅ | ✅ | ✅ 已统一 |
-| `decrementMany(fieldOrMap, amount?)` | ✅ | ✅ | ✅ 已统一 |
+| 方法名                                          | SQLModel | MongoModel | 统一状态  |
+| ----------------------------------------------- | -------- | ---------- | --------- |
+| `update(data, returnLatest?)`                   | ✅       | ✅         | ✅ 已统一 |
+| `updateById(id, data)`                          | ✅       | ✅         | ✅ 已统一 |
+| `updateMany(data)`                              | ✅       | ✅         | ✅ 已统一 |
+| `increment(field, amount?, returnLatest?)`      | ✅       | ✅         | ✅ 已统一 |
+| `decrement(field, amount?, returnLatest?)`      | ✅       | ✅         | ✅ 已统一 |
+| `deleteById(id)`                                | ✅       | ✅         | ✅ 已统一 |
+| `deleteMany(options?)`                          | ✅       | ✅         | ✅ 已统一 |
+| `restore(options?)`                             | ✅       | ✅         | ✅ 已统一 |
+| `restoreById(id)`                               | ✅       | ✅         | ✅ 已统一 |
+| `forceDelete(options?)`                         | ✅       | ✅         | ✅ 已统一 |
+| `forceDeleteById(id)`                           | ✅       | ✅         | ✅ 已统一 |
+| `upsert(data, returnLatest?, resurrect?)`       | ✅       | ✅         | ✅ 已统一 |
+| `findOrCreate(data, resurrect?)`                | ✅       | ✅         | ✅ 已统一 |
+| `findOneAndUpdate(data, options?)`              | ✅       | ✅         | ✅ 已统一 |
+| `findOneAndDelete()`                            | ✅       | ✅         | ✅ 已统一 |
+| `findOneAndReplace(replacement, returnLatest?)` | ✅       | ✅         | ✅ 已统一 |
+| `incrementMany(fieldOrMap, amount?)`            | ✅       | ✅         | ✅ 已统一 |
+| `decrementMany(fieldOrMap, amount?)`            | ✅       | ✅         | ✅ 已统一 |
 
 #### 软删除相关方法
 
-| 方法名 | SQLModel | MongoModel | 统一状态 |
-|--------|----------|------------|----------|
-| `withTrashed()` | ✅ | ✅ | ✅ 已统一 |
-| `onlyTrashed()` | ✅ | ✅ | ✅ 已统一 |
-| `scope(scopeName)` | ✅ | ✅ | ✅ 已统一 |
+| 方法名             | SQLModel | MongoModel | 统一状态  |
+| ------------------ | -------- | ---------- | --------- |
+| `withTrashed()`    | ✅       | ✅         | ✅ 已统一 |
+| `onlyTrashed()`    | ✅       | ✅         | ✅ 已统一 |
+| `scope(scopeName)` | ✅       | ✅         | ✅ 已统一 |
 
 #### 实例方法
 
-| 方法名 | SQLModel | MongoModel | 统一状态 |
-|--------|----------|------------|----------|
-| `save()` | ✅ | ✅ | ✅ 已统一 |
-| `update(data)` | ✅ | ✅ | ✅ 已统一 |
-| `delete()` | ✅ | ✅ | ✅ 已统一 |
-| `belongsTo(...)` | ✅ | ✅ | ✅ 已统一 |
-| `hasOne(...)` | ✅ | ✅ | ✅ 已统一 |
-| `hasMany(...)` | ✅ | ✅ | ✅ 已统一 |
+| 方法名           | SQLModel | MongoModel | 统一状态  |
+| ---------------- | -------- | ---------- | --------- |
+| `save()`         | ✅       | ✅         | ✅ 已统一 |
+| `update(data)`   | ✅       | ✅         | ✅ 已统一 |
+| `delete()`       | ✅       | ✅         | ✅ 已统一 |
+| `belongsTo(...)` | ✅       | ✅         | ✅ 已统一 |
+| `hasOne(...)`    | ✅       | ✅         | ✅ 已统一 |
+| `hasMany(...)`   | ✅       | ✅         | ✅ 已统一 |
 
 #### MongoModel 独有方法
 
-| 方法名 | SQLModel | MongoModel | 统一状态 | 备注 |
-|--------|----------|------------|----------|------|
-| `createIndexes(force?)` | ❌ | ✅ | ⚠️ 无法统一 | MongoDB 索引管理 |
-| `dropIndexes()` | ❌ | ✅ | ⚠️ 无法统一 | MongoDB 索引管理 |
-| `getIndexes()` | ❌ | ✅ | ⚠️ 无法统一 | MongoDB 索引管理 |
-| `transaction(callback)` | ❌ | ✅ | ⚠️ 无法统一 | MongoDB 事务 |
+| 方法名                  | SQLModel | MongoModel | 统一状态    | 备注             |
+| ----------------------- | -------- | ---------- | ----------- | ---------------- |
+| `createIndexes(force?)` | ❌       | ✅         | ⚠️ 无法统一 | MongoDB 索引管理 |
+| `dropIndexes()`         | ❌       | ✅         | ⚠️ 无法统一 | MongoDB 索引管理 |
+| `getIndexes()`          | ❌       | ✅         | ⚠️ 无法统一 | MongoDB 索引管理 |
+| `transaction(callback)` | ❌       | ✅         | ⚠️ 无法统一 | MongoDB 事务     |
 
 #### 统一率统计
 
-| 类别 | 总数 | 已统一 | 无法统一 | 统一率 |
-|------|------|--------|----------|--------|
-| 静态查询方法 | 14 | 13 | 1 | 92.9% |
-| 静态操作方法 | 17 | 17 | 0 | 100% |
-| 查询构建器查询方法 | 10 | 9 | 1 | 90% |
-| 查询构建器操作方法 | 18 | 18 | 0 | 100% |
-| 软删除相关方法 | 3 | 3 | 0 | 100% |
-| 实例方法 | 6 | 6 | 0 | 100% |
-| MongoModel 独有方法 | 4 | 0 | 4 | - |
-| **总计** | **72** | **66** | **6** | **91.7%** |
+| 类别                | 总数   | 已统一 | 无法统一 | 统一率    |
+| ------------------- | ------ | ------ | -------- | --------- |
+| 静态查询方法        | 14     | 13     | 1        | 92.9%     |
+| 静态操作方法        | 17     | 17     | 0        | 100%      |
+| 查询构建器查询方法  | 10     | 9      | 1        | 90%       |
+| 查询构建器操作方法  | 18     | 18     | 0        | 100%      |
+| 软删除相关方法      | 3      | 3      | 0        | 100%      |
+| 实例方法            | 6      | 6      | 0        | 100%      |
+| MongoModel 独有方法 | 4      | 0      | 4        | -         |
+| **总计**            | **72** | **66** | **6**    | **91.7%** |
 
 ---
 
@@ -2026,6 +2090,7 @@ console.log(status);
 本项目包含完整的测试套件，所有测试均使用真实数据库进行测试。
 
 **测试统计：**
+
 - ✅ **1,575 个测试** - 全部通过
 - ✅ **80 个测试文件** - 覆盖所有核心功能
 - ✅ **100% 通过率** - 无失败测试

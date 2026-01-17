@@ -454,7 +454,6 @@ describe("init-database", () => {
 
       // 等待一段时间让连接完全释放
 
-
       expect(hasConnection("conn1")).toBe(false);
       expect(hasConnection("conn2")).toBe(false);
       expect(isDatabaseInitialized()).toBe(false);
@@ -564,7 +563,6 @@ describe("init-database", () => {
 
       // 测试结束后显式清理，确保连接完全释放
       await manager.closeAll();
-
     }, { timeout: 10000 });
   });
 }, {

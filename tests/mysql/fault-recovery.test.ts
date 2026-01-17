@@ -4,13 +4,7 @@
  */
 
 import { getEnv } from "@dreamer/runtime-adapter";
-import {
-  afterAll,
-  beforeAll,
-  describe,
-  expect,
-  it,
-} from "@dreamer/test";
+import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
 

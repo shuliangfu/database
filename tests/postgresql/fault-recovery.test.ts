@@ -31,7 +31,6 @@ describe("PostgreSQL 故障恢复集成测试", () => {
     try {
       await closeDatabase();
       // 等待之前的连接完全释放
-      
     } catch {
       // 忽略清理错误
     }
@@ -83,7 +82,6 @@ describe("PostgreSQL 故障恢复集成测试", () => {
     try {
       await closeDatabase();
       // 等待连接完全释放，特别是在 Bun 测试环境中
-      
     } catch {
       // 忽略关闭错误
     }
@@ -94,12 +92,11 @@ describe("PostgreSQL 故障恢复集成测试", () => {
     if (adapter && adapter.isConnected()) {
       try {
         // 等待连接池释放空闲连接
-        
+
         // 获取连接池状态并检查
         const status = await adapter.getPoolStatus();
         // 如果活跃连接过多，等待更长时间
         if (status.active > 2) {
-          
         }
       } catch {
         // 忽略错误

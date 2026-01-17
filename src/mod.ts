@@ -85,8 +85,8 @@ export type { DatabaseError as DatabaseErrorType } from "./errors.ts";
 
 // ==================== 数据库访问辅助函数 ====================
 export {
-  getDatabase,
   closeDatabase,
+  getDatabase,
   getDatabaseAsync,
   getDatabaseManager,
   isDatabaseInitialized,

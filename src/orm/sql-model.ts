@@ -2982,11 +2982,10 @@ export abstract class SQLModel {
         );
       },
       distinct: async (field: string): Promise<any[]> => {
-        const cond =
-          typeof state._condition === "number" ||
+        const cond = typeof state._condition === "number" ||
             typeof state._condition === "string"
-            ? { [this.primaryKey]: state._condition }
-            : (state._condition as any);
+          ? { [this.primaryKey]: state._condition }
+          : (state._condition as any);
         return await this.distinct(
           field,
           cond,
@@ -5571,11 +5570,10 @@ export abstract class SQLModel {
         return await this.forceDeleteById(id);
       },
       distinct: async (field: string): Promise<any[]> => {
-        const cond =
-          typeof state._condition === "number" ||
+        const cond = typeof state._condition === "number" ||
             typeof state._condition === "string"
-            ? { [this.primaryKey]: state._condition }
-            : (state._condition as any);
+          ? { [this.primaryKey]: state._condition }
+          : (state._condition as any);
         return await this.distinct(
           field,
           cond,
@@ -5599,11 +5597,10 @@ export abstract class SQLModel {
         data: Record<string, any>,
         resurrect: boolean = false, // 统一接口：与 MongoModel 保持一致
       ): Promise<InstanceType<T>> => {
-        const cond =
-          typeof state._condition === "number" ||
+        const cond = typeof state._condition === "number" ||
             typeof state._condition === "string"
-            ? { [this.primaryKey]: state._condition }
-            : (state._condition as any);
+          ? { [this.primaryKey]: state._condition }
+          : (state._condition as any);
         return await this.findOrCreate(cond, data, resurrect);
       },
       findOneAndUpdate: async (
