@@ -308,6 +308,14 @@ export type SQLArrayQueryBuilder<T extends typeof SQLModel> = {
 };
 
 export type SQLFindQueryBuilder<T extends typeof SQLModel> = {
+  orWhere: (
+    condition: WhereCondition | number | string,
+  ) => SQLFindQueryBuilder<T>;
+  andWhere: (
+    condition: WhereCondition | number | string,
+  ) => SQLFindQueryBuilder<T>;
+  orLike: (condition: WhereCondition) => SQLFindQueryBuilder<T>;
+  andLike: (condition: WhereCondition) => SQLFindQueryBuilder<T>;
   sort: (
     sort: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc",
   ) => SQLFindQueryBuilder<T>;
@@ -355,6 +363,15 @@ export type SQLQueryBuilder<T extends typeof SQLModel> = {
   where: (
     condition: WhereCondition | number | string,
   ) => SQLQueryBuilder<T>;
+  orWhere: (
+    condition: WhereCondition | number | string,
+  ) => SQLQueryBuilder<T>;
+  andWhere: (
+    condition: WhereCondition | number | string,
+  ) => SQLQueryBuilder<T>;
+  like: (condition: WhereCondition) => SQLQueryBuilder<T>;
+  orLike: (condition: WhereCondition) => SQLQueryBuilder<T>;
+  andLike: (condition: WhereCondition) => SQLQueryBuilder<T>;
   fields: (fields: string[]) => SQLQueryBuilder<T>;
   sort: (
     sort: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc",
@@ -429,6 +446,12 @@ export type SQLQueryBuilder<T extends typeof SQLModel> = {
     pageSize: number;
     totalPages: number;
   }>;
+  then: (
+    onfulfilled?: (value: InstanceType<T> | null) => any,
+    onrejected?: (reason: any) => any,
+  ) => Promise<any>;
+  catch: (onrejected?: (reason: any) => any) => Promise<any>;
+  finally: (onfinally?: () => void) => Promise<any>;
 };
 
 /**
@@ -938,14 +961,189 @@ export abstract class SQLModel {
 
   /**
    * 将查询条件对象转换为 SQL WHERE 子句
-   * @param condition 查询条件对象
+   * @param condition 查询条件对象，支持组合条件（包含 __combined 属性）
    * @returns SQL WHERE 子句和参数数组
    */
   private static buildWhereClause(
-    condition: WhereCondition | number | string,
+    condition: WhereCondition | number | string | any,
     includeTrashed: boolean = false,
     onlyTrashed: boolean = false,
   ): { where: string; params: any[] } {
+    // 处理组合条件（来自链式查询构建器）
+    if (
+      condition &&
+      typeof condition === "object" &&
+      !Array.isArray(condition) &&
+      condition.__combined
+    ) {
+      const combinedConditions = condition.__combined as Array<{
+        type: "where" | "or" | "and";
+        condition: WhereCondition | number | string;
+      }>;
+
+      // 使用 OR 分支数组来正确组织条件
+      // 每个 OR 分支包含一个 AND 条件数组
+      const orBranches: Array<{ conditions: string[]; params: any[] }> = [];
+      let currentOrBranch: { conditions: string[]; params: any[] } | null =
+        null;
+      let hasOrCondition = false;
+
+      for (const item of combinedConditions) {
+        const { where: whereClause, params } = this.buildWhereClause(
+          item.condition,
+          false,
+          false,
+        );
+
+        if (item.type === "where") {
+          // where 开始新的查询组
+          // 如果之前有 OR 分支，先保存它
+          if (currentOrBranch && currentOrBranch.conditions.length > 0) {
+            orBranches.push(currentOrBranch);
+            currentOrBranch = null;
+          }
+          // 开始新的 OR 分支
+          currentOrBranch = {
+            conditions: [whereClause],
+            params: [...params],
+          };
+          hasOrCondition = false;
+        } else if (item.type === "and") {
+          // andWhere 添加到当前 OR 分支
+          if (!currentOrBranch) {
+            // 如果没有当前分支，创建一个新的
+            currentOrBranch = {
+              conditions: [whereClause],
+              params: [...params],
+            };
+          } else {
+            currentOrBranch.conditions.push(whereClause);
+            currentOrBranch.params.push(...params);
+          }
+        } else if (item.type === "or") {
+          // orWhere 标记有 OR 条件，并开始新的 OR 分支
+          hasOrCondition = true;
+          // 如果当前有 OR 分支，先保存它
+          if (currentOrBranch && currentOrBranch.conditions.length > 0) {
+            orBranches.push(currentOrBranch);
+          }
+          // 开始新的 OR 分支
+          currentOrBranch = {
+            conditions: [whereClause],
+            params: [...params],
+          };
+        }
+      }
+
+      // 处理最后一个 OR 分支
+      if (currentOrBranch && currentOrBranch.conditions.length > 0) {
+        orBranches.push(currentOrBranch);
+      }
+
+      // 合并所有条件
+      if (hasOrCondition && orBranches.length > 0) {
+        // 有 OR 条件，将所有 OR 分支组合
+        const allOrGroups: string[] = [];
+        const allParams: any[] = [];
+
+        for (const branch of orBranches) {
+          if (branch.conditions.length === 1) {
+            allOrGroups.push(branch.conditions[0]);
+          } else {
+            allOrGroups.push(`(${branch.conditions.join(" AND ")})`);
+          }
+          allParams.push(...branch.params);
+        }
+
+        const conditions: string[] = [
+          `(${allOrGroups.join(" OR ")})`,
+        ];
+
+        // 处理软删除
+        if (this.softDelete) {
+          const adapter = (this as any).adapter as
+            | DatabaseAdapter
+            | null
+            | undefined;
+          const escapedDeletedAtField = SQLModel.escapeFieldName.call(
+            this,
+            this.deletedAtField,
+            adapter,
+          );
+          if (onlyTrashed) {
+            conditions.push(`${escapedDeletedAtField} IS NOT NULL`);
+          } else if (!includeTrashed) {
+            conditions.push(`${escapedDeletedAtField} IS NULL`);
+          }
+        }
+
+        return {
+          where: conditions.join(" AND "),
+          params: allParams,
+        };
+      } else if (orBranches.length > 0) {
+        // 只有 AND 条件（没有 OR）
+        const branch = orBranches[0];
+        const conditions: string[] = [];
+
+        if (branch.conditions.length === 1) {
+          conditions.push(branch.conditions[0]);
+        } else {
+          conditions.push(`(${branch.conditions.join(" AND ")})`);
+        }
+
+        // 处理软删除
+        if (this.softDelete) {
+          const adapter = (this as any).adapter as
+            | DatabaseAdapter
+            | null
+            | undefined;
+          const escapedDeletedAtField = SQLModel.escapeFieldName.call(
+            this,
+            this.deletedAtField,
+            adapter,
+          );
+          if (onlyTrashed) {
+            conditions.push(`${escapedDeletedAtField} IS NOT NULL`);
+          } else if (!includeTrashed) {
+            conditions.push(`${escapedDeletedAtField} IS NULL`);
+          }
+        }
+
+        return {
+          where: conditions.length > 0 ? conditions.join(" AND ") : "1=1",
+          params: branch.params,
+        };
+      } else {
+        // 没有条件
+        const conditions: string[] = [];
+
+        // 处理软删除
+        if (this.softDelete) {
+          const adapter = (this as any).adapter as
+            | DatabaseAdapter
+            | null
+            | undefined;
+          const escapedDeletedAtField = SQLModel.escapeFieldName.call(
+            this,
+            this.deletedAtField,
+            adapter,
+          );
+          if (onlyTrashed) {
+            conditions.push(`${escapedDeletedAtField} IS NOT NULL`);
+          } else if (!includeTrashed) {
+            conditions.push(`${escapedDeletedAtField} IS NULL`);
+          }
+        }
+
+        return {
+          where: conditions.length > 0 ? conditions.join(" AND ") : "1=1",
+          params: [],
+        };
+      }
+    }
+
+    // 原有的单个条件处理逻辑
     // 如果是数字或字符串，作为主键查询
     if (typeof condition === "number" || typeof condition === "string") {
       const adapter = (this as any).adapter as
@@ -981,6 +1179,16 @@ export abstract class SQLModel {
     }
 
     // 如果是对象，构建 WHERE 子句
+    if (
+      !condition || typeof condition !== "object" || Array.isArray(condition)
+    ) {
+      // 如果 condition 不是有效对象，返回空条件
+      return {
+        where: "1=1",
+        params: [],
+      };
+    }
+
     const conditions: string[] = [];
     const params: any[] = [];
 
@@ -991,34 +1199,48 @@ export abstract class SQLModel {
         conditions.push(`${escapedKey} IS NULL`);
       } else if (typeof value === "object" && !Array.isArray(value)) {
         // 处理操作符
-        if (value.$gt !== undefined) {
+        const opValue = value as {
+          $gt?: any;
+          $lt?: any;
+          $gte?: any;
+          $lte?: any;
+          $ne?: any;
+          $in?: any[];
+          $like?: string;
+        };
+        if (opValue.$gt !== undefined) {
           conditions.push(`${escapedKey} > ?`);
-          params.push(value.$gt);
+          params.push(opValue.$gt);
         }
-        if (value.$lt !== undefined) {
+        if (opValue.$lt !== undefined) {
           conditions.push(`${escapedKey} < ?`);
-          params.push(value.$lt);
+          params.push(opValue.$lt);
         }
-        if (value.$gte !== undefined) {
+        if (opValue.$gte !== undefined) {
           conditions.push(`${escapedKey} >= ?`);
-          params.push(value.$gte);
+          params.push(opValue.$gte);
         }
-        if (value.$lte !== undefined) {
+        if (opValue.$lte !== undefined) {
           conditions.push(`${escapedKey} <= ?`);
-          params.push(value.$lte);
+          params.push(opValue.$lte);
         }
-        if (value.$ne !== undefined) {
+        if (opValue.$ne !== undefined) {
           conditions.push(`${escapedKey} != ?`);
-          params.push(value.$ne);
+          params.push(opValue.$ne);
         }
-        if (value.$in !== undefined && Array.isArray(value.$in)) {
-          const placeholders = value.$in.map(() => "?").join(", ");
-          conditions.push(`${escapedKey} IN (${placeholders})`);
-          params.push(...value.$in);
+        if (opValue.$in !== undefined) {
+          const inArray = opValue.$in;
+          if (Array.isArray(inArray) && inArray.length > 0) {
+            const placeholders = inArray.map(() => "?").join(", ");
+            conditions.push(`${escapedKey} IN (${placeholders})`);
+            params.push(...inArray);
+          }
         }
-        if (value.$like !== undefined) {
-          conditions.push(`${escapedKey} LIKE ?`);
-          params.push(value.$like);
+        if (opValue.$like !== undefined) {
+          // SQLite 的 LIKE 默认是大小写不敏感的（对于 ASCII 字符）
+          // 但为了确保跨数据库兼容性，使用 LOWER() 函数
+          conditions.push(`LOWER(${escapedKey}) LIKE LOWER(?)`);
+          params.push(opValue.$like);
         }
       } else {
         // 普通等值条件
@@ -2488,7 +2710,11 @@ export abstract class SQLModel {
   private static createArrayQueryBuilder<T extends typeof SQLModel>(
     this: T,
     getState: () => {
-      _condition: WhereCondition | number | string;
+      _conditions?: Array<{
+        type: "where" | "or" | "and";
+        condition: WhereCondition | number | string;
+      }>;
+      _condition?: WhereCondition | number | string; // 向后兼容 find() 方法
       _fields: string[] | undefined;
       _sort:
         | Record<string, 1 | -1 | "asc" | "desc">
@@ -2501,6 +2727,30 @@ export abstract class SQLModel {
       _onlyTrashed: boolean;
     },
   ): SQLArrayQueryBuilder<T> {
+    /**
+     * 构建最终的查询条件（与 query() 方法中的逻辑一致）
+     */
+    const buildFinalCondition = (): WhereCondition | number | string => {
+      const state = getState();
+      // 如果使用新的 _conditions 结构
+      if (state._conditions && state._conditions.length > 0) {
+        if (
+          state._conditions.length === 1 &&
+          state._conditions[0].type === "where"
+        ) {
+          return state._conditions[0].condition;
+        }
+        // 对于多个条件，返回组合对象
+        return {
+          __combined: state._conditions.map((item) => ({
+            type: item.type,
+            condition: item.condition,
+          })),
+        } as any;
+      }
+      // 向后兼容：使用旧的 _condition
+      return state._condition || {};
+    };
     const arrayBuilder: SQLArrayQueryBuilder<T> = {
       sort: (
         sort: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc",
@@ -2539,8 +2789,9 @@ export abstract class SQLModel {
       findAll: async (): Promise<Record<string, any>[]> => {
         await this.ensureAdapter();
         const state = getState();
+        const finalCondition = buildFinalCondition();
         const { where, params } = this.buildWhereClause(
-          state._condition,
+          finalCondition as any,
           state._includeTrashed,
           state._onlyTrashed,
         );
@@ -2582,8 +2833,9 @@ export abstract class SQLModel {
       findOne: async (): Promise<Record<string, any> | null> => {
         await this.ensureAdapter();
         const state = getState();
+        const finalCondition = buildFinalCondition();
         const { where, params } = this.buildWhereClause(
-          state._condition,
+          finalCondition as any,
           state._includeTrashed,
           state._onlyTrashed,
         );
@@ -2621,8 +2873,9 @@ export abstract class SQLModel {
       count: async (): Promise<number> => {
         await this.ensureAdapter();
         const state = getState();
+        const finalCondition = buildFinalCondition();
         const { where, params } = this.buildWhereClause(
-          state._condition,
+          finalCondition as any,
           state._includeTrashed,
           state._onlyTrashed,
         );
@@ -2635,18 +2888,20 @@ export abstract class SQLModel {
       exists: async (): Promise<boolean> => {
         await this.ensureAdapter();
         const state = getState();
+        const finalCondition = buildFinalCondition();
         return await this.exists(
-          state._condition,
+          finalCondition as any,
           state._includeTrashed,
           state._onlyTrashed,
         );
       },
       distinct: async (field: string): Promise<any[]> => {
         const state = getState();
-        const cond = typeof state._condition === "number" ||
-            typeof state._condition === "string"
-          ? { [this.primaryKey]: state._condition }
-          : (state._condition as any);
+        const finalCondition = buildFinalCondition();
+        const cond = typeof finalCondition === "number" ||
+            typeof finalCondition === "string"
+          ? { [this.primaryKey]: finalCondition }
+          : (finalCondition as any);
         return await this.distinct(
           field,
           cond,
@@ -2665,9 +2920,10 @@ export abstract class SQLModel {
         totalPages: number;
       }> => {
         const state = getState();
+        const finalCondition = buildFinalCondition();
         // 使用链式查询构建器中已有的条件、排序、字段等设置
         const paginateResult = await this.paginate(
-          state._condition as any,
+          finalCondition as any,
           page,
           pageSize,
           state._sort || { [this.primaryKey]: -1 },
@@ -2715,8 +2971,12 @@ export abstract class SQLModel {
     },
   ): SQLFindQueryBuilder<T> {
     // 创建共享状态对象，确保 asArray() 中的修改能够持久化
+    // 支持新的 _conditions 数组（用于链式查询条件）和旧的 _condition（向后兼容）
     const state = {
-      _condition: condition as WhereCondition | number | string,
+      _conditions: [
+        { type: "where" as const, condition: condition as WhereCondition | number | string },
+      ] as Array<{ type: "where" | "or" | "and"; condition: WhereCondition | number | string }>,
+      _condition: condition as WhereCondition | number | string, // 向后兼容
       _fields: fields,
       _sort: options?.sort as
         | Record<string, 1 | -1 | "asc" | "desc">
@@ -2729,14 +2989,105 @@ export abstract class SQLModel {
       _onlyTrashed: onlyTrashed,
     };
 
+    /**
+     * 构建最终查询条件
+     * 如果使用新的 _conditions 结构，返回组合对象；否则返回单个条件（向后兼容）
+     */
+    const buildFinalCondition = (): WhereCondition | number | string => {
+      // 如果使用新的 _conditions 结构
+      if (state._conditions && state._conditions.length > 0) {
+        // 如果只有一个 where 条件，直接返回
+        if (
+          state._conditions.length === 1 && state._conditions[0].type === "where"
+        ) {
+          return state._conditions[0].condition;
+        }
+        // 对于多个条件，返回组合对象
+        return {
+          __combined: state._conditions.map((item) => ({
+            type: item.type,
+            condition: item.condition,
+          })),
+        } as any;
+      }
+      // 向后兼容：使用旧的 _condition
+      return state._condition || {};
+    };
+
+    /**
+     * 将条件对象中的字符串值转换为 LIKE 查询条件
+     * 支持嵌套对象和 JSON 对象查询
+     * @param condition 查询条件对象
+     * @returns 转换后的查询条件对象
+     */
+    const convertToLikeCondition = (
+      condition: WhereCondition,
+    ): WhereCondition => {
+      if (!condition || typeof condition !== "object" || Array.isArray(condition)) {
+        return condition;
+      }
+
+      const result: WhereCondition = {};
+
+      for (const [key, value] of Object.entries(condition)) {
+        if (value === null || value === undefined) {
+          result[key] = value;
+        } else if (typeof value === "object" && !Array.isArray(value)) {
+          // 检查是否是操作符对象（如 { $gt: 10 }）
+          const opValue = value as {
+            $gt?: any;
+            $lt?: any;
+            $gte?: any;
+            $lte?: any;
+            $ne?: any;
+            $in?: any[];
+            $like?: string;
+            [key: string]: any;
+          };
+
+          // 如果已经包含 $like 操作符，保留原样
+          if (opValue.$like !== undefined) {
+            result[key] = value;
+          } else if (
+            opValue.$gt !== undefined ||
+            opValue.$lt !== undefined ||
+            opValue.$gte !== undefined ||
+            opValue.$lte !== undefined ||
+            opValue.$ne !== undefined ||
+            opValue.$in !== undefined
+          ) {
+            // 如果包含其他操作符，保留原样
+            result[key] = value;
+          } else {
+            // 递归处理嵌套对象
+            result[key] = convertToLikeCondition(value as WhereCondition);
+          }
+        } else if (typeof value === "string") {
+          // 字符串值转换为 LIKE 查询
+          // 如果字符串中没有 % 或 _，自动添加 % 通配符
+          let likePattern = value;
+          if (!likePattern.includes("%") && !likePattern.includes("_")) {
+            likePattern = `%${likePattern}%`;
+          }
+          result[key] = { $like: likePattern };
+        } else {
+          result[key] = value;
+        }
+      }
+
+      return result;
+    };
+
     // 执行查询单条记录的函数
     const executeFindOne = async (): Promise<InstanceType<T> | null> => {
       // 自动初始化（如果未初始化）
       await this.ensureAdapter();
 
+      const finalCondition = buildFinalCondition();
+
       // 生成缓存键（条件生成：只在有缓存适配器时才生成）
       const cacheKey = this.generateCacheKey(
-        state._condition,
+        finalCondition,
         state._fields,
         { sort: state._sort, skip: state._skip, limit: state._limit },
         state._includeTrashed,
@@ -2757,7 +3108,7 @@ export abstract class SQLModel {
       }
 
       const { where, params } = this.buildWhereClause(
-        state._condition,
+        finalCondition,
         state._includeTrashed,
         state._onlyTrashed,
       );
@@ -2823,9 +3174,11 @@ export abstract class SQLModel {
     const executeFindAll = async (): Promise<InstanceType<T>[]> => {
       await this.ensureAdapter();
 
+      const finalCondition = buildFinalCondition();
+
       // 生成缓存键（条件生成：只在有缓存适配器时才生成）
       const cacheKey = this.generateCacheKey(
-        state._condition,
+        finalCondition,
         state._fields,
         { sort: state._sort, skip: state._skip, limit: state._limit },
         state._includeTrashed,
@@ -2848,7 +3201,7 @@ export abstract class SQLModel {
       }
 
       const { where, params } = this.buildWhereClause(
-        state._condition,
+        finalCondition,
         state._includeTrashed,
         state._onlyTrashed,
       );
@@ -2913,6 +3266,48 @@ export abstract class SQLModel {
 
     // 构建查询构建器对象
     const builder: SQLFindQueryBuilder<T> = {
+      /**
+       * 添加 OR 查询条件
+       * @param condition 查询条件
+       * @returns 查询构建器
+       */
+      orWhere: (
+        condition: WhereCondition | number | string,
+      ) => {
+        state._conditions.push({ type: "or", condition });
+        return builder;
+      },
+      /**
+       * 添加 AND 查询条件
+       * @param condition 查询条件
+       * @returns 查询构建器
+       */
+      andWhere: (
+        condition: WhereCondition | number | string,
+      ) => {
+        state._conditions.push({ type: "and", condition });
+        return builder;
+      },
+      /**
+       * 添加 OR LIKE 查询条件
+       * @param condition 查询条件对象
+       * @returns 查询构建器
+       */
+      orLike: (condition: WhereCondition) => {
+        const likeCondition = convertToLikeCondition(condition);
+        state._conditions.push({ type: "or", condition: likeCondition });
+        return builder;
+      },
+      /**
+       * 添加 AND LIKE 查询条件
+       * @param condition 查询条件对象
+       * @returns 查询构建器
+       */
+      andLike: (condition: WhereCondition) => {
+        const likeCondition = convertToLikeCondition(condition);
+        state._conditions.push({ type: "and", condition: likeCondition });
+        return builder;
+      },
       sort: (
         sort: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc",
       ) => {
@@ -2955,12 +3350,14 @@ export abstract class SQLModel {
        */
       asArray: (): SQLArrayQueryBuilder<T> => {
         // 返回共享状态对象的引用，确保 asArray() 中的修改能够持久化
+        // state 已经包含 _conditions 和 _condition，可以直接传递给 createArrayQueryBuilder
         return this.createArrayQueryBuilder(() => state);
       },
       count: async (): Promise<number> => {
         await this.ensureAdapter();
+        const finalCondition = buildFinalCondition();
         const { where, params } = this.buildWhereClause(
-          state._condition,
+          finalCondition,
           state._includeTrashed,
           state._onlyTrashed,
         );
@@ -2975,17 +3372,19 @@ export abstract class SQLModel {
       },
       exists: async (): Promise<boolean> => {
         await this.ensureAdapter();
+        const finalCondition = buildFinalCondition();
         return await this.exists(
-          state._condition,
+          finalCondition,
           state._includeTrashed,
           state._onlyTrashed,
         );
       },
       distinct: async (field: string): Promise<any[]> => {
-        const cond = typeof state._condition === "number" ||
-            typeof state._condition === "string"
-          ? { [this.primaryKey]: state._condition }
-          : (state._condition as any);
+        const finalCondition = buildFinalCondition();
+        const cond = typeof finalCondition === "number" ||
+            typeof finalCondition === "string"
+          ? { [this.primaryKey]: finalCondition }
+          : (finalCondition as any);
         return await this.distinct(
           field,
           cond,
@@ -3003,9 +3402,10 @@ export abstract class SQLModel {
         pageSize: number;
         totalPages: number;
       }> => {
+        const finalCondition = buildFinalCondition();
         // 使用链式查询构建器中已有的条件、排序、字段等设置
         return await this.paginate(
-          state._condition as any,
+          finalCondition as any,
           page,
           pageSize,
           state._sort || { [this.primaryKey]: -1 },
@@ -5336,8 +5736,12 @@ export abstract class SQLModel {
    */
   static query<T extends typeof SQLModel>(this: T): SQLQueryBuilder<T> {
     // 创建共享状态对象，确保 asArray() 中的修改能够持久化
+    // 使用数组结构支持多个条件的 OR/AND 组合
     const state = {
-      _condition: {} as WhereCondition | number | string,
+      _conditions: [] as Array<{
+        type: "where" | "or" | "and";
+        condition: WhereCondition | number | string;
+      }>,
       _fields: undefined as string[] | undefined,
       _sort: undefined as
         | Record<string, 1 | -1 | "asc" | "desc">
@@ -5350,9 +5754,179 @@ export abstract class SQLModel {
       _onlyTrashed: false,
     };
 
+    /**
+     * 构建最终的查询条件
+     * 将多个条件合并为 SQL WHERE 子句
+     */
+    const buildFinalCondition = (): WhereCondition | number | string => {
+      if (state._conditions.length === 0) {
+        return {};
+      }
+
+      // 如果只有一个 where 条件，直接返回
+      if (
+        state._conditions.length === 1 && state._conditions[0].type === "where"
+      ) {
+        return state._conditions[0].condition;
+      }
+
+      // 对于多个条件，返回一个特殊的组合对象，由 buildWhereClause 处理
+      // 这里返回一个包含所有条件的数组结构
+      return {
+        __combined: state._conditions.map((item) => ({
+          type: item.type,
+          condition: item.condition,
+        })),
+      } as any;
+    };
+
+    /**
+     * 将条件对象中的字符串值转换为 LIKE 查询条件
+     * 支持嵌套对象和 JSON 对象查询
+     * @param condition 查询条件对象
+     * @returns 转换后的查询条件对象
+     */
+    const convertToLikeCondition = (
+      condition: WhereCondition,
+    ): WhereCondition => {
+      const result: WhereCondition = {};
+
+      for (const [key, value] of Object.entries(condition)) {
+        // 跳过 SQL 操作符（以 $ 开头）
+        if (key.startsWith("$")) {
+          result[key] = value;
+          continue;
+        }
+
+        // 处理嵌套对象（支持 JSON 对象查询）
+        if (
+          typeof value === "object" && value !== null && !Array.isArray(value)
+        ) {
+          // 检查是否是操作符对象（包含 $gt, $lt, $like 等）
+          const isOperatorObject = Object.keys(value).some((k) =>
+            k.startsWith("$")
+          );
+
+          if (isOperatorObject) {
+            // 如果已经是操作符对象，保持原样
+            result[key] = value;
+          } else {
+            // 递归处理嵌套对象
+            result[key] = convertToLikeCondition(value as WhereCondition);
+          }
+        } else if (typeof value === "string") {
+          // 将字符串值转换为 LIKE 查询条件
+          // 如果字符串不包含通配符，自动添加 % 通配符（前后都加）
+          let likeValue = value;
+          if (!likeValue.includes("%") && !likeValue.includes("_")) {
+            likeValue = `%${likeValue}%`;
+          }
+          result[key] = { $like: likeValue };
+        } else {
+          // 其他类型（数字、布尔值等）保持原样
+          result[key] = value;
+        }
+      }
+
+      return result;
+    };
+
+    // 执行查询单条记录的函数（用于直接 await）
+    const executeFindOne = async (): Promise<InstanceType<T> | null> => {
+      await this.ensureAdapter();
+      const finalCondition = buildFinalCondition();
+      const { where, params } = this.buildWhereClause(
+        finalCondition as any,
+        state._includeTrashed,
+        state._onlyTrashed,
+      );
+      const columns = state._fields && state._fields.length > 0
+        ? state._fields.join(", ")
+        : "*";
+      const orderBy = this.buildOrderByClause(state._sort);
+      let sql = `SELECT ${columns} FROM ${this.tableName} WHERE ${where}`;
+      if (orderBy) {
+        sql = `${sql} ORDER BY ${orderBy}`;
+      }
+      sql = `${sql} LIMIT 1`;
+      // ensureAdapter() 已确保 adapter 不为 null
+      const results = await this.adapter.query(sql, params);
+      if (results.length === 0) {
+        return null;
+      }
+      const instance = new (this as any)();
+      Object.assign(instance, results[0]);
+      return instance as InstanceType<T>;
+    };
+
+    // 创建 Promise（用于直接 await）
+    const queryPromise = executeFindOne();
+
     const builder = {
+      /**
+       * 设置查询条件（会重置之前的所有条件）
+       * @param condition 查询条件对象或主键值
+       * @returns 查询构建器实例
+       */
       where: (condition: WhereCondition | number | string) => {
-        state._condition = condition;
+        state._conditions = [{ type: "where", condition }];
+        return builder;
+      },
+      /**
+       * 添加 OR 查询条件
+       * @param condition 查询条件对象或主键值
+       * @returns 查询构建器实例
+       */
+      orWhere: (condition: WhereCondition | number | string) => {
+        state._conditions.push({ type: "or", condition });
+        return builder;
+      },
+      /**
+       * 添加 AND 查询条件
+       * @param condition 查询条件对象或主键值
+       * @returns 查询构建器实例
+       */
+      andWhere: (condition: WhereCondition | number | string) => {
+        state._conditions.push({ type: "and", condition });
+        return builder;
+      },
+      /**
+       * 添加 LIKE 查询条件
+       * 支持 WhereCondition 类型和 JSON 对象条件查询
+       * @param condition 查询条件对象，字符串值会被转换为 LIKE 查询（支持 % 通配符）
+       * @returns 查询构建器实例
+       * @example
+       * User.query().like({ name: "%shu%" }) // 匹配包含 "shu" 的 name 字段
+       * User.query().like({ "user.name": "%shu%" }) // 支持点号路径
+       * User.query().like({ user: { name: "%shu%" } }) // 支持嵌套对象
+       */
+      like: (condition: WhereCondition) => {
+        const likeCondition = convertToLikeCondition(condition);
+        if (state._conditions.length === 0) {
+          state._conditions.push({ type: "where", condition: likeCondition });
+        } else {
+          state._conditions.push({ type: "and", condition: likeCondition });
+        }
+        return builder;
+      },
+      /**
+       * 添加 OR LIKE 查询条件
+       * @param condition 查询条件对象，字符串值会被转换为 LIKE 查询（支持 % 通配符）
+       * @returns 查询构建器实例
+       */
+      orLike: (condition: WhereCondition) => {
+        const likeCondition = convertToLikeCondition(condition);
+        state._conditions.push({ type: "or", condition: likeCondition });
+        return builder;
+      },
+      /**
+       * 添加 AND LIKE 查询条件
+       * @param condition 查询条件对象，字符串值会被转换为 LIKE 查询（支持 % 通配符）
+       * @returns 查询构建器实例
+       */
+      andLike: (condition: WhereCondition) => {
+        const likeCondition = convertToLikeCondition(condition);
+        state._conditions.push({ type: "and", condition: likeCondition });
         return builder;
       },
       fields: (fields: string[]) => {
@@ -5385,8 +5959,9 @@ export abstract class SQLModel {
       },
       findAll: async (): Promise<InstanceType<T>[]> => {
         await this.ensureAdapter();
+        const finalCondition = buildFinalCondition();
         const { where, params } = this.buildWhereClause(
-          state._condition as any,
+          finalCondition as any,
           state._includeTrashed,
           state._onlyTrashed,
         );
@@ -5422,8 +5997,9 @@ export abstract class SQLModel {
       },
       findOne: async (): Promise<InstanceType<T> | null> => {
         await this.ensureAdapter();
+        const finalCondition = buildFinalCondition();
         const { where, params } = this.buildWhereClause(
-          state._condition as any,
+          finalCondition as any,
           state._includeTrashed,
           state._onlyTrashed,
         );
@@ -5472,8 +6048,9 @@ export abstract class SQLModel {
       },
       count: async (): Promise<number> => {
         await this.ensureAdapter();
+        const finalCondition = buildFinalCondition();
         const { where, params } = this.buildWhereClause(
-          state._condition as any,
+          finalCondition as any,
           state._includeTrashed,
           state._onlyTrashed,
         );
@@ -5485,8 +6062,9 @@ export abstract class SQLModel {
       },
       exists: async (): Promise<boolean> => {
         await this.ensureAdapter();
+        const finalCondition = buildFinalCondition();
         return await this.exists(
-          state._condition as any,
+          finalCondition as any,
           state._includeTrashed,
           state._onlyTrashed,
         );
@@ -5495,15 +6073,16 @@ export abstract class SQLModel {
         data: Record<string, any>,
         returnLatest: boolean = false, // 统一接口：与 MongoModel 保持一致
       ): Promise<number | InstanceType<T>> => {
+        const finalCondition = buildFinalCondition();
         if (returnLatest) {
           return await this.update(
-            state._condition as any,
+            finalCondition as any,
             data,
             true,
           ) as InstanceType<T>;
         }
         return await this.update(
-          state._condition as any,
+          finalCondition as any,
           data,
           false,
         ) as number;
@@ -5516,15 +6095,17 @@ export abstract class SQLModel {
         return await this.updateById(id, data);
       },
       updateMany: async (data: Record<string, any>): Promise<number> => {
-        return await this.updateMany(state._condition as any, data);
+        const finalCondition = buildFinalCondition();
+        return await this.updateMany(finalCondition as any, data);
       },
       increment: async (
         field: string,
         amount: number = 1,
         returnLatest: boolean = false, // 统一接口：与 MongoModel 保持一致
       ): Promise<number | InstanceType<T>> => {
+        const finalCondition = buildFinalCondition();
         return await this.increment(
-          state._condition as any,
+          finalCondition as any,
           field,
           amount,
           returnLatest,
@@ -5535,8 +6116,9 @@ export abstract class SQLModel {
         amount: number = 1,
         returnLatest: boolean = false, // 统一接口：与 MongoModel 保持一致
       ): Promise<number | InstanceType<T>> => {
+        const finalCondition = buildFinalCondition();
         return await this.decrement(
-          state._condition as any,
+          finalCondition as any,
           field,
           amount,
           returnLatest,
@@ -5549,12 +6131,14 @@ export abstract class SQLModel {
       deleteMany: async (
         options?: { returnIds?: boolean },
       ): Promise<number | { count: number; ids: any[] }> => {
-        return await this.deleteMany(state._condition as any, options);
+        const finalCondition = buildFinalCondition();
+        return await this.deleteMany(finalCondition as any, options);
       },
       restore: async (
         options?: { returnIds?: boolean },
       ): Promise<number | { count: number; ids: any[] }> => {
-        return await this.restore(state._condition as any, options);
+        const finalCondition = buildFinalCondition();
+        return await this.restore(finalCondition as any, options);
       },
       restoreById: async (id: number | string): Promise<number> => {
         await this.ensureAdapter();
@@ -5563,17 +6147,19 @@ export abstract class SQLModel {
       forceDelete: async (
         options?: { returnIds?: boolean },
       ): Promise<number | { count: number; ids: any[] }> => {
-        return await this.forceDelete(state._condition as any, options);
+        const finalCondition = buildFinalCondition();
+        return await this.forceDelete(finalCondition as any, options);
       },
       forceDeleteById: async (id: number | string): Promise<number> => {
         await this.ensureAdapter();
         return await this.forceDeleteById(id);
       },
       distinct: async (field: string): Promise<any[]> => {
-        const cond = typeof state._condition === "number" ||
-            typeof state._condition === "string"
-          ? { [this.primaryKey]: state._condition }
-          : (state._condition as any);
+        const finalCondition = buildFinalCondition();
+        const cond = typeof finalCondition === "number" ||
+            typeof finalCondition === "string"
+          ? { [this.primaryKey]: finalCondition }
+          : (finalCondition as any);
         return await this.distinct(
           field,
           cond,
@@ -5586,8 +6172,9 @@ export abstract class SQLModel {
         returnLatest: boolean = true, // 统一接口：与 MongoModel 保持一致
         resurrect: boolean = false, // 统一接口：与 MongoModel 保持一致
       ): Promise<InstanceType<T>> => {
+        const finalCondition = buildFinalCondition();
         return await this.upsert(
-          state._condition as any,
+          finalCondition as any,
           data,
           returnLatest,
           resurrect,
@@ -5597,39 +6184,43 @@ export abstract class SQLModel {
         data: Record<string, any>,
         resurrect: boolean = false, // 统一接口：与 MongoModel 保持一致
       ): Promise<InstanceType<T>> => {
-        const cond = typeof state._condition === "number" ||
-            typeof state._condition === "string"
-          ? { [this.primaryKey]: state._condition }
-          : (state._condition as any);
+        const finalCondition = buildFinalCondition();
+        const cond = typeof finalCondition === "number" ||
+            typeof finalCondition === "string"
+          ? { [this.primaryKey]: finalCondition }
+          : (finalCondition as any);
         return await this.findOrCreate(cond, data, resurrect);
       },
       findOneAndUpdate: async (
         data: Record<string, any>,
         options?: { returnDocument?: "before" | "after" }, // 统一接口：与 MongoModel 保持一致
       ): Promise<InstanceType<T> | null> => {
+        const finalCondition = buildFinalCondition();
         return await this.findOneAndUpdate(
-          state._condition as any,
+          finalCondition as any,
           data,
           options ?? { returnDocument: "after" },
         );
       },
       findOneAndDelete: async (): Promise<InstanceType<T> | null> => {
+        const finalCondition = buildFinalCondition();
         const existing = await this.find(
-          state._condition as any,
+          finalCondition as any,
           state._fields,
           state._includeTrashed,
           state._onlyTrashed,
         );
         if (!existing) return null;
-        const deleted = await this.delete(state._condition as any);
+        const deleted = await this.delete(finalCondition as any);
         return deleted > 0 ? existing as InstanceType<T> : null;
       },
       findOneAndReplace: async (
         replacement: Record<string, any>,
         returnLatest: boolean = true, // 统一接口：与 MongoModel 保持一致
       ): Promise<InstanceType<T> | null> => {
+        const finalCondition = buildFinalCondition();
         return await (this as typeof SQLModel).findOneAndReplace(
-          state._condition as any,
+          finalCondition as any,
           replacement,
           returnLatest,
         ) as InstanceType<T> | null;
@@ -5638,8 +6229,9 @@ export abstract class SQLModel {
         fieldOrMap: string | Record<string, number>,
         amount: number = 1,
       ): Promise<number> => {
+        const finalCondition = buildFinalCondition();
         return await this.incrementMany(
-          state._condition as any,
+          finalCondition as any,
           fieldOrMap,
           amount,
         );
@@ -5648,8 +6240,9 @@ export abstract class SQLModel {
         fieldOrMap: string | Record<string, number>,
         amount: number = 1,
       ): Promise<number> => {
+        const finalCondition = buildFinalCondition();
         return await this.decrementMany(
-          state._condition as any,
+          finalCondition as any,
           fieldOrMap,
           amount,
         );
@@ -5665,8 +6258,9 @@ export abstract class SQLModel {
         totalPages: number;
       }> => {
         // 使用链式查询构建器中已有的条件、排序、字段等设置
+        const finalCondition = buildFinalCondition();
         return await this.paginate(
-          state._condition as any,
+          finalCondition as any,
           page,
           pageSize,
           state._sort || { [this.primaryKey]: -1 },
@@ -5675,6 +6269,14 @@ export abstract class SQLModel {
           state._onlyTrashed,
         );
       },
+      // Promise 接口方法（用于直接 await）
+      then: (
+        onfulfilled?: (value: InstanceType<T> | null) => any,
+        onrejected?: (reason: any) => any,
+      ) => queryPromise.then(onfulfilled, onrejected),
+      catch: (onrejected?: (reason: any) => any) =>
+        queryPromise.catch(onrejected),
+      finally: (onfinally?: () => void) => queryPromise.finally(onfinally),
     };
 
     return builder as any;

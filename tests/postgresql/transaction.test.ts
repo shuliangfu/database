@@ -25,9 +25,9 @@ describe("事务测试", () => {
     const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
     // 默认使用当前系统用户名，因为本地 PostgreSQL 可能使用系统用户名而不是 postgres
     // 优先使用环境变量，否则尝试获取系统用户名（USER 或 USERNAME），最后回退到 postgres
-    const defaultUser = getEnv("USER") || getEnv("USERNAME") || "postgres";
+    const defaultUser = "testuser";
     const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-    const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "");
+    const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
 
     try {
       // 使用 initDatabase 初始化全局 dbManager

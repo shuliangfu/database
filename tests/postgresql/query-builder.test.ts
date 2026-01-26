@@ -42,9 +42,9 @@ describe("SQLQueryBuilder", () => {
     const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
     const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
     const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-    const defaultUser = getEnv("USER") || getEnv("USERNAME") || "postgres";
+    const defaultUser = "testuser";
     const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-    const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "");
+    const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
 
     // 使用 initDatabase 初始化全局 dbManager
     await initDatabase({

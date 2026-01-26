@@ -1709,6 +1709,492 @@ describe("SQLModel SQLite", () => {
       expect(updated?.name).toBe("UpdatedById");
     });
 
+    // ==================== 新增查询方法测试 ====================
+
+    describe("where, orWhere, andWhere 查询方法", () => {
+      beforeEach(async () => {
+        await adapter.execute(`DELETE FROM ${TABLE_NAME}`, []);
+        // 创建测试数据
+        await User.create({ name: "Alice", email: "alice@test.com", age: 25, status: "active" });
+        await User.create({ name: "Bob", email: "bob@test.com", age: 30, status: "active" });
+        await User.create({ name: "Charlie", email: "charlie@test.com", age: 35, status: "inactive" });
+        await User.create({ name: "David", email: "david@test.com", age: 20, status: "inactive" });
+      });
+
+      it("应该支持 where 方法进行基本查询", async () => {
+        const users = await User.query()
+          .where({ status: "active" })
+          .findAll();
+
+        expect(users.length).toBe(2);
+        expect(users.every(u => u.status === "active")).toBe(true);
+      });
+
+      it("应该支持 where 方法使用数字 ID 查询", async () => {
+        const user = await User.create({
+          name: "WhereNumberId",
+          email: "wherenumberid@test.com",
+          age: 25,
+        });
+
+        const found = await User.query()
+          .where(user.id)
+          .findOne();
+
+        expect(found).toBeTruthy();
+        expect(found?.id).toBe(user.id);
+      });
+
+      it("应该支持 where 方法使用复杂条件对象", async () => {
+        const users = await User.query()
+          .where({ age: { $gte: 30 } })
+          .findAll();
+
+        expect(users.length).toBe(2);
+        expect(users.every(u => u.age >= 30)).toBe(true);
+      });
+
+      it("应该支持 andWhere 方法添加 AND 条件", async () => {
+        const users = await User.query()
+          .where({ status: "active" })
+          .andWhere({ age: { $gte: 30 } })
+          .findAll();
+
+        expect(users.length).toBe(1);
+        expect(users[0].name).toBe("Bob");
+        expect(users[0].status).toBe("active");
+        expect(users[0].age).toBeGreaterThanOrEqual(30);
+      });
+
+      it("应该支持多个 andWhere 方法链式调用", async () => {
+        const users = await User.query()
+          .where({ status: "active" })
+          .andWhere({ age: { $gte: 25 } })
+          .andWhere({ age: { $lte: 30 } })
+          .findAll();
+
+        expect(users.length).toBe(2);
+        expect(users.every(u => u.status === "active" && u.age >= 25 && u.age <= 30)).toBe(true);
+      });
+
+      it("应该支持 orWhere 方法添加 OR 条件", async () => {
+        const users = await User.query()
+          .where({ name: "Alice" })
+          .orWhere({ name: "Charlie" })
+          .findAll();
+
+        expect(users.length).toBe(2);
+        const names = users.map(u => u.name).sort();
+        expect(names).toEqual(["Alice", "Charlie"]);
+      });
+
+      it("应该支持多个 orWhere 方法链式调用", async () => {
+        const users = await User.query()
+          .where({ name: "Alice" })
+          .orWhere({ name: "Bob" })
+          .orWhere({ name: "Charlie" })
+          .findAll();
+
+        expect(users.length).toBe(3);
+        const names = users.map(u => u.name).sort();
+        expect(names).toEqual(["Alice", "Bob", "Charlie"]);
+      });
+
+      it("应该支持 where、andWhere 和 orWhere 的组合使用", async () => {
+        // 查询: (status = "active" AND age >= 30) OR (status = "inactive" AND age < 25)
+        const users = await User.query()
+          .where({ status: "active" })
+          .andWhere({ age: { $gte: 30 } })
+          .orWhere({ status: "inactive" })
+          .andWhere({ age: { $lt: 25 } })
+          .findAll();
+
+        // 应该找到 Bob (active, age=30) 和 David (inactive, age=20)
+        expect(users.length).toBeGreaterThanOrEqual(1);
+        const names = users.map(u => u.name);
+        expect(names).toContain("Bob");
+      });
+
+      it("应该支持 where 重置所有条件", async () => {
+        const builder = User.query()
+          .where({ status: "active" })
+          .andWhere({ age: { $gte: 30 } });
+
+        // 重置条件
+        const users = await builder
+          .where({ status: "inactive" })
+          .findAll();
+
+        expect(users.length).toBe(2);
+        expect(users.every((u: any) => u.status === "inactive")).toBe(true);
+      });
+
+      it("应该支持 where 与其他查询方法组合使用", async () => {
+        const count = await User.query()
+          .where({ status: "active" })
+          .andWhere({ age: { $gte: 25 } })
+          .count();
+
+        expect(count).toBe(2);
+
+        const exists = await User.query()
+          .where({ status: "active" })
+          .andWhere({ age: { $gte: 30 } })
+          .exists();
+
+        expect(exists).toBe(true);
+      });
+    });
+
+    describe("like, orLike, andLike 查询方法", () => {
+      beforeEach(async () => {
+        await adapter.execute(`DELETE FROM ${TABLE_NAME}`, []);
+        // 创建测试数据
+        await User.create({ name: "Alice", email: "alice@example.com", age: 25 });
+        await User.create({ name: "Bob", email: "bob@test.com", age: 30 });
+        await User.create({ name: "Charlie", email: "charlie@example.com", age: 35 });
+        await User.create({ name: "David", email: "david@test.com", age: 20 });
+        await User.create({ name: "Alice Smith", email: "alice.smith@test.com", age: 28 });
+      });
+
+      it("应该支持 like 方法进行模糊查询", async () => {
+        const users = await User.query()
+          .like({ name: "Alice" })
+          .findAll();
+
+        expect(users.length).toBe(2);
+        expect(users.every(u => u.name.includes("Alice"))).toBe(true);
+      });
+
+      it("应该支持 like 方法使用对象形式参数", async () => {
+        const users = await User.query()
+          .like({ email: "example" })
+          .findAll();
+
+        expect(users.length).toBe(2);
+        expect(users.every(u => u.email.includes("example"))).toBe(true);
+      });
+
+      it("应该支持 like 方法进行大小写不敏感查询", async () => {
+        const users = await User.query()
+          .like({ name: "alice" })
+          .findAll();
+
+        expect(users.length).toBe(2);
+        expect(users.every(u => u.name.toLowerCase().includes("alice"))).toBe(true);
+      });
+
+      it("应该支持 andLike 方法添加 AND LIKE 条件", async () => {
+        const users = await User.query()
+          .where({ age: { $gte: 25 } })
+          .andLike({ email: "example" })
+          .findAll();
+
+        expect(users.length).toBe(2);
+        expect(users.every(u => u.email.includes("example") && u.age >= 25)).toBe(true);
+      });
+
+      it("应该支持多个 andLike 方法链式调用", async () => {
+        const users = await User.query()
+          .like({ name: "Alice" })
+          .andLike({ email: "example" })
+          .findAll();
+
+        expect(users.length).toBe(1);
+        expect(users[0].name).toBe("Alice");
+        expect(users[0].email).toBe("alice@example.com");
+      });
+
+      it("应该支持 orLike 方法添加 OR LIKE 条件", async () => {
+        const users = await User.query()
+          .like({ name: "Bob" })
+          .orLike({ name: "David" })
+          .findAll();
+
+        expect(users.length).toBe(2);
+        const names = users.map(u => u.name).sort();
+        expect(names).toEqual(["Bob", "David"]);
+      });
+
+      it("应该支持多个 orLike 方法链式调用", async () => {
+        const users = await User.query()
+          .like({ email: "alice" })
+          .orLike({ email: "bob" })
+          .orLike({ email: "charlie" })
+          .findAll();
+
+        // like({ email: "alice" }) 会匹配 alice@example.com 和 alice.smith@test.com
+        // orLike({ email: "bob" }) 会匹配 bob@test.com
+        // orLike({ email: "charlie" }) 会匹配 charlie@example.com
+        // 所以总共 4 条记录
+        expect(users.length).toBe(4);
+        const emails = users.map(u => u.email).sort();
+        expect(emails).toContain("alice@example.com");
+        expect(emails).toContain("alice.smith@test.com");
+        expect(emails).toContain("bob@test.com");
+        expect(emails).toContain("charlie@example.com");
+      });
+
+      it("应该支持 like 与 where 方法组合使用", async () => {
+        const users = await User.query()
+          .where({ age: { $gte: 25 } })
+          .like({ name: "Alice" })
+          .findAll();
+
+        expect(users.length).toBe(2);
+        expect(users.every(u => u.name.includes("Alice") && u.age >= 25)).toBe(true);
+      });
+
+      it("应该支持 like 与 andWhere 方法组合使用", async () => {
+        const users = await User.query()
+          .like({ email: "example" })
+          .andWhere({ age: { $gte: 30 } })
+          .findAll();
+
+        expect(users.length).toBe(1);
+        expect(users[0].email).toBe("charlie@example.com");
+        expect(users[0].age).toBeGreaterThanOrEqual(30);
+      });
+
+      it("应该支持 like 与 orWhere 方法组合使用", async () => {
+        const users = await User.query()
+          .where({ name: "Bob" })
+          .orWhere({ name: "David" })
+          .orLike({ email: "alice" })
+          .findAll();
+
+        expect(users.length).toBeGreaterThanOrEqual(2);
+        const names = users.map(u => u.name);
+        expect(names).toContain("Bob");
+      });
+
+      it("应该支持 like 方法与其他查询方法组合使用", async () => {
+        const count = await User.query()
+          .like({ email: "example" })
+          .andWhere({ age: { $gte: 25 } })
+          .count();
+
+        expect(count).toBe(2);
+
+        const exists = await User.query()
+          .like({ name: "Alice" })
+          .exists();
+
+        expect(exists).toBe(true);
+      });
+
+      it("应该支持 like 方法在 update 中使用", async () => {
+        const affected = await User.query()
+          .like({ email: "example" })
+          .update({ status: "updated" });
+
+        expect(affected).toBeGreaterThanOrEqual(1);
+
+        const updated = await User.findAll({ status: "updated" });
+        expect(updated.length).toBeGreaterThanOrEqual(1);
+      });
+
+      it("应该支持 like 方法在 deleteMany 中使用", async () => {
+        const beforeCount = await User.query()
+          .like({ email: "test" })
+          .count();
+
+        expect(beforeCount).toBeGreaterThanOrEqual(1);
+
+        const affected = await User.query()
+          .like({ email: "test" })
+          .deleteMany();
+
+        expect(affected).toBeGreaterThanOrEqual(1);
+
+        const afterCount = await User.query()
+          .like({ email: "test" })
+          .count();
+
+        expect(afterCount).toBe(0);
+      });
+    });
+
+    // ==================== find() 方法的查询条件测试 ====================
+
+    describe("find() 方法的 orWhere, andWhere 查询", () => {
+      beforeEach(async () => {
+        await adapter.execute(`DELETE FROM ${TABLE_NAME}`, []);
+        // 创建测试数据
+        await User.create({ name: "Alice", email: "alice@test.com", age: 25, status: "active" });
+        await User.create({ name: "Bob", email: "bob@test.com", age: 30, status: "active" });
+        await User.create({ name: "Charlie", email: "charlie@test.com", age: 35, status: "inactive" });
+        await User.create({ name: "David", email: "david@test.com", age: 20, status: "inactive" });
+      });
+
+
+      it("应该支持 find().andWhere() 方法添加 AND 条件", async () => {
+        const users = await User.find({ status: "active" })
+          .andWhere({ age: { $gte: 30 } })
+          .findAll();
+
+        expect(users.length).toBe(1);
+        expect(users[0].name).toBe("Bob");
+        expect(users[0].status).toBe("active");
+        expect(users[0].age).toBeGreaterThanOrEqual(30);
+      });
+
+      it("应该支持 find() 多个 andWhere 方法链式调用", async () => {
+        const users = await User.find({ status: "active" })
+          .andWhere({ age: { $gte: 25 } })
+          .andWhere({ age: { $lte: 30 } })
+          .findAll();
+
+        expect(users.length).toBe(2);
+        expect(users.every(u => u.status === "active" && u.age >= 25 && u.age <= 30)).toBe(true);
+      });
+
+      it("应该支持 find().orWhere() 方法添加 OR 条件", async () => {
+        const users = await User.find({ name: "Alice" })
+          .orWhere({ name: "Charlie" })
+          .findAll();
+
+        expect(users.length).toBe(2);
+        const names = users.map(u => u.name).sort();
+        expect(names).toEqual(["Alice", "Charlie"]);
+      });
+
+      it("应该支持 find() 多个 orWhere 方法链式调用", async () => {
+        const users = await User.find({ name: "Alice" })
+          .orWhere({ name: "Bob" })
+          .orWhere({ name: "Charlie" })
+          .findAll();
+
+        expect(users.length).toBe(3);
+        const names = users.map(u => u.name).sort();
+        expect(names).toEqual(["Alice", "Bob", "Charlie"]);
+      });
+
+      it("应该支持 find() andWhere 和 orWhere 的组合使用", async () => {
+        // 查询: (status = "active" AND age >= 30) OR (status = "inactive" AND age < 25)
+        const users = await User.find({ status: "active" })
+          .andWhere({ age: { $gte: 30 } })
+          .orWhere({ status: "inactive" })
+          .andWhere({ age: { $lt: 25 } })
+          .findAll();
+
+        // 应该找到 Bob (active, age=30) 和 David (inactive, age=20)
+        expect(users.length).toBeGreaterThanOrEqual(1);
+        const names = users.map(u => u.name);
+        expect(names).toContain("Bob");
+      });
+
+      it("应该支持 find() 与其他查询方法组合使用", async () => {
+        const count = await User.find({ status: "active" })
+          .andWhere({ age: { $gte: 25 } })
+          .count();
+
+        expect(count).toBe(2);
+
+        const exists = await User.find({ status: "active" })
+          .andWhere({ age: { $gte: 30 } })
+          .exists();
+
+        expect(exists).toBe(true);
+      });
+    });
+
+    describe("find() 方法的 orLike, andLike 查询", () => {
+      beforeEach(async () => {
+        await adapter.execute(`DELETE FROM ${TABLE_NAME}`, []);
+        // 创建测试数据
+        await User.create({ name: "Alice", email: "alice@example.com", age: 25 });
+        await User.create({ name: "Bob", email: "bob@test.com", age: 30 });
+        await User.create({ name: "Charlie", email: "charlie@example.com", age: 35 });
+        await User.create({ name: "David", email: "david@test.com", age: 20 });
+        await User.create({ name: "Alice Smith", email: "alice.smith@test.com", age: 28 });
+      });
+
+
+      it("应该支持 find().andLike() 方法添加 AND LIKE 条件", async () => {
+        const users = await User.find({ age: { $gte: 25 } })
+          .andLike({ email: "example" })
+          .findAll();
+
+        expect(users.length).toBe(2);
+        expect(users.every(u => u.email.includes("example") && u.age >= 25)).toBe(true);
+      });
+
+      it("应该支持 find() 多个 andLike 方法链式调用", async () => {
+        const users = await User.find({ name: { $like: "%Alice%" } })
+          .andLike({ email: "example" })
+          .findAll();
+
+        expect(users.length).toBe(1);
+        expect(users[0].name).toBe("Alice");
+        expect(users[0].email).toBe("alice@example.com");
+      });
+
+      it("应该支持 find().orLike() 方法添加 OR LIKE 条件", async () => {
+        const users = await User.find({ name: { $like: "%Bob%" } })
+          .orLike({ name: "David" })
+          .findAll();
+
+        expect(users.length).toBe(2);
+        const names = users.map(u => u.name).sort();
+        expect(names).toEqual(["Bob", "David"]);
+      });
+
+      it("应该支持 find() 多个 orLike 方法链式调用", async () => {
+        const users = await User.find({ email: { $like: "%alice%" } })
+          .orLike({ email: "bob" })
+          .orLike({ email: "charlie" })
+          .findAll();
+
+        expect(users.length).toBe(4);
+        const emails = users.map(u => u.email).sort();
+        expect(emails).toContain("alice@example.com");
+        expect(emails).toContain("bob@test.com");
+        expect(emails).toContain("charlie@example.com");
+      });
+
+      it("应该支持 find() andLike 与 andWhere 方法组合使用", async () => {
+        const users = await User.find({ age: { $gte: 25 } })
+          .andLike({ name: "Alice" })
+          .findAll();
+
+        expect(users.length).toBe(2);
+        expect(users.every((u: any) => u.name.includes("Alice") && u.age >= 25)).toBe(true);
+      });
+
+      it("应该支持 find() andLike 与 andWhere 方法组合使用", async () => {
+        const users = await User.find({ name: { $like: "%Alice%" } })
+          .andWhere({ age: { $gte: 25 } })
+          .findAll();
+
+        expect(users.length).toBe(2);
+        expect(users.every((u: any) => u.name.includes("Alice") && u.age >= 25)).toBe(true);
+      });
+
+      it("应该支持 find() orLike 与 orWhere 方法组合使用", async () => {
+        const users = await User.find({ name: { $like: "%Bob%" } })
+          .orWhere({ name: "David" })
+          .findAll();
+
+        expect(users.length).toBe(2);
+        const names = users.map((u: any) => u.name).sort();
+        expect(names).toEqual(["Bob", "David"]);
+      });
+
+      it("应该支持 find() andLike 方法与其他查询方法组合使用", async () => {
+        const count = await User.find({ email: { $like: "%example%" } })
+          .andWhere({ age: { $gte: 25 } })
+          .count();
+
+        expect(count).toBe(2);
+
+        const exists = await User.find({ name: { $like: "%Alice%" } })
+          .exists();
+
+        expect(exists).toBe(true);
+      });
+    });
+
     it("应该支持链式查询 updateMany", async () => {
       const affected = await User.query()
         .where({ status: "active" })

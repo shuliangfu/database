@@ -331,6 +331,10 @@ export type MongoArrayQueryBuilder<T extends typeof MongoModel> = {
  * 查找查询构建器类型（用于打破循环引用）
  */
 export type MongoFindQueryBuilder<T extends typeof MongoModel> = {
+  orWhere: (condition: MongoWhereCondition | string) => MongoFindQueryBuilder<T>;
+  andWhere: (condition: MongoWhereCondition | string) => MongoFindQueryBuilder<T>;
+  orLike: (condition: MongoWhereCondition) => MongoFindQueryBuilder<T>;
+  andLike: (condition: MongoWhereCondition) => MongoFindQueryBuilder<T>;
   sort: (
     sort: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc",
   ) => MongoFindQueryBuilder<T>;
@@ -368,6 +372,11 @@ export type MongoFindQueryBuilder<T extends typeof MongoModel> = {
 
 export type MongoQueryBuilder<T extends typeof MongoModel> = {
   where: (condition: MongoWhereCondition | string) => MongoQueryBuilder<T>;
+  orWhere: (condition: MongoWhereCondition | string) => MongoQueryBuilder<T>;
+  andWhere: (condition: MongoWhereCondition | string) => MongoQueryBuilder<T>;
+  like: (condition: MongoWhereCondition) => MongoQueryBuilder<T>;
+  orLike: (condition: MongoWhereCondition) => MongoQueryBuilder<T>;
+  andLike: (condition: MongoWhereCondition) => MongoQueryBuilder<T>;
   fields: (fields: string[]) => MongoQueryBuilder<T>;
   sort: (
     sort: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc",
@@ -450,6 +459,12 @@ export type MongoQueryBuilder<T extends typeof MongoModel> = {
     pageSize: number;
     totalPages: number;
   }>;
+  then: (
+    onfulfilled?: (value: InstanceType<T> | null) => any,
+    onrejected?: (reason: any) => any,
+  ) => Promise<any>;
+  catch: (onrejected?: (reason: any) => any) => Promise<any>;
+  finally: (onfinally?: () => void) => Promise<any>;
 };
 
 /**
@@ -2377,15 +2392,24 @@ export abstract class MongoModel {
       }
     }
 
-    // 递归处理嵌套对象（如 $in, $nin 等操作符中的数组）
+    // 递归处理嵌套对象（如 $in, $nin, $or, $and 等操作符）
     for (const [key, value] of Object.entries(normalized)) {
       // 跳过已经处理过的主键字段
       if (key === this.primaryKey || key === "_id") {
         continue;
       }
 
+      // 处理 $or 和 $and 操作符，递归规范化每个条件
+      if ((key === "$or" || key === "$and") && Array.isArray(value)) {
+        normalized[key] = value.map((item: any) => {
+          if (typeof item === "object" && item !== null && !Array.isArray(item)) {
+            return this.normalizeCondition(item);
+          }
+          return item;
+        });
+      }
       // 处理 $in 和 $nin 操作符中的数组
-      if ((key === "$in" || key === "$nin") && Array.isArray(value)) {
+      else if ((key === "$in" || key === "$nin") && Array.isArray(value)) {
         normalized[key] = value.map((item: any) => {
           // 如果数组项是字符串且是有效的 ObjectId 格式，转换为 ObjectId
           // 注意：这里只处理主键相关的查询，所以需要检查是否是主键字段的 $in/$nin
@@ -2474,7 +2498,11 @@ export abstract class MongoModel {
   private static createArrayQueryBuilder<T extends typeof MongoModel>(
     this: T,
     getState: () => {
-      _condition: MongoWhereCondition | string;
+      _conditions?: Array<{
+        type: "where" | "or" | "and";
+        condition: MongoWhereCondition | string;
+      }>;
+      _condition?: MongoWhereCondition | string; // 向后兼容 find() 方法
       _fields: string[] | undefined;
       _sort:
         | Record<string, 1 | -1 | "asc" | "desc">
@@ -2487,6 +2515,118 @@ export abstract class MongoModel {
       _onlyTrashed: boolean;
     },
   ): MongoArrayQueryBuilder<T> {
+    /**
+     * 构建最终的查询条件（与 query() 方法中的逻辑一致）
+     */
+    const buildFinalCondition = (): MongoWhereCondition | string => {
+      const state = getState();
+      // 如果使用新的 _conditions 结构
+      if (state._conditions && state._conditions.length > 0) {
+        // 如果只有一个 where 条件，直接返回
+        if (state._conditions.length === 1 && state._conditions[0].type === "where") {
+          const condition = state._conditions[0].condition;
+          // 如果是字符串，需要转换为对象
+          if (typeof condition === "string") {
+            return { [this.primaryKey]: condition };
+          }
+          return condition;
+        }
+
+        // 检查是否有 OR 条件
+        const hasOrCondition = state._conditions.some(item => item.type === "or");
+
+        if (hasOrCondition) {
+          // 如果有 OR 条件，将所有条件组合成 $or 数组
+          const orGroups: any[] = [];
+          let currentGroup: any[] = [];
+
+          for (const item of state._conditions!) {
+            const normalized = typeof item.condition === "string"
+              ? { [this.primaryKey]: item.condition }
+              : item.condition;
+
+            if (item.type === "where") {
+              // where 开始新的组
+              if (currentGroup.length > 0) {
+                // 将当前组作为一个 OR 分支
+                if (currentGroup.length === 1) {
+                  orGroups.push(currentGroup[0]);
+                } else {
+                  orGroups.push({ $and: currentGroup });
+                }
+                currentGroup = [];
+              }
+              currentGroup.push(normalized);
+            } else if (item.type === "and") {
+              // andWhere 添加到当前组
+              currentGroup.push(normalized);
+            } else if (item.type === "or") {
+              // orWhere 将当前组作为一个 OR 分支，然后开始新组
+              if (currentGroup.length > 0) {
+                if (currentGroup.length === 1) {
+                  orGroups.push(currentGroup[0]);
+                } else {
+                  orGroups.push({ $and: currentGroup });
+                }
+                currentGroup = [];
+              }
+              // orWhere 的条件作为新的 OR 分支
+              orGroups.push(normalized);
+            }
+          }
+
+          // 处理剩余的组
+          if (currentGroup.length > 0) {
+            if (currentGroup.length === 1) {
+              orGroups.push(currentGroup[0]);
+            } else {
+              orGroups.push({ $and: currentGroup });
+            }
+          }
+
+          // 返回 $or 查询
+          if (orGroups.length === 1) {
+            return orGroups[0];
+          }
+          return { $or: orGroups };
+        } else {
+          // 只有 AND 条件，组合成 $and 或直接合并
+          const andConditions: any[] = [];
+
+          for (const item of state._conditions!) {
+            const normalized = typeof item.condition === "string"
+              ? { [this.primaryKey]: item.condition }
+              : item.condition;
+            andConditions.push(normalized);
+          }
+
+          if (andConditions.length === 1) {
+            return andConditions[0];
+          }
+
+          // 合并所有 AND 条件
+          const result: any = {};
+          for (const condition of andConditions) {
+            Object.assign(result, condition);
+          }
+
+          // 如果有冲突的键，需要使用 $and
+          if (Object.keys(result).length < andConditions.reduce((sum, c) => sum + Object.keys(c).length, 0)) {
+            return { $and: andConditions };
+          }
+
+          return result;
+        }
+      }
+      // 向后兼容：使用旧的 _condition
+      if (state._condition) {
+        if (typeof state._condition === "string") {
+          return { [this.primaryKey]: state._condition };
+        }
+        return state._condition;
+      }
+      return {};
+    };
     const arrayBuilder: MongoArrayQueryBuilder<T> = {
       sort: (
         sort: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc",
@@ -2542,13 +2682,15 @@ export abstract class MongoModel {
           queryOptions.limit = state._limit;
         }
 
+        // 构建最终查询条件
+        const finalCondition = buildFinalCondition();
         let filter: any = {};
-        if (typeof state._condition === "string") {
-          filter._id = this.normalizeId(state._condition);
-        } else if (state._condition instanceof ObjectId) {
-          filter._id = state._condition;
+        if (typeof finalCondition === "string") {
+          filter._id = this.normalizeId(finalCondition);
+        } else if (finalCondition instanceof ObjectId) {
+          filter._id = finalCondition;
         } else {
-          filter = this.normalizeCondition(state._condition);
+          filter = this.normalizeCondition(finalCondition);
         }
         const queryFilter = this.applySoftDeleteFilter(
           filter,
@@ -2586,13 +2728,15 @@ export abstract class MongoModel {
           queryOptions.limit = state._limit;
         }
 
+        // 构建最终查询条件
+        const finalCondition = buildFinalCondition();
         let filter: any = {};
-        if (typeof state._condition === "string") {
-          filter._id = this.normalizeId(state._condition);
-        } else if (state._condition instanceof ObjectId) {
-          filter._id = state._condition;
+        if (typeof finalCondition === "string") {
+          filter._id = this.normalizeId(finalCondition);
+        } else if (finalCondition instanceof ObjectId) {
+          filter._id = finalCondition;
         } else {
-          filter = this.normalizeCondition(state._condition);
+          filter = this.normalizeCondition(finalCondition);
         }
         const queryFilter = this.applySoftDeleteFilter(
           filter,
@@ -2627,11 +2771,18 @@ export abstract class MongoModel {
           throw new Error("Database not connected");
         }
 
+        // 构建最终查询条件
+        const finalCondition = buildFinalCondition();
         let filter: any = {};
-        if (typeof state._condition === "string") {
-          filter[this.primaryKey] = state._condition;
+        if (typeof finalCondition === "string") {
+          // 字符串 ID 需要转换为 ObjectId
+          if (finalCondition) {
+            filter._id = this.normalizeId(finalCondition);
+          } else {
+            filter = {};
+          }
         } else {
-          filter = state._condition;
+          filter = this.normalizeCondition(finalCondition);
         }
         const queryFilter = this.applySoftDeleteFilter(
           filter,
@@ -2647,17 +2798,19 @@ export abstract class MongoModel {
       exists: async (): Promise<boolean> => {
         await this.ensureAdapter();
         const state = getState();
+        const finalCondition = buildFinalCondition();
         return await this.exists(
-          state._condition as any,
+          finalCondition as any,
           state._includeTrashed,
           state._onlyTrashed,
         );
       },
       distinct: async (field: string): Promise<any[]> => {
         const state = getState();
-        const cond = typeof state._condition === "string"
-          ? { [this.primaryKey]: state._condition }
-          : (state._condition as any);
+        const finalCondition = buildFinalCondition();
+        const cond = typeof finalCondition === "string"
+          ? { [this.primaryKey]: finalCondition }
+          : (finalCondition as any);
         return await this.distinct(
           field,
           cond,
@@ -2667,13 +2820,14 @@ export abstract class MongoModel {
       },
       aggregate: async (pipeline: any[]): Promise<any[]> => {
         const state = getState();
+        const finalCondition = buildFinalCondition();
         let match: any = {};
-        if (typeof state._condition === "string") {
-          match[this.primaryKey] = state._condition;
+        if (typeof finalCondition === "string") {
+          match[this.primaryKey] = finalCondition;
         } else if (
-          state._condition && Object.keys(state._condition).length > 0
+          finalCondition && Object.keys(finalCondition).length > 0
         ) {
-          match = state._condition;
+          match = this.normalizeCondition(finalCondition);
         }
         const effective = Object.keys(match).length > 0
           ? [{ $match: match }, ...pipeline]
@@ -2695,9 +2849,10 @@ export abstract class MongoModel {
         totalPages: number;
       }> => {
         const state = getState();
+        const finalCondition = buildFinalCondition();
         // 使用链式查询构建器中已有的条件、排序、字段等设置
         const paginateResult = await this.paginate(
-          state._condition as any,
+          finalCondition as any,
           page,
           pageSize,
           state._sort || { [this.primaryKey]: -1 },
@@ -2745,8 +2900,12 @@ export abstract class MongoModel {
     },
   ): MongoFindQueryBuilder<T> {
     // 创建共享状态对象，确保 asArray() 中的修改能够持久化
+    // 支持新的 _conditions 数组（用于链式查询条件）和旧的 _condition（向后兼容）
     const state = {
-      _condition: condition as MongoWhereCondition | string,
+      _conditions: [
+        { type: "where" as const, condition: condition as MongoWhereCondition | string },
+      ] as Array<{ type: "where" | "or" | "and"; condition: MongoWhereCondition | string }>,
+      _condition: condition as MongoWhereCondition | string, // 向后兼容
       _fields: fields,
       _sort: options?.sort as
         | Record<string, 1 | -1 | "asc" | "desc">
@@ -2759,14 +2918,172 @@ export abstract class MongoModel {
       _onlyTrashed: onlyTrashed,
     };
 
+    /**
+     * 构建最终查询条件
+     * 如果使用新的 _conditions 结构，返回组合对象；否则返回单个条件（向后兼容）
+     */
+    const buildFinalCondition = (): MongoWhereCondition | string => {
+      // 如果使用新的 _conditions 结构
+      if (state._conditions && state._conditions.length > 0) {
+        // 如果只有一个 where 条件，直接返回
+        if (state._conditions.length === 1 && state._conditions[0].type === "where") {
+          const condition = state._conditions[0].condition;
+          // 如果是字符串，需要转换为对象
+          if (typeof condition === "string") {
+            return { [this.primaryKey]: condition };
+          }
+          return condition;
+        }
+
+        // 检查是否有 OR 条件
+        const hasOrCondition = state._conditions.some(item => item.type === "or");
+
+        if (hasOrCondition) {
+          // 如果有 OR 条件，将所有条件组合成 $or 数组
+          const orGroups: any[] = [];
+          let currentGroup: any[] = [];
+
+          for (const item of state._conditions) {
+            const normalized = typeof item.condition === "string"
+              ? { [this.primaryKey]: item.condition }
+              : item.condition;
+
+            if (item.type === "where") {
+              // where 开始新的组
+              if (currentGroup.length > 0) {
+                // 将当前组作为一个 OR 分支
+                if (currentGroup.length === 1) {
+                  orGroups.push(currentGroup[0]);
+                } else {
+                  orGroups.push({ $and: currentGroup });
+                }
+                currentGroup = [];
+              }
+              currentGroup.push(normalized);
+            } else if (item.type === "and") {
+              // andWhere 添加到当前组
+              currentGroup.push(normalized);
+            } else if (item.type === "or") {
+              // orWhere 结束当前组，开始新的 OR 分支
+              if (currentGroup.length > 0) {
+                if (currentGroup.length === 1) {
+                  orGroups.push(currentGroup[0]);
+                } else {
+                  orGroups.push({ $and: currentGroup });
+                }
+                currentGroup = [];
+              }
+              orGroups.push(normalized);
+            }
+          }
+
+          // 处理剩余的组
+          if (currentGroup.length > 0) {
+            if (currentGroup.length === 1) {
+              orGroups.push(currentGroup[0]);
+            } else {
+              orGroups.push({ $and: currentGroup });
+            }
+          }
+
+          return { $or: orGroups };
+        } else {
+          // 只有 AND 条件，合并所有条件
+          const andConditions: any[] = [];
+          for (const item of state._conditions) {
+            const normalized = typeof item.condition === "string"
+              ? { [this.primaryKey]: item.condition }
+              : item.condition;
+            andConditions.push(normalized);
+          }
+
+          if (andConditions.length === 1) {
+            return andConditions[0];
+          } else {
+            return { $and: andConditions };
+          }
+        }
+      }
+      // 向后兼容：使用旧的 _condition
+      if (typeof state._condition === "string") {
+        return { [this.primaryKey]: state._condition };
+      }
+      return state._condition || {};
+    };
+
+    /**
+     * 将条件对象中的字符串值转换为 MongoDB $regex 查询条件
+     * 支持嵌套对象和 JSON 对象查询
+     * @param condition 查询条件对象
+     * @returns 转换后的查询条件对象
+     */
+    const convertToLikeCondition = (
+      condition: MongoWhereCondition,
+    ): MongoWhereCondition => {
+      if (!condition || typeof condition !== "object" || Array.isArray(condition)) {
+        return condition;
+      }
+
+      const result: MongoWhereCondition = {};
+
+      for (const [key, value] of Object.entries(condition)) {
+        if (value === null || value === undefined) {
+          result[key] = value;
+        } else if (typeof value === "object" && !Array.isArray(value)) {
+          // 检查是否是操作符对象（如 { $gt: 10 }, { $regex: ... }）
+          const opValue = value as {
+            $gt?: any;
+            $lt?: any;
+            $gte?: any;
+            $lte?: any;
+            $ne?: any;
+            $in?: any[];
+            $regex?: string | RegExp;
+            $options?: string;
+            [key: string]: any;
+          };
+
+          // 如果已经包含 $regex 操作符，保留原样
+          if (opValue.$regex !== undefined) {
+            result[key] = value;
+          } else if (
+            opValue.$gt !== undefined ||
+            opValue.$lt !== undefined ||
+            opValue.$gte !== undefined ||
+            opValue.$lte !== undefined ||
+            opValue.$ne !== undefined ||
+            opValue.$in !== undefined
+          ) {
+            // 如果包含其他操作符，保留原样
+            result[key] = value;
+          } else {
+            // 递归处理嵌套对象
+            result[key] = convertToLikeCondition(value as MongoWhereCondition);
+          }
+        } else if (typeof value === "string") {
+          // 字符串值转换为 $regex 查询（大小写不敏感）
+          result[key] = {
+            $regex: value,
+            $options: "i",
+          };
+        } else {
+          result[key] = value;
+        }
+      }
+
+      return result;
+    };
+
     // 执行查询单条记录的函数
     const executeFindOne = async (): Promise<InstanceType<T> | null> => {
       // 自动初始化（懒加载）
       await this.ensureAdapter();
 
+      const finalCondition = buildFinalCondition();
+
       // 生成缓存键
       const cacheKey = this.generateCacheKey(
-        state._condition,
+        finalCondition,
         state._fields,
         { sort: state._sort, skip: state._skip, limit: state._limit },
         state._includeTrashed,
@@ -2801,18 +3118,18 @@ export abstract class MongoModel {
 
       let filter: any = {};
 
-      // 如果是字符串，作为主键查询
-      if (typeof state._condition === "string") {
+      // 使用 buildFinalCondition 的结果
+      if (typeof finalCondition === "string") {
         // MongoDB 总是使用 _id 字段作为主键，无论 primaryKey 是什么
         // 所以查询时应该使用 _id 字段
-        filter._id = this.normalizeId(state._condition);
-      } else if (state._condition instanceof ObjectId) {
+        filter._id = this.normalizeId(finalCondition);
+      } else if (finalCondition instanceof ObjectId) {
         // 如果传入的是 ObjectId 对象，直接使用
-        filter._id = state._condition;
+        filter._id = finalCondition;
       } else {
         // 规范化查询条件，将主键字段（如果是字符串）转换为 ObjectId
         // 如果 primaryKey !== "_id"，会自动映射到 _id 字段
-        filter = this.normalizeCondition(state._condition);
+        filter = this.normalizeCondition(finalCondition);
       }
 
       const projection = this.buildProjection(state._fields);
@@ -2876,6 +3193,9 @@ export abstract class MongoModel {
     const executeFindAll = async (): Promise<InstanceType<T>[]> => {
       // 自动初始化（懒加载）
       await this.ensureAdapter();
+
+      const finalCondition = buildFinalCondition();
+
       const projection = this.buildProjection(state._fields);
       const queryOptions: any = {};
       if (Object.keys(projection).length > 0) {
@@ -2893,13 +3213,13 @@ export abstract class MongoModel {
       }
 
       let filter: any = {};
-      if (typeof state._condition === "string") {
+      if (typeof finalCondition === "string") {
         // MongoDB 总是使用 _id 字段作为主键，无论 primaryKey 是什么
-        filter._id = this.normalizeId(state._condition);
+        filter._id = this.normalizeId(finalCondition);
       } else {
         // 规范化查询条件，将主键字段（如果是字符串）转换为 ObjectId
         // 如果 primaryKey !== "_id"，会自动映射到 _id 字段
-        filter = this.normalizeCondition(state._condition);
+        filter = this.normalizeCondition(finalCondition);
       }
       const queryFilter = this.applySoftDeleteFilter(
         filter,
@@ -2936,6 +3256,44 @@ export abstract class MongoModel {
 
     // 构建查询构建器对象
     const builder: MongoFindQueryBuilder<T> = {
+      /**
+       * 添加 OR 查询条件
+       * @param condition 查询条件
+       * @returns 查询构建器
+       */
+      orWhere: (condition: MongoWhereCondition | string) => {
+        state._conditions.push({ type: "or", condition });
+        return builder;
+      },
+      /**
+       * 添加 AND 查询条件
+       * @param condition 查询条件
+       * @returns 查询构建器
+       */
+      andWhere: (condition: MongoWhereCondition | string) => {
+        state._conditions.push({ type: "and", condition });
+        return builder;
+      },
+      /**
+       * 添加 OR LIKE 查询条件
+       * @param condition 查询条件对象
+       * @returns 查询构建器
+       */
+      orLike: (condition: MongoWhereCondition) => {
+        const likeCondition = convertToLikeCondition(condition);
+        state._conditions.push({ type: "or", condition: likeCondition });
+        return builder;
+      },
+      /**
+       * 添加 AND LIKE 查询条件
+       * @param condition 查询条件对象
+       * @returns 查询构建器
+       */
+      andLike: (condition: MongoWhereCondition) => {
+        const likeCondition = convertToLikeCondition(condition);
+        state._conditions.push({ type: "and", condition: likeCondition });
+        return builder;
+      },
       sort: (
         sort: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc",
       ) => {
@@ -2978,7 +3336,16 @@ export abstract class MongoModel {
        */
       asArray: (): MongoArrayQueryBuilder<T> => {
         // 返回共享状态对象的引用，确保 asArray() 中的修改能够持久化
-        return this.createArrayQueryBuilder(() => state);
+        // 将 _condition 转换为 _conditions 格式以兼容 createArrayQueryBuilder
+        const stateForArray = {
+          ...state,
+          _conditions: [] as Array<{ type: "where" | "or" | "and"; condition: MongoWhereCondition | string }>,
+          _condition: state._condition,
+        };
+        if (state._condition) {
+          stateForArray._conditions = [{ type: "where" as const, condition: state._condition }];
+        }
+        return this.createArrayQueryBuilder(() => stateForArray);
       },
       count: async (): Promise<number> => {
         // 自动初始化（懒加载）
@@ -2988,11 +3355,12 @@ export abstract class MongoModel {
           throw new Error("Database not connected");
         }
 
+        const finalCondition = buildFinalCondition();
         let filter: any = {};
-        if (typeof state._condition === "string") {
-          filter[this.primaryKey] = state._condition;
+        if (typeof finalCondition === "string") {
+          filter[this.primaryKey] = finalCondition;
         } else {
-          filter = state._condition;
+          filter = finalCondition;
         }
         const queryFilter = this.applySoftDeleteFilter(
           filter,
@@ -3006,16 +3374,18 @@ export abstract class MongoModel {
       },
       exists: async (): Promise<boolean> => {
         await this.ensureAdapter();
+        const finalCondition = buildFinalCondition();
         return await this.exists(
-          state._condition as any,
+          finalCondition as any,
           state._includeTrashed,
           state._onlyTrashed,
         );
       },
       distinct: async (field: string): Promise<any[]> => {
-        const cond = typeof state._condition === "string"
-          ? { [this.primaryKey]: state._condition }
-          : (state._condition as any);
+        const finalCondition = buildFinalCondition();
+        const cond = typeof finalCondition === "string"
+          ? { [this.primaryKey]: finalCondition }
+          : (finalCondition as any);
         return await this.distinct(
           field,
           cond,
@@ -3024,13 +3394,14 @@ export abstract class MongoModel {
         );
       },
       aggregate: async (pipeline: any[]): Promise<any[]> => {
+        const finalCondition = buildFinalCondition();
         let match: any = {};
-        if (typeof state._condition === "string") {
-          match[this.primaryKey] = state._condition;
+        if (typeof finalCondition === "string") {
+          match[this.primaryKey] = finalCondition;
         } else if (
-          state._condition && Object.keys(state._condition).length > 0
+          finalCondition && typeof finalCondition === "object" && Object.keys(finalCondition).length > 0
         ) {
-          match = state._condition;
+          match = finalCondition;
         }
         const effective = Object.keys(match).length > 0
           ? [{ $match: match }, ...pipeline]
@@ -3051,9 +3422,10 @@ export abstract class MongoModel {
         pageSize: number;
         totalPages: number;
       }> => {
+        const finalCondition = buildFinalCondition();
         // 使用链式查询构建器中已有的条件、排序、字段等设置
         return await this.paginate(
-          state._condition as any,
+          finalCondition as any,
           page,
           pageSize,
           state._sort || { [this.primaryKey]: -1 },
@@ -5654,8 +6026,12 @@ export abstract class MongoModel {
    */
   static query<T extends typeof MongoModel>(this: T): MongoQueryBuilder<T> {
     // 创建共享状态对象，确保 asArray() 中的修改能够持久化
+    // 使用数组结构支持多个条件的 OR/AND 组合
     const state = {
-      _condition: {} as MongoWhereCondition | string,
+      _conditions: [] as Array<{
+        type: "where" | "or" | "and";
+        condition: MongoWhereCondition | string;
+      }>,
       _fields: undefined as string[] | undefined,
       _sort: undefined as
         | Record<string, 1 | -1 | "asc" | "desc">
@@ -5668,10 +6044,284 @@ export abstract class MongoModel {
       _onlyTrashed: false,
     };
 
+    /**
+     * 构建最终的查询条件
+     * 将多个条件合并为 MongoDB 查询对象
+     */
+    const buildFinalCondition = (): MongoWhereCondition | string => {
+      if (state._conditions.length === 0) {
+        return {};
+      }
+
+      // 如果只有一个 where 条件，直接返回
+      if (state._conditions.length === 1 && state._conditions[0].type === "where") {
+        const condition = state._conditions[0].condition;
+        // 如果是字符串，需要转换为对象
+        if (typeof condition === "string") {
+          return { [this.primaryKey]: condition };
+        }
+        return condition;
+      }
+
+      // 检查是否有 OR 条件
+      const hasOrCondition = state._conditions.some(item => item.type === "or");
+
+      if (hasOrCondition) {
+        // 如果有 OR 条件，将所有条件组合成 $or 数组
+        const orGroups: any[] = [];
+        let currentGroup: any[] = [];
+
+        for (const item of state._conditions) {
+          const normalized = typeof item.condition === "string"
+            ? { [this.primaryKey]: item.condition }
+            : item.condition;
+
+          if (item.type === "where") {
+            // where 开始新的组
+            if (currentGroup.length > 0) {
+              // 将当前组作为一个 OR 分支
+              if (currentGroup.length === 1) {
+                orGroups.push(currentGroup[0]);
+              } else {
+                orGroups.push({ $and: currentGroup });
+              }
+              currentGroup = [];
+            }
+            currentGroup.push(normalized);
+          } else if (item.type === "and") {
+            // andWhere 添加到当前组
+            currentGroup.push(normalized);
+          } else if (item.type === "or") {
+            // orWhere 将当前组作为一个 OR 分支，然后开始新组
+            if (currentGroup.length > 0) {
+              if (currentGroup.length === 1) {
+                orGroups.push(currentGroup[0]);
+              } else {
+                orGroups.push({ $and: currentGroup });
+              }
+              currentGroup = [];
+            }
+            // orWhere 的条件作为新的 OR 分支
+            orGroups.push(normalized);
+          }
+        }
+
+        // 处理剩余的组
+        if (currentGroup.length > 0) {
+          if (currentGroup.length === 1) {
+            orGroups.push(currentGroup[0]);
+          } else {
+            orGroups.push({ $and: currentGroup });
+          }
+        }
+
+        // 返回 $or 查询
+        if (orGroups.length === 1) {
+          return orGroups[0];
+        }
+        return { $or: orGroups };
+      } else {
+        // 只有 AND 条件，组合成 $and 或直接合并
+        const andConditions: any[] = [];
+
+        for (const item of state._conditions) {
+          const normalized = typeof item.condition === "string"
+            ? { [this.primaryKey]: item.condition }
+            : item.condition;
+          andConditions.push(normalized);
+        }
+
+        if (andConditions.length === 1) {
+          return andConditions[0];
+        }
+
+        // 合并所有 AND 条件
+        const result: any = {};
+        for (const condition of andConditions) {
+          Object.assign(result, condition);
+        }
+
+        // 如果有冲突的键，需要使用 $and
+        if (Object.keys(result).length < andConditions.reduce((sum, c) => sum + Object.keys(c).length, 0)) {
+          return { $and: andConditions };
+        }
+
+        return result;
+      }
+    };
+
+    /**
+     * 将条件对象中的字符串值转换为正则表达式（用于 LIKE 查询）
+     * 支持嵌套对象和 JSON 对象查询
+     * @param condition 查询条件对象
+     * @returns 转换后的查询条件对象
+     */
+    const convertToLikeCondition = (
+      condition: MongoWhereCondition,
+    ): MongoWhereCondition => {
+        const result: MongoWhereCondition = {};
+
+        for (const [key, value] of Object.entries(condition)) {
+          // 跳过 MongoDB 操作符（以 $ 开头）
+          if (key.startsWith("$")) {
+            result[key] = value;
+            continue;
+          }
+
+          // 处理嵌套对象（支持 JSON 对象查询，如 { "user.name": "value" } 或 { user: { name: "value" } }）
+          if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+            // 检查是否是 MongoDB 操作符对象（包含 $gt, $lt, $regex 等）
+            const isOperatorObject = Object.keys(value).some((k) =>
+              k.startsWith("$")
+            );
+
+            if (isOperatorObject) {
+              // 如果已经是操作符对象，保持原样
+              result[key] = value;
+            } else {
+              // 递归处理嵌套对象
+              result[key] = convertToLikeCondition(value as MongoWhereCondition);
+            }
+          } else if (typeof value === "string") {
+            // 将字符串值转换为正则表达式（LIKE 查询）
+            // 将 SQL 风格的 % 通配符转换为正则表达式，_ 转换为单个字符匹配
+            const regexPattern = value.replace(/%/g, ".*").replace(/_/g, ".");
+            result[key] = { $regex: regexPattern, $options: "i" };
+          } else {
+            // 其他类型（数字、布尔值等）保持原样
+            result[key] = value;
+          }
+        }
+
+        return result;
+    };
+
+    // 执行查询单条记录的函数（用于直接 await）
+    const executeFindOne = async (): Promise<InstanceType<T> | null> => {
+      // 自动初始化（懒加载）
+      await this.ensureAdapter();
+      const projection = this.buildProjection(state._fields);
+      const queryOptions: any = { limit: 1 };
+      if (Object.keys(projection).length > 0) {
+        queryOptions.projection = projection;
+      }
+      const normalizedSort = this.normalizeSort(state._sort);
+      if (normalizedSort) {
+        queryOptions.sort = normalizedSort;
+      }
+
+      // 构建最终查询条件
+      const finalCondition = buildFinalCondition();
+      let filter: any = {};
+      if (typeof finalCondition === "string") {
+        // 字符串 ID 需要转换为 ObjectId
+        if (finalCondition) {
+          filter._id = this.normalizeId(finalCondition);
+        } else {
+          filter = {};
+        }
+      } else {
+        filter = this.normalizeCondition(finalCondition);
+      }
+      const queryFilter = this.applySoftDeleteFilter(
+        filter,
+        state._includeTrashed,
+        state._onlyTrashed,
+      );
+
+      const results = await this.adapter.query(
+        this.collectionName,
+        queryFilter,
+        queryOptions,
+      );
+      if (results.length === 0) {
+        return null;
+      }
+      const instance = new (this as any)();
+      Object.assign(instance, results[0]);
+      // 应用虚拟字段（使用缓存的虚拟字段定义）
+      this.applyVirtuals(instance);
+      return instance as InstanceType<T>;
+    };
+
+    // 创建 Promise（用于直接 await）
+    const queryPromise = executeFindOne();
+
     // 使用类型断言确保 builder 的类型是 MongoQueryBuilder<T>
     const builder: MongoQueryBuilder<T> = {
+      /**
+       * 设置查询条件（会重置之前的所有条件）
+       * @param condition 查询条件对象或主键值
+       * @returns 查询构建器实例
+       */
       where: (condition: MongoWhereCondition | string) => {
-        state._condition = condition;
+        state._conditions = [{ type: "where", condition }];
+        return builder;
+      },
+      /**
+       * 添加 OR 查询条件
+       * @param condition 查询条件对象或主键值
+       * @returns 查询构建器实例
+       */
+      orWhere: (condition: MongoWhereCondition | string) => {
+        state._conditions.push({ type: "or", condition });
+        return builder;
+      },
+      /**
+       * 添加 AND 查询条件
+       * @param condition 查询条件对象或主键值
+       * @returns 查询构建器实例
+       */
+      andWhere: (condition: MongoWhereCondition | string) => {
+        state._conditions.push({ type: "and", condition });
+        return builder;
+      },
+      /**
+       * 添加 LIKE 查询条件（使用正则表达式）
+       * 支持 MongoWhereCondition 类型和 JSON 对象条件查询
+       * @param condition 查询条件对象，字符串值会被转换为正则表达式（支持 % 通配符）
+       * @returns 查询构建器实例
+       * @example
+       * User.query().like({ name: "%shu%" }) // 匹配包含 "shu" 的 name 字段
+       * User.query().like({ "user.name": "%shu%" }) // 支持点号路径
+       * User.query().like({ user: { name: "%shu%" } }) // 支持嵌套对象
+       * User.query().like({ name: { $regex: "shu", $options: "i" } }) // 支持已有操作符
+       */
+      like: (condition: MongoWhereCondition) => {
+        const likeCondition = convertToLikeCondition(condition);
+        if (state._conditions.length === 0) {
+          state._conditions.push({ type: "where", condition: likeCondition });
+        } else {
+          state._conditions.push({ type: "and", condition: likeCondition });
+        }
+        return builder;
+      },
+      /**
+       * 添加 OR LIKE 查询条件
+       * 支持 MongoWhereCondition 类型和 JSON 对象条件查询
+       * @param condition 查询条件对象，字符串值会被转换为正则表达式（支持 % 通配符）
+       * @returns 查询构建器实例
+       * @example
+       * User.query().where({ status: "active" }).orLike({ name: "%shu%" })
+       * User.query().orLike({ "user.name": "%shu%", age: 18 }) // 混合条件
+       */
+      orLike: (condition: MongoWhereCondition) => {
+        const likeCondition = convertToLikeCondition(condition);
+        state._conditions.push({ type: "or", condition: likeCondition });
+        return builder;
+      },
+      /**
+       * 添加 AND LIKE 查询条件
+       * 支持 MongoWhereCondition 类型和 JSON 对象条件查询
+       * @param condition 查询条件对象，字符串值会被转换为正则表达式（支持 % 通配符）
+       * @returns 查询构建器实例
+       * @example
+       * User.query().where({ status: "active" }).andLike({ name: "%shu%" })
+       * User.query().andLike({ user: { name: "%shu%", email: "%test%" } }) // 嵌套对象
+       */
+      andLike: (condition: MongoWhereCondition) => {
+        const likeCondition = convertToLikeCondition(condition);
+        state._conditions.push({ type: "and", condition: likeCondition });
         return builder;
       },
       fields: (fields: string[]) => {
@@ -5721,11 +6371,18 @@ export abstract class MongoModel {
           queryOptions.limit = state._limit;
         }
 
+        // 构建最终查询条件
+        const finalCondition = buildFinalCondition();
         let filter: any = {};
-        if (typeof state._condition === "string") {
-          filter[this.primaryKey] = state._condition;
+        if (typeof finalCondition === "string") {
+          // 字符串 ID 需要转换为 ObjectId
+          if (finalCondition) {
+            filter._id = this.normalizeId(finalCondition);
+          } else {
+            filter = {};
+          }
         } else {
-          filter = state._condition;
+          filter = this.normalizeCondition(finalCondition);
         }
         const queryFilter = this.applySoftDeleteFilter(
           filter,
@@ -5760,11 +6417,18 @@ export abstract class MongoModel {
           queryOptions.sort = normalizedSort;
         }
 
+        // 构建最终查询条件
+        const finalCondition = buildFinalCondition();
         let filter: any = {};
-        if (typeof state._condition === "string") {
-          filter[this.primaryKey] = state._condition;
+        if (typeof finalCondition === "string") {
+          // 字符串 ID 需要转换为 ObjectId
+          if (finalCondition) {
+            filter._id = this.normalizeId(finalCondition);
+          } else {
+            filter = {};
+          }
         } else {
-          filter = state._condition;
+          filter = this.normalizeCondition(finalCondition);
         }
         const queryFilter = this.applySoftDeleteFilter(
           filter,
@@ -5819,11 +6483,18 @@ export abstract class MongoModel {
           throw new Error("Database not connected");
         }
 
+        // 构建最终查询条件
+        const finalCondition = buildFinalCondition();
         let filter: any = {};
-        if (typeof state._condition === "string") {
-          filter[this.primaryKey] = state._condition;
+        if (typeof finalCondition === "string") {
+          // 字符串 ID 需要转换为 ObjectId
+          if (finalCondition) {
+            filter._id = this.normalizeId(finalCondition);
+          } else {
+            filter = {};
+          }
         } else {
-          filter = state._condition;
+          filter = this.normalizeCondition(finalCondition);
         }
         const queryFilter = this.applySoftDeleteFilter(
           filter,
@@ -5837,8 +6508,9 @@ export abstract class MongoModel {
       },
       exists: async (): Promise<boolean> => {
         await this.ensureAdapter();
+        const finalCondition = buildFinalCondition();
         return await this.exists(
-          state._condition as any,
+          finalCondition as any,
           state._includeTrashed,
           state._onlyTrashed,
         );
@@ -5854,29 +6526,32 @@ export abstract class MongoModel {
         data: Record<string, any>,
         returnLatest: boolean = false,
       ): Promise<number | InstanceType<T>> => {
+        const finalCondition = buildFinalCondition();
         if (returnLatest) {
           return await this.update(
-            state._condition as any,
+            finalCondition as any,
             data,
             true,
           ) as InstanceType<T>;
         }
         return await this.update(
-          state._condition as any,
+          finalCondition as any,
           data,
           false,
         ) as number;
       },
       updateMany: async (data: Record<string, any>): Promise<number> => {
-        return await this.updateMany(state._condition as any, data);
+        const finalCondition = buildFinalCondition();
+        return await this.updateMany(finalCondition as any, data);
       },
       increment: async (
         field: string,
         amount: number = 1,
         returnLatest: boolean = false,
       ): Promise<number | InstanceType<T>> => {
+        const finalCondition = buildFinalCondition();
         return await this.increment(
-          state._condition as any,
+          finalCondition as any,
           field,
           amount,
           returnLatest,
@@ -5887,8 +6562,9 @@ export abstract class MongoModel {
         amount: number = 1,
         returnLatest: boolean = false,
       ): Promise<number | InstanceType<T>> => {
+        const finalCondition = buildFinalCondition();
         return await this.decrement(
-          state._condition as any,
+          finalCondition as any,
           field,
           amount,
           returnLatest,
@@ -5901,12 +6577,14 @@ export abstract class MongoModel {
       deleteMany: async (
         options?: { returnIds?: boolean },
       ): Promise<number | { count: number; ids: any[] }> => {
-        return await this.deleteMany(state._condition as any, options);
+        const finalCondition = buildFinalCondition();
+        return await this.deleteMany(finalCondition as any, options);
       },
       restore: async (
         options?: { returnIds?: boolean },
       ): Promise<number | { count: number; ids: any[] }> => {
-        return await this.restore(state._condition as any, options);
+        const finalCondition = buildFinalCondition();
+        return await this.restore(finalCondition as any, options);
       },
       restoreById: async (id: string): Promise<number> => {
         await this.ensureAdapter();
@@ -5915,16 +6593,18 @@ export abstract class MongoModel {
       forceDelete: async (
         options?: { returnIds?: boolean },
       ): Promise<number | { count: number; ids: any[] }> => {
-        return await this.forceDelete(state._condition as any, options);
+        const finalCondition = buildFinalCondition();
+        return await this.forceDelete(finalCondition as any, options);
       },
       forceDeleteById: async (id: string): Promise<number> => {
         await this.ensureAdapter();
         return await this.forceDeleteById(id);
       },
       distinct: async (field: string): Promise<any[]> => {
-        const cond = typeof state._condition === "string"
-          ? { [this.primaryKey]: state._condition }
-          : (state._condition as any);
+        const finalCondition = buildFinalCondition();
+        const cond = typeof finalCondition === "string"
+          ? { [this.primaryKey]: finalCondition }
+          : (finalCondition as any);
         return await this.distinct(
           field,
           cond,
@@ -5933,13 +6613,14 @@ export abstract class MongoModel {
         );
       },
       aggregate: async (pipeline: any[]): Promise<any[]> => {
+        const finalCondition = buildFinalCondition();
         let match: any = {};
-        if (typeof state._condition === "string") {
-          match[this.primaryKey] = state._condition;
+        if (typeof finalCondition === "string") {
+          match[this.primaryKey] = finalCondition;
         } else if (
-          state._condition && Object.keys(state._condition).length > 0
+          finalCondition && Object.keys(finalCondition).length > 0
         ) {
-          match = state._condition;
+          match = this.normalizeCondition(finalCondition);
         }
         const effective = Object.keys(match).length > 0
           ? [{ $match: match }, ...pipeline]
@@ -5954,16 +6635,18 @@ export abstract class MongoModel {
         data: Record<string, any>,
         options?: { returnDocument?: "before" | "after" },
       ): Promise<InstanceType<T> | null> => {
+        const finalCondition = buildFinalCondition();
         return await this.findOneAndUpdate(
-          state._condition as any,
+          finalCondition as any,
           data,
           options ?? { returnDocument: "after" },
           state._fields,
         );
       },
       findOneAndDelete: async (): Promise<InstanceType<T> | null> => {
+        const finalCondition = buildFinalCondition();
         return await this.findOneAndDelete(
-          state._condition as any,
+          finalCondition as any,
           state._fields,
         );
       },
@@ -5971,8 +6654,9 @@ export abstract class MongoModel {
         replacement: Record<string, any>,
         returnLatest: boolean = true,
       ): Promise<InstanceType<T> | null> => {
+        const finalCondition = buildFinalCondition();
         return await this.findOneAndReplace(
-          state._condition as any,
+          finalCondition as any,
           replacement,
           returnLatest,
           state._fields,
@@ -5983,8 +6667,9 @@ export abstract class MongoModel {
         returnLatest: boolean = true,
         resurrect: boolean = false,
       ): Promise<InstanceType<T>> => {
+        const finalCondition = buildFinalCondition();
         return await this.upsert(
-          state._condition as any,
+          finalCondition as any,
           data,
           returnLatest,
           resurrect,
@@ -5994,17 +6679,19 @@ export abstract class MongoModel {
         data: Record<string, any>,
         resurrect: boolean = false,
       ): Promise<InstanceType<T>> => {
-        const cond = typeof state._condition === "string"
-          ? { [this.primaryKey]: state._condition }
-          : (state._condition as any);
+        const finalCondition = buildFinalCondition();
+        const cond = typeof finalCondition === "string"
+          ? { [this.primaryKey]: finalCondition }
+          : (finalCondition as any);
         return await this.findOrCreate(cond, data, resurrect);
       },
       incrementMany: async (
         fieldOrMap: string | Record<string, number>,
         amount: number = 1,
       ): Promise<number> => {
+        const finalCondition = buildFinalCondition();
         return await this.incrementMany(
-          state._condition as any,
+          finalCondition as any,
           fieldOrMap,
           amount,
         );
@@ -6013,8 +6700,9 @@ export abstract class MongoModel {
         fieldOrMap: string | Record<string, number>,
         amount: number = 1,
       ): Promise<number> => {
+        const finalCondition = buildFinalCondition();
         return await this.decrementMany(
-          state._condition as any,
+          finalCondition as any,
           fieldOrMap,
           amount,
         );
@@ -6030,8 +6718,9 @@ export abstract class MongoModel {
         totalPages: number;
       }> => {
         // 使用链式查询构建器中已有的条件、排序、字段等设置
+        const finalCondition = buildFinalCondition();
         return await this.paginate(
-          state._condition as any,
+          finalCondition as any,
           page,
           pageSize,
           state._sort || { [this.primaryKey]: -1 },
@@ -6040,6 +6729,14 @@ export abstract class MongoModel {
           state._onlyTrashed,
         );
       },
+      // Promise 接口方法（用于直接 await）
+      then: (
+        onfulfilled?: (value: InstanceType<T> | null) => any,
+        onrejected?: (reason: any) => any,
+      ) => queryPromise.then(onfulfilled, onrejected),
+      catch: (onrejected?: (reason: any) => any) =>
+        queryPromise.catch(onrejected),
+      finally: (onfinally?: () => void) => queryPromise.finally(onfinally),
     };
 
     return builder as any;

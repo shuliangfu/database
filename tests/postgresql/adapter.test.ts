@@ -35,9 +35,9 @@ describe("PostgreSQLAdapter", () => {
     const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
     const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
     const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-    const defaultUser = getEnv("USER") || getEnv("USERNAME") || "postgres";
+    const defaultUser = "testuser";
     const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-    const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "");
+    const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
 
     try {
       // 直接创建适配器实例进行测试
@@ -352,9 +352,9 @@ describe("PostgreSQLAdapter", () => {
       const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
       const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
       const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-      const defaultUser = getEnv("USER") || getEnv("USERNAME") || "postgres";
+      const defaultUser = "testuser";
       const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-      const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "");
+      const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
 
       await testAdapter.connect({
         type: "postgresql",
@@ -430,9 +430,9 @@ describe("PostgreSQLAdapter", () => {
       const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
       const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
       const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-      const defaultUser = getEnv("USER") || getEnv("USERNAME") || "postgres";
+      const defaultUser = "testuser";
       const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-      const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "");
+      const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
 
       await testAdapter.connect({
         type: "postgresql",
@@ -462,9 +462,9 @@ describe("PostgreSQLAdapter", () => {
       const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
       const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
       const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-      const defaultUser = getEnv("USER") || getEnv("USERNAME") || "postgres";
+      const defaultUser = "testuser";
       const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-      const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "");
+      const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
 
       await testAdapter.connect({
         type: "postgresql",
@@ -668,9 +668,9 @@ describe("PostgreSQLAdapter", () => {
         const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
         const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
         const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-        const defaultUser = getEnv("USER") || getEnv("USERNAME") || "postgres";
+        const defaultUser = "testuser";
         const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-        const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "");
+        const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
 
         const config: DatabaseConfig = {
           type: "postgresql",
@@ -754,9 +754,9 @@ describe("PostgreSQLAdapter", () => {
         const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
         const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
         const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-        const defaultUser = getEnv("USER") || getEnv("USERNAME") || "postgres";
+        const defaultUser = "testuser";
         const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-        const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "");
+        const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
 
         const config: DatabaseConfig = {
           type: "postgresql",
@@ -801,9 +801,9 @@ describe("PostgreSQLAdapter", () => {
         const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
         const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
         const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-        const defaultUser = getEnv("USER") || getEnv("USERNAME") || "postgres";
+        const defaultUser = "testuser";
         const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-        const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "");
+        const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
 
         const config: DatabaseConfig = {
           type: "postgresql",
@@ -1511,9 +1511,9 @@ describe("PostgreSQLAdapter", () => {
       const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
       const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
       const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-      const defaultUser = getEnv("USER") || getEnv("USERNAME") || "postgres";
+      const defaultUser = "testuser";
       const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-      const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "");
+      const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
 
       await testAdapter.connect({
         type: "postgresql",
