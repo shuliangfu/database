@@ -2974,8 +2974,16 @@ export abstract class SQLModel {
     // 支持新的 _conditions 数组（用于链式查询条件）和旧的 _condition（向后兼容）
     const state = {
       _conditions: [
-        { type: "where" as const, condition: condition as WhereCondition | number | string },
-      ] as Array<{ type: "where" | "or" | "and"; condition: WhereCondition | number | string }>,
+        {
+          type: "where" as const,
+          condition: condition as WhereCondition | number | string,
+        },
+      ] as Array<
+        {
+          type: "where" | "or" | "and";
+          condition: WhereCondition | number | string;
+        }
+      >,
       _condition: condition as WhereCondition | number | string, // 向后兼容
       _fields: fields,
       _sort: options?.sort as
@@ -2998,7 +3006,8 @@ export abstract class SQLModel {
       if (state._conditions && state._conditions.length > 0) {
         // 如果只有一个 where 条件，直接返回
         if (
-          state._conditions.length === 1 && state._conditions[0].type === "where"
+          state._conditions.length === 1 &&
+          state._conditions[0].type === "where"
         ) {
           return state._conditions[0].condition;
         }
@@ -3023,7 +3032,9 @@ export abstract class SQLModel {
     const convertToLikeCondition = (
       condition: WhereCondition,
     ): WhereCondition => {
-      if (!condition || typeof condition !== "object" || Array.isArray(condition)) {
+      if (
+        !condition || typeof condition !== "object" || Array.isArray(condition)
+      ) {
         return condition;
       }
 

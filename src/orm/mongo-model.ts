@@ -331,8 +331,12 @@ export type MongoArrayQueryBuilder<T extends typeof MongoModel> = {
  * 查找查询构建器类型（用于打破循环引用）
  */
 export type MongoFindQueryBuilder<T extends typeof MongoModel> = {
-  orWhere: (condition: MongoWhereCondition | string) => MongoFindQueryBuilder<T>;
-  andWhere: (condition: MongoWhereCondition | string) => MongoFindQueryBuilder<T>;
+  orWhere: (
+    condition: MongoWhereCondition | string,
+  ) => MongoFindQueryBuilder<T>;
+  andWhere: (
+    condition: MongoWhereCondition | string,
+  ) => MongoFindQueryBuilder<T>;
   orLike: (condition: MongoWhereCondition) => MongoFindQueryBuilder<T>;
   andLike: (condition: MongoWhereCondition) => MongoFindQueryBuilder<T>;
   sort: (
@@ -2402,13 +2406,14 @@ export abstract class MongoModel {
       // 处理 $or 和 $and 操作符，递归规范化每个条件
       if ((key === "$or" || key === "$and") && Array.isArray(value)) {
         normalized[key] = value.map((item: any) => {
-          if (typeof item === "object" && item !== null && !Array.isArray(item)) {
+          if (
+            typeof item === "object" && item !== null && !Array.isArray(item)
+          ) {
             return this.normalizeCondition(item);
           }
           return item;
         });
-      }
-      // 处理 $in 和 $nin 操作符中的数组
+      } // 处理 $in 和 $nin 操作符中的数组
       else if ((key === "$in" || key === "$nin") && Array.isArray(value)) {
         normalized[key] = value.map((item: any) => {
           // 如果数组项是字符串且是有效的 ObjectId 格式，转换为 ObjectId
@@ -2523,7 +2528,10 @@ export abstract class MongoModel {
       // 如果使用新的 _conditions 结构
       if (state._conditions && state._conditions.length > 0) {
         // 如果只有一个 where 条件，直接返回
-        if (state._conditions.length === 1 && state._conditions[0].type === "where") {
+        if (
+          state._conditions.length === 1 &&
+          state._conditions[0].type === "where"
+        ) {
           const condition = state._conditions[0].condition;
           // 如果是字符串，需要转换为对象
           if (typeof condition === "string") {
@@ -2533,7 +2541,9 @@ export abstract class MongoModel {
         }
 
         // 检查是否有 OR 条件
-        const hasOrCondition = state._conditions.some(item => item.type === "or");
+        const hasOrCondition = state._conditions.some((item) =>
+          item.type === "or"
+        );
 
         if (hasOrCondition) {
           // 如果有 OR 条件，将所有条件组合成 $or 数组
@@ -2611,7 +2621,10 @@ export abstract class MongoModel {
           }
 
           // 如果有冲突的键，需要使用 $and
-          if (Object.keys(result).length < andConditions.reduce((sum, c) => sum + Object.keys(c).length, 0)) {
+          if (
+            Object.keys(result).length <
+              andConditions.reduce((sum, c) => sum + Object.keys(c).length, 0)
+          ) {
             return { $and: andConditions };
           }
 
@@ -2903,8 +2916,16 @@ export abstract class MongoModel {
     // 支持新的 _conditions 数组（用于链式查询条件）和旧的 _condition（向后兼容）
     const state = {
       _conditions: [
-        { type: "where" as const, condition: condition as MongoWhereCondition | string },
-      ] as Array<{ type: "where" | "or" | "and"; condition: MongoWhereCondition | string }>,
+        {
+          type: "where" as const,
+          condition: condition as MongoWhereCondition | string,
+        },
+      ] as Array<
+        {
+          type: "where" | "or" | "and";
+          condition: MongoWhereCondition | string;
+        }
+      >,
       _condition: condition as MongoWhereCondition | string, // 向后兼容
       _fields: fields,
       _sort: options?.sort as
@@ -2926,7 +2947,10 @@ export abstract class MongoModel {
       // 如果使用新的 _conditions 结构
       if (state._conditions && state._conditions.length > 0) {
         // 如果只有一个 where 条件，直接返回
-        if (state._conditions.length === 1 && state._conditions[0].type === "where") {
+        if (
+          state._conditions.length === 1 &&
+          state._conditions[0].type === "where"
+        ) {
           const condition = state._conditions[0].condition;
           // 如果是字符串，需要转换为对象
           if (typeof condition === "string") {
@@ -2936,7 +2960,9 @@ export abstract class MongoModel {
         }
 
         // 检查是否有 OR 条件
-        const hasOrCondition = state._conditions.some(item => item.type === "or");
+        const hasOrCondition = state._conditions.some((item) =>
+          item.type === "or"
+        );
 
         if (hasOrCondition) {
           // 如果有 OR 条件，将所有条件组合成 $or 数组
@@ -3020,7 +3046,9 @@ export abstract class MongoModel {
     const convertToLikeCondition = (
       condition: MongoWhereCondition,
     ): MongoWhereCondition => {
-      if (!condition || typeof condition !== "object" || Array.isArray(condition)) {
+      if (
+        !condition || typeof condition !== "object" || Array.isArray(condition)
+      ) {
         return condition;
       }
 
@@ -3339,11 +3367,19 @@ export abstract class MongoModel {
         // 将 _condition 转换为 _conditions 格式以兼容 createArrayQueryBuilder
         const stateForArray = {
           ...state,
-          _conditions: [] as Array<{ type: "where" | "or" | "and"; condition: MongoWhereCondition | string }>,
+          _conditions: [] as Array<
+            {
+              type: "where" | "or" | "and";
+              condition: MongoWhereCondition | string;
+            }
+          >,
           _condition: state._condition,
         };
         if (state._condition) {
-          stateForArray._conditions = [{ type: "where" as const, condition: state._condition }];
+          stateForArray._conditions = [{
+            type: "where" as const,
+            condition: state._condition,
+          }];
         }
         return this.createArrayQueryBuilder(() => stateForArray);
       },
@@ -3399,7 +3435,8 @@ export abstract class MongoModel {
         if (typeof finalCondition === "string") {
           match[this.primaryKey] = finalCondition;
         } else if (
-          finalCondition && typeof finalCondition === "object" && Object.keys(finalCondition).length > 0
+          finalCondition && typeof finalCondition === "object" &&
+          Object.keys(finalCondition).length > 0
         ) {
           match = finalCondition;
         }
@@ -6054,7 +6091,9 @@ export abstract class MongoModel {
       }
 
       // 如果只有一个 where 条件，直接返回
-      if (state._conditions.length === 1 && state._conditions[0].type === "where") {
+      if (
+        state._conditions.length === 1 && state._conditions[0].type === "where"
+      ) {
         const condition = state._conditions[0].condition;
         // 如果是字符串，需要转换为对象
         if (typeof condition === "string") {
@@ -6064,7 +6103,9 @@ export abstract class MongoModel {
       }
 
       // 检查是否有 OR 条件
-      const hasOrCondition = state._conditions.some(item => item.type === "or");
+      const hasOrCondition = state._conditions.some((item) =>
+        item.type === "or"
+      );
 
       if (hasOrCondition) {
         // 如果有 OR 条件，将所有条件组合成 $or 数组
@@ -6142,7 +6183,10 @@ export abstract class MongoModel {
         }
 
         // 如果有冲突的键，需要使用 $and
-        if (Object.keys(result).length < andConditions.reduce((sum, c) => sum + Object.keys(c).length, 0)) {
+        if (
+          Object.keys(result).length <
+            andConditions.reduce((sum, c) => sum + Object.keys(c).length, 0)
+        ) {
           return { $and: andConditions };
         }
 
@@ -6159,41 +6203,43 @@ export abstract class MongoModel {
     const convertToLikeCondition = (
       condition: MongoWhereCondition,
     ): MongoWhereCondition => {
-        const result: MongoWhereCondition = {};
+      const result: MongoWhereCondition = {};
 
-        for (const [key, value] of Object.entries(condition)) {
-          // 跳过 MongoDB 操作符（以 $ 开头）
-          if (key.startsWith("$")) {
-            result[key] = value;
-            continue;
-          }
-
-          // 处理嵌套对象（支持 JSON 对象查询，如 { "user.name": "value" } 或 { user: { name: "value" } }）
-          if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-            // 检查是否是 MongoDB 操作符对象（包含 $gt, $lt, $regex 等）
-            const isOperatorObject = Object.keys(value).some((k) =>
-              k.startsWith("$")
-            );
-
-            if (isOperatorObject) {
-              // 如果已经是操作符对象，保持原样
-              result[key] = value;
-            } else {
-              // 递归处理嵌套对象
-              result[key] = convertToLikeCondition(value as MongoWhereCondition);
-            }
-          } else if (typeof value === "string") {
-            // 将字符串值转换为正则表达式（LIKE 查询）
-            // 将 SQL 风格的 % 通配符转换为正则表达式，_ 转换为单个字符匹配
-            const regexPattern = value.replace(/%/g, ".*").replace(/_/g, ".");
-            result[key] = { $regex: regexPattern, $options: "i" };
-          } else {
-            // 其他类型（数字、布尔值等）保持原样
-            result[key] = value;
-          }
+      for (const [key, value] of Object.entries(condition)) {
+        // 跳过 MongoDB 操作符（以 $ 开头）
+        if (key.startsWith("$")) {
+          result[key] = value;
+          continue;
         }
 
-        return result;
+        // 处理嵌套对象（支持 JSON 对象查询，如 { "user.name": "value" } 或 { user: { name: "value" } }）
+        if (
+          typeof value === "object" && value !== null && !Array.isArray(value)
+        ) {
+          // 检查是否是 MongoDB 操作符对象（包含 $gt, $lt, $regex 等）
+          const isOperatorObject = Object.keys(value).some((k) =>
+            k.startsWith("$")
+          );
+
+          if (isOperatorObject) {
+            // 如果已经是操作符对象，保持原样
+            result[key] = value;
+          } else {
+            // 递归处理嵌套对象
+            result[key] = convertToLikeCondition(value as MongoWhereCondition);
+          }
+        } else if (typeof value === "string") {
+          // 将字符串值转换为正则表达式（LIKE 查询）
+          // 将 SQL 风格的 % 通配符转换为正则表达式，_ 转换为单个字符匹配
+          const regexPattern = value.replace(/%/g, ".*").replace(/_/g, ".");
+          result[key] = { $regex: regexPattern, $options: "i" };
+        } else {
+          // 其他类型（数字、布尔值等）保持原样
+          result[key] = value;
+        }
+      }
+
+      return result;
     };
 
     // 执行查询单条记录的函数（用于直接 await）

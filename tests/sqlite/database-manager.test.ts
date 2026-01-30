@@ -4,10 +4,7 @@
 
 import { ServiceContainer } from "@dreamer/service";
 import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
-import {
-  createDatabaseManager,
-  DatabaseManager,
-} from "../../src/manager.ts";
+import { createDatabaseManager, DatabaseManager } from "../../src/manager.ts";
 import type { DatabaseConfig } from "../../src/types.ts";
 
 describe("DatabaseManager", () => {

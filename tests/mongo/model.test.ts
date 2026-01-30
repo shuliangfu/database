@@ -1678,10 +1678,30 @@ describe("MongoModel MongoDB", () => {
       beforeEach(async () => {
         await clearCollection(COLLECTION_NAME);
         // 创建测试数据
-        await User.create({ name: "Alice", email: "alice@test.com", age: 25, status: "active" });
-        await User.create({ name: "Bob", email: "bob@test.com", age: 30, status: "active" });
-        await User.create({ name: "Charlie", email: "charlie@test.com", age: 35, status: "inactive" });
-        await User.create({ name: "David", email: "david@test.com", age: 20, status: "inactive" });
+        await User.create({
+          name: "Alice",
+          email: "alice@test.com",
+          age: 25,
+          status: "active",
+        });
+        await User.create({
+          name: "Bob",
+          email: "bob@test.com",
+          age: 30,
+          status: "active",
+        });
+        await User.create({
+          name: "Charlie",
+          email: "charlie@test.com",
+          age: 35,
+          status: "inactive",
+        });
+        await User.create({
+          name: "David",
+          email: "david@test.com",
+          age: 20,
+          status: "inactive",
+        });
       });
 
       it("应该支持 where 方法进行基本查询", async () => {
@@ -1690,7 +1710,7 @@ describe("MongoModel MongoDB", () => {
           .findAll();
 
         expect(users.length).toBe(2);
-        expect(users.every(u => u.status === "active")).toBe(true);
+        expect(users.every((u) => u.status === "active")).toBe(true);
       });
 
       it("应该支持 where 方法使用字符串 ID 查询", async () => {
@@ -1714,7 +1734,7 @@ describe("MongoModel MongoDB", () => {
           .findAll();
 
         expect(users.length).toBe(2);
-        expect(users.every(u => u.age >= 30)).toBe(true);
+        expect(users.every((u) => u.age >= 30)).toBe(true);
       });
 
       it("应该支持 andWhere 方法添加 AND 条件", async () => {
@@ -1737,7 +1757,11 @@ describe("MongoModel MongoDB", () => {
           .findAll();
 
         expect(users.length).toBe(2);
-        expect(users.every(u => u.status === "active" && u.age >= 25 && u.age <= 30)).toBe(true);
+        expect(
+          users.every((u) =>
+            u.status === "active" && u.age >= 25 && u.age <= 30
+          ),
+        ).toBe(true);
       });
 
       it("应该支持 orWhere 方法添加 OR 条件", async () => {
@@ -1747,7 +1771,7 @@ describe("MongoModel MongoDB", () => {
           .findAll();
 
         expect(users.length).toBe(2);
-        const names = users.map(u => u.name).sort();
+        const names = users.map((u) => u.name).sort();
         expect(names).toEqual(["Alice", "Charlie"]);
       });
 
@@ -1759,7 +1783,7 @@ describe("MongoModel MongoDB", () => {
           .findAll();
 
         expect(users.length).toBe(3);
-        const names = users.map(u => u.name).sort();
+        const names = users.map((u) => u.name).sort();
         expect(names).toEqual(["Alice", "Bob", "Charlie"]);
       });
 
@@ -1774,7 +1798,7 @@ describe("MongoModel MongoDB", () => {
 
         // 应该找到 Bob (active, age=30) 和 David (inactive, age=20)
         expect(users.length).toBeGreaterThanOrEqual(1);
-        const names = users.map(u => u.name);
+        const names = users.map((u) => u.name);
         expect(names).toContain("Bob");
       });
 
@@ -1808,7 +1832,7 @@ describe("MongoModel MongoDB", () => {
           .findAll();
 
         expect(users.length).toBeGreaterThanOrEqual(1);
-        expect(users.some(u => u.name === "NestedTest")).toBe(true);
+        expect(users.some((u) => u.name === "NestedTest")).toBe(true);
       });
 
       it("应该支持 where 与其他查询方法组合使用", async () => {
@@ -1832,11 +1856,23 @@ describe("MongoModel MongoDB", () => {
       beforeEach(async () => {
         await clearCollection(COLLECTION_NAME);
         // 创建测试数据
-        await User.create({ name: "Alice", email: "alice@example.com", age: 25 });
+        await User.create({
+          name: "Alice",
+          email: "alice@example.com",
+          age: 25,
+        });
         await User.create({ name: "Bob", email: "bob@test.com", age: 30 });
-        await User.create({ name: "Charlie", email: "charlie@example.com", age: 35 });
+        await User.create({
+          name: "Charlie",
+          email: "charlie@example.com",
+          age: 35,
+        });
         await User.create({ name: "David", email: "david@test.com", age: 20 });
-        await User.create({ name: "Alice Smith", email: "alice.smith@test.com", age: 28 });
+        await User.create({
+          name: "Alice Smith",
+          email: "alice.smith@test.com",
+          age: 28,
+        });
       });
 
       it("应该支持 like 方法进行模糊查询", async () => {
@@ -1845,7 +1881,7 @@ describe("MongoModel MongoDB", () => {
           .findAll();
 
         expect(users.length).toBe(2);
-        expect(users.every(u => u.name.includes("Alice"))).toBe(true);
+        expect(users.every((u) => u.name.includes("Alice"))).toBe(true);
       });
 
       it("应该支持 like 方法使用对象形式参数", async () => {
@@ -1854,7 +1890,7 @@ describe("MongoModel MongoDB", () => {
           .findAll();
 
         expect(users.length).toBe(2);
-        expect(users.every(u => u.email.includes("example"))).toBe(true);
+        expect(users.every((u) => u.email.includes("example"))).toBe(true);
       });
 
       it("应该支持 like 方法进行大小写不敏感查询", async () => {
@@ -1863,7 +1899,9 @@ describe("MongoModel MongoDB", () => {
           .findAll();
 
         expect(users.length).toBe(2);
-        expect(users.every(u => u.name.toLowerCase().includes("alice"))).toBe(true);
+        expect(users.every((u) => u.name.toLowerCase().includes("alice"))).toBe(
+          true,
+        );
       });
 
       it("应该支持 andLike 方法添加 AND LIKE 条件", async () => {
@@ -1873,7 +1911,8 @@ describe("MongoModel MongoDB", () => {
           .findAll();
 
         expect(users.length).toBe(2);
-        expect(users.every(u => u.email.includes("example") && u.age >= 25)).toBe(true);
+        expect(users.every((u) => u.email.includes("example") && u.age >= 25))
+          .toBe(true);
       });
 
       it("应该支持多个 andLike 方法链式调用", async () => {
@@ -1894,7 +1933,7 @@ describe("MongoModel MongoDB", () => {
           .findAll();
 
         expect(users.length).toBe(2);
-        const names = users.map(u => u.name).sort();
+        const names = users.map((u) => u.name).sort();
         expect(names).toEqual(["Bob", "David"]);
       });
 
@@ -1910,7 +1949,7 @@ describe("MongoModel MongoDB", () => {
         // orLike({ email: "charlie" }) 会匹配 charlie@example.com
         // 所以总共 4 条记录
         expect(users.length).toBe(4);
-        const emails = users.map(u => u.email).sort();
+        const emails = users.map((u) => u.email).sort();
         expect(emails).toContain("alice@example.com");
         expect(emails).toContain("alice.smith@test.com");
         expect(emails).toContain("bob@test.com");
@@ -1924,7 +1963,8 @@ describe("MongoModel MongoDB", () => {
           .findAll();
 
         expect(users.length).toBe(2);
-        expect(users.every(u => u.name.includes("Alice") && u.age >= 25)).toBe(true);
+        expect(users.every((u) => u.name.includes("Alice") && u.age >= 25))
+          .toBe(true);
       });
 
       it("应该支持 like 与 andWhere 方法组合使用", async () => {
@@ -1946,7 +1986,7 @@ describe("MongoModel MongoDB", () => {
           .findAll();
 
         expect(users.length).toBeGreaterThanOrEqual(2);
-        const names = users.map(u => u.name);
+        const names = users.map((u) => u.name);
         expect(names).toContain("Bob");
       });
 
@@ -1966,7 +2006,7 @@ describe("MongoModel MongoDB", () => {
           .findAll();
 
         expect(users.length).toBeGreaterThanOrEqual(1);
-        expect(users.some(u => u.name === "NestedLike")).toBe(true);
+        expect(users.some((u) => u.name === "NestedLike")).toBe(true);
       });
 
       it("应该支持 like 方法保留现有操作符对象", async () => {
@@ -2031,10 +2071,30 @@ describe("MongoModel MongoDB", () => {
       beforeEach(async () => {
         await clearCollection(COLLECTION_NAME);
         // 创建测试数据
-        await User.create({ name: "Alice", email: "alice@test.com", age: 25, status: "active" });
-        await User.create({ name: "Bob", email: "bob@test.com", age: 30, status: "active" });
-        await User.create({ name: "Charlie", email: "charlie@test.com", age: 35, status: "inactive" });
-        await User.create({ name: "David", email: "david@test.com", age: 20, status: "inactive" });
+        await User.create({
+          name: "Alice",
+          email: "alice@test.com",
+          age: 25,
+          status: "active",
+        });
+        await User.create({
+          name: "Bob",
+          email: "bob@test.com",
+          age: 30,
+          status: "active",
+        });
+        await User.create({
+          name: "Charlie",
+          email: "charlie@test.com",
+          age: 35,
+          status: "inactive",
+        });
+        await User.create({
+          name: "David",
+          email: "david@test.com",
+          age: 20,
+          status: "inactive",
+        });
       });
 
       it("应该支持 find().andWhere() 方法添加 AND 条件", async () => {
@@ -2055,7 +2115,11 @@ describe("MongoModel MongoDB", () => {
           .findAll();
 
         expect(users.length).toBe(2);
-        expect(users.every(u => u.status === "active" && u.age >= 25 && u.age <= 30)).toBe(true);
+        expect(
+          users.every((u) =>
+            u.status === "active" && u.age >= 25 && u.age <= 30
+          ),
+        ).toBe(true);
       });
 
       it("应该支持 find().orWhere() 方法添加 OR 条件", async () => {
@@ -2064,7 +2128,7 @@ describe("MongoModel MongoDB", () => {
           .findAll();
 
         expect(users.length).toBe(2);
-        const names = users.map(u => u.name).sort();
+        const names = users.map((u) => u.name).sort();
         expect(names).toEqual(["Alice", "Charlie"]);
       });
 
@@ -2075,7 +2139,7 @@ describe("MongoModel MongoDB", () => {
           .findAll();
 
         expect(users.length).toBe(3);
-        const names = users.map(u => u.name).sort();
+        const names = users.map((u) => u.name).sort();
         expect(names).toEqual(["Alice", "Bob", "Charlie"]);
       });
 
@@ -2089,7 +2153,7 @@ describe("MongoModel MongoDB", () => {
 
         // 应该找到 Bob (active, age=30) 和 David (inactive, age=20)
         expect(users.length).toBeGreaterThanOrEqual(1);
-        const names = users.map(u => u.name);
+        const names = users.map((u) => u.name);
         expect(names).toContain("Bob");
       });
 
@@ -2112,11 +2176,23 @@ describe("MongoModel MongoDB", () => {
       beforeEach(async () => {
         await clearCollection(COLLECTION_NAME);
         // 创建测试数据
-        await User.create({ name: "Alice", email: "alice@example.com", age: 25 });
+        await User.create({
+          name: "Alice",
+          email: "alice@example.com",
+          age: 25,
+        });
         await User.create({ name: "Bob", email: "bob@test.com", age: 30 });
-        await User.create({ name: "Charlie", email: "charlie@example.com", age: 35 });
+        await User.create({
+          name: "Charlie",
+          email: "charlie@example.com",
+          age: 35,
+        });
         await User.create({ name: "David", email: "david@test.com", age: 20 });
-        await User.create({ name: "Alice Smith", email: "alice.smith@test.com", age: 28 });
+        await User.create({
+          name: "Alice Smith",
+          email: "alice.smith@test.com",
+          age: 28,
+        });
       });
 
       it("应该支持 find().andLike() 方法添加 AND LIKE 条件", async () => {
@@ -2125,11 +2201,14 @@ describe("MongoModel MongoDB", () => {
           .findAll();
 
         expect(users.length).toBe(2);
-        expect(users.every(u => u.email.includes("example") && u.age >= 25)).toBe(true);
+        expect(users.every((u) => u.email.includes("example") && u.age >= 25))
+          .toBe(true);
       });
 
       it("应该支持 find() 多个 andLike 方法链式调用", async () => {
-        const users = await User.find({ name: { $regex: "Alice", $options: "i" } })
+        const users = await User.find({
+          name: { $regex: "Alice", $options: "i" },
+        })
           .andLike({ email: "example" })
           .findAll();
 
@@ -2139,23 +2218,27 @@ describe("MongoModel MongoDB", () => {
       });
 
       it("应该支持 find().orLike() 方法添加 OR LIKE 条件", async () => {
-        const users = await User.find({ name: { $regex: "Bob", $options: "i" } })
+        const users = await User.find({
+          name: { $regex: "Bob", $options: "i" },
+        })
           .orLike({ name: "David" })
           .findAll();
 
         expect(users.length).toBe(2);
-        const names = users.map(u => u.name).sort();
+        const names = users.map((u) => u.name).sort();
         expect(names).toEqual(["Bob", "David"]);
       });
 
       it("应该支持 find() 多个 orLike 方法链式调用", async () => {
-        const users = await User.find({ email: { $regex: "alice", $options: "i" } })
+        const users = await User.find({
+          email: { $regex: "alice", $options: "i" },
+        })
           .orLike({ email: "bob" })
           .orLike({ email: "charlie" })
           .findAll();
 
         expect(users.length).toBe(4);
-        const emails = users.map(u => u.email).sort();
+        const emails = users.map((u) => u.email).sort();
         expect(emails).toContain("alice@example.com");
         expect(emails).toContain("bob@test.com");
         expect(emails).toContain("charlie@example.com");
@@ -2167,36 +2250,46 @@ describe("MongoModel MongoDB", () => {
           .findAll();
 
         expect(users.length).toBe(2);
-        expect(users.every(u => u.name.includes("Alice") && u.age >= 25)).toBe(true);
+        expect(users.every((u) => u.name.includes("Alice") && u.age >= 25))
+          .toBe(true);
       });
 
       it("应该支持 find() andLike 与 andWhere 方法组合使用", async () => {
-        const users = await User.find({ name: { $regex: "Alice", $options: "i" } })
+        const users = await User.find({
+          name: { $regex: "Alice", $options: "i" },
+        })
           .andWhere({ age: { $gte: 25 } })
           .findAll();
 
         expect(users.length).toBe(2);
-        expect(users.every(u => u.name.includes("Alice") && u.age >= 25)).toBe(true);
+        expect(users.every((u) => u.name.includes("Alice") && u.age >= 25))
+          .toBe(true);
       });
 
       it("应该支持 find() orLike 与 orWhere 方法组合使用", async () => {
-        const users = await User.find({ name: { $regex: "Bob", $options: "i" } })
+        const users = await User.find({
+          name: { $regex: "Bob", $options: "i" },
+        })
           .orWhere({ name: "David" })
           .findAll();
 
         expect(users.length).toBe(2);
-        const names = users.map(u => u.name).sort();
+        const names = users.map((u) => u.name).sort();
         expect(names).toEqual(["Bob", "David"]);
       });
 
       it("应该支持 find() andLike 方法与其他查询方法组合使用", async () => {
-        const count = await User.find({ email: { $regex: "example", $options: "i" } })
+        const count = await User.find({
+          email: { $regex: "example", $options: "i" },
+        })
           .andWhere({ age: { $gte: 25 } })
           .count();
 
         expect(count).toBe(2);
 
-        const exists = await User.find({ name: { $regex: "Alice", $options: "i" } })
+        const exists = await User.find({
+          name: { $regex: "Alice", $options: "i" },
+        })
           .exists();
 
         expect(exists).toBe(true);

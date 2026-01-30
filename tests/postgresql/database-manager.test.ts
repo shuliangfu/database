@@ -12,10 +12,7 @@ import {
   expect,
   it,
 } from "@dreamer/test";
-import {
-  createDatabaseManager,
-  DatabaseManager,
-} from "../../src/manager.ts";
+import { createDatabaseManager, DatabaseManager } from "../../src/manager.ts";
 import type { DatabaseConfig } from "../../src/types.ts";
 
 /**
@@ -476,7 +473,10 @@ describe("DatabaseManager", () => {
 
       dbManager.setContainer(container);
 
-      const fromContainer = DatabaseManager.fromContainer(container, "postgres");
+      const fromContainer = DatabaseManager.fromContainer(
+        container,
+        "postgres",
+      );
       expect(fromContainer).toBe(dbManager);
 
       await dbManager.closeAll();
@@ -490,8 +490,12 @@ describe("DatabaseManager", () => {
       manager1.setContainer(container);
       manager2.setContainer(container);
 
-      expect(DatabaseManager.fromContainer(container, "primary")).toBe(manager1);
-      expect(DatabaseManager.fromContainer(container, "replica")).toBe(manager2);
+      expect(DatabaseManager.fromContainer(container, "primary")).toBe(
+        manager1,
+      );
+      expect(DatabaseManager.fromContainer(container, "replica")).toBe(
+        manager2,
+      );
 
       await manager1.closeAll();
       await manager2.closeAll();
@@ -532,7 +536,9 @@ describe("DatabaseManager", () => {
       const dbManager = createDatabaseManager({ name: "custom" }, container);
 
       expect(dbManager.getName()).toBe("custom");
-      expect(DatabaseManager.fromContainer(container, "custom")).toBe(dbManager);
+      expect(DatabaseManager.fromContainer(container, "custom")).toBe(
+        dbManager,
+      );
 
       await dbManager.closeAll();
     });

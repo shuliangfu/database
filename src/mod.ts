@@ -7,10 +7,7 @@
 
 // ==================== 管理器 ====================
 export { createDatabaseManager, DatabaseManager } from "./manager.ts";
-export type {
-  ConnectionStatus,
-  DatabaseManagerOptions,
-} from "./manager.ts";
+export type { ConnectionStatus, DatabaseManagerOptions } from "./manager.ts";
 
 // ==================== 核心类型 ====================
 export type { DatabaseAdapter, DatabaseConfig, DatabaseType } from "./types.ts";

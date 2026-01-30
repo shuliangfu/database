@@ -63,7 +63,10 @@ bunx jsr add @dreamer/database
   - MongoModel - MongoDB ODM
   - 统一接口 - SQLModel 和 MongoModel 接口完全统一（91.7% 统一率）
   - 链式查询构建器 - 流畅的查询 API，支持 `query()` 和 `find()` 方法
-  - 查询条件方法 - `query()` 支持 `where`、`orWhere`、`andWhere`、`like`、`orLike`、`andLike`；`find()` 支持 `orWhere`、`andWhere`、`orLike`、`andLike`（`find()` 不支持 `where` 和 `like`，因为已有初始条件，不应重置）
+  - 查询条件方法 - `query()` 支持
+    `where`、`orWhere`、`andWhere`、`like`、`orLike`、`andLike`；`find()` 支持
+    `orWhere`、`andWhere`、`orLike`、`andLike`（`find()` 不支持 `where` 和
+    `like`，因为已有初始条件，不应重置）
   - asArray() 方法 - 返回纯 JSON 对象数组，支持所有链式调用和聚合方法
   - 数据验证 - 30+ 种验证规则（详见验证规则章节）
   - 生命周期钩子 - beforeCreate、afterCreate、beforeUpdate、afterUpdate 等
@@ -965,60 +968,62 @@ await User.forceDeleteById(1);
 
 ### 链式查询构建器
 
-通过 `query()` 和 `find()` 方法获取链式查询构建器。两者都支持链式调用，但在使用方式和功能上有所不同。
+通过 `query()` 和 `find()`
+方法获取链式查询构建器。两者都支持链式调用，但在使用方式和功能上有所不同。
 
 #### query() 与 find() 功能对比
 
-| 功能 | `query()` | `find()` | 说明 |
-|------|-----------|----------|------|
-| **查询条件方法** |
-| `where()` | ✅ | ❌ | 设置查询条件（重置之前的所有条件）。`find()` 不支持，因为 `find()` 已有初始条件，不应重置 |
-| `orWhere()` | ✅ | ✅ | 添加 OR 查询条件 |
-| `andWhere()` | ✅ | ✅ | 添加 AND 查询条件 |
-| `like()` | ✅ | ❌ | 设置 LIKE 查询条件（重置之前的所有条件）。`find()` 不支持，因为 `find()` 已有初始条件，不应重置 |
-| `orLike()` | ✅ | ✅ | 添加 OR LIKE 查询条件 |
-| `andLike()` | ✅ | ✅ | 添加 AND LIKE 查询条件 |
-| **查询方法** |
-| `findAll()` | ✅ | ✅ | 查找多条记录 |
-| `findOne()` | ✅ | ✅ | 查找单条记录 |
-| `one()` | ✅ | ✅ | 查找单条记录（别名） |
-| `all()` | ✅ | ✅ | 查找多条记录（别名） |
-| `findById()` | ✅ | ❌ | 通过 ID 查找（find 本身就需要 ID） |
-| **聚合方法** |
-| `count()` | ✅ | ✅ | 统计记录数 |
-| `exists()` | ✅ | ✅ | 检查记录是否存在 |
-| `distinct()` | ✅ | ✅ | 获取字段唯一值列表 |
-| `paginate()` | ✅ | ✅ | 分页查询 |
-| `aggregate()` | ✅ | ✅ | 聚合查询（仅 MongoDB） |
-| **操作方法** |
-| `update()` | ✅ | ❌ | 更新记录（find 专注于查询，操作请使用 query） |
-| `updateById()` | ✅ | ❌ | 通过 ID 更新（find 专注于查询，操作请使用 query） |
-| `updateMany()` | ✅ | ❌ | 批量更新（find 专注于查询，操作请使用 query） |
-| `deleteById()` | ✅ | ❌ | 通过 ID 删除（find 专注于查询，操作请使用 query） |
-| `deleteMany()` | ✅ | ❌ | 批量删除（find 专注于查询，操作请使用 query） |
-| `increment()` | ✅ | ❌ | 自增字段（find 专注于查询，操作请使用 query） |
-| `decrement()` | ✅ | ❌ | 自减字段（find 专注于查询，操作请使用 query） |
-| `incrementMany()` | ✅ | ❌ | 批量自增（find 专注于查询，操作请使用 query） |
-| `decrementMany()` | ✅ | ❌ | 批量自减（find 专注于查询，操作请使用 query） |
-| `restore()` | ✅ | ❌ | 恢复软删除记录（find 专注于查询，操作请使用 query） |
-| `restoreById()` | ✅ | ❌ | 通过 ID 恢复（find 专注于查询，操作请使用 query） |
-| `forceDelete()` | ✅ | ❌ | 强制删除（find 专注于查询，操作请使用 query） |
-| `forceDeleteById()` | ✅ | ❌ | 通过 ID 强制删除（find 专注于查询，操作请使用 query） |
-| `upsert()` | ✅ | ❌ | 插入或更新（find 专注于查询，操作请使用 query） |
-| `findOrCreate()` | ✅ | ❌ | 查找或创建（find 专注于查询，操作请使用 query） |
-| `findOneAndUpdate()` | ✅ | ❌ | 查找并更新（find 专注于查询，操作请使用 query） |
-| `findOneAndDelete()` | ✅ | ❌ | 查找并删除（find 专注于查询，操作请使用 query） |
-| `findOneAndReplace()` | ✅ | ❌ | 查找并替换（find 专注于查询，操作请使用 query） |
-| **其他方法** |
-| `sort()` | ✅ | ✅ | 排序 |
-| `limit()` | ✅ | ✅ | 限制数量 |
-| `skip()` | ✅ | ✅ | 跳过数量 |
-| `fields()` | ✅ | ✅ | 选择字段 |
-| `includeTrashed()` | ✅ | ✅ | 包含已删除记录 |
-| `onlyTrashed()` | ✅ | ✅ | 仅查询已删除记录 |
-| `asArray()` | ✅ | ✅ | 返回纯 JSON 对象数组 |
+| 功能                  | `query()` | `find()` | 说明                                                                                            |
+| --------------------- | --------- | -------- | ----------------------------------------------------------------------------------------------- |
+| **查询条件方法**      |           |          |                                                                                                 |
+| `where()`             | ✅        | ❌       | 设置查询条件（重置之前的所有条件）。`find()` 不支持，因为 `find()` 已有初始条件，不应重置       |
+| `orWhere()`           | ✅        | ✅       | 添加 OR 查询条件                                                                                |
+| `andWhere()`          | ✅        | ✅       | 添加 AND 查询条件                                                                               |
+| `like()`              | ✅        | ❌       | 设置 LIKE 查询条件（重置之前的所有条件）。`find()` 不支持，因为 `find()` 已有初始条件，不应重置 |
+| `orLike()`            | ✅        | ✅       | 添加 OR LIKE 查询条件                                                                           |
+| `andLike()`           | ✅        | ✅       | 添加 AND LIKE 查询条件                                                                          |
+| **查询方法**          |           |          |                                                                                                 |
+| `findAll()`           | ✅        | ✅       | 查找多条记录                                                                                    |
+| `findOne()`           | ✅        | ✅       | 查找单条记录                                                                                    |
+| `one()`               | ✅        | ✅       | 查找单条记录（别名）                                                                            |
+| `all()`               | ✅        | ✅       | 查找多条记录（别名）                                                                            |
+| `findById()`          | ✅        | ❌       | 通过 ID 查找（find 本身就需要 ID）                                                              |
+| **聚合方法**          |           |          |                                                                                                 |
+| `count()`             | ✅        | ✅       | 统计记录数                                                                                      |
+| `exists()`            | ✅        | ✅       | 检查记录是否存在                                                                                |
+| `distinct()`          | ✅        | ✅       | 获取字段唯一值列表                                                                              |
+| `paginate()`          | ✅        | ✅       | 分页查询                                                                                        |
+| `aggregate()`         | ✅        | ✅       | 聚合查询（仅 MongoDB）                                                                          |
+| **操作方法**          |           |          |                                                                                                 |
+| `update()`            | ✅        | ❌       | 更新记录（find 专注于查询，操作请使用 query）                                                   |
+| `updateById()`        | ✅        | ❌       | 通过 ID 更新（find 专注于查询，操作请使用 query）                                               |
+| `updateMany()`        | ✅        | ❌       | 批量更新（find 专注于查询，操作请使用 query）                                                   |
+| `deleteById()`        | ✅        | ❌       | 通过 ID 删除（find 专注于查询，操作请使用 query）                                               |
+| `deleteMany()`        | ✅        | ❌       | 批量删除（find 专注于查询，操作请使用 query）                                                   |
+| `increment()`         | ✅        | ❌       | 自增字段（find 专注于查询，操作请使用 query）                                                   |
+| `decrement()`         | ✅        | ❌       | 自减字段（find 专注于查询，操作请使用 query）                                                   |
+| `incrementMany()`     | ✅        | ❌       | 批量自增（find 专注于查询，操作请使用 query）                                                   |
+| `decrementMany()`     | ✅        | ❌       | 批量自减（find 专注于查询，操作请使用 query）                                                   |
+| `restore()`           | ✅        | ❌       | 恢复软删除记录（find 专注于查询，操作请使用 query）                                             |
+| `restoreById()`       | ✅        | ❌       | 通过 ID 恢复（find 专注于查询，操作请使用 query）                                               |
+| `forceDelete()`       | ✅        | ❌       | 强制删除（find 专注于查询，操作请使用 query）                                                   |
+| `forceDeleteById()`   | ✅        | ❌       | 通过 ID 强制删除（find 专注于查询，操作请使用 query）                                           |
+| `upsert()`            | ✅        | ❌       | 插入或更新（find 专注于查询，操作请使用 query）                                                 |
+| `findOrCreate()`      | ✅        | ❌       | 查找或创建（find 专注于查询，操作请使用 query）                                                 |
+| `findOneAndUpdate()`  | ✅        | ❌       | 查找并更新（find 专注于查询，操作请使用 query）                                                 |
+| `findOneAndDelete()`  | ✅        | ❌       | 查找并删除（find 专注于查询，操作请使用 query）                                                 |
+| `findOneAndReplace()` | ✅        | ❌       | 查找并替换（find 专注于查询，操作请使用 query）                                                 |
+| **其他方法**          |           |          |                                                                                                 |
+| `sort()`              | ✅        | ✅       | 排序                                                                                            |
+| `limit()`             | ✅        | ✅       | 限制数量                                                                                        |
+| `skip()`              | ✅        | ✅       | 跳过数量                                                                                        |
+| `fields()`            | ✅        | ✅       | 选择字段                                                                                        |
+| `includeTrashed()`    | ✅        | ✅       | 包含已删除记录                                                                                  |
+| `onlyTrashed()`       | ✅        | ✅       | 仅查询已删除记录                                                                                |
+| `asArray()`           | ✅        | ✅       | 返回纯 JSON 对象数组                                                                            |
 
 **使用建议：**
+
 - 使用 `query()`：从空查询开始构建复杂查询，需要执行更新/删除等操作
 - 使用 `find()`：已有初始条件（ID 或条件对象），专注于查询操作
 
@@ -2199,27 +2204,33 @@ console.log(status);
 
 ## 📊 测试报告
 
-本库经过全面测试，所有 1,740 个测试用例均已通过，测试覆盖率达到 100%。详细测试报告请查看 [TEST_REPORT.md](./TEST_REPORT.md)。
+本库经过全面测试，所有 1,740 个测试用例均已通过，测试覆盖率达到
+100%。详细测试报告请查看 [TEST_REPORT.md](./TEST_REPORT.md)。
 
 **测试统计**（从 TEST_REPORT.md 读取实际数据）：
+
 - **总测试数**: 1,740（从测试报告统计中获取）
 - **通过**: 1,740 ✅（从测试报告统计中获取）
 - **失败**: 0（必须为 0，否则不能更新文档）
 - **通过率**: 100% ✅（计算得出）
 - **测试执行时间**: ~222秒（从测试报告中获取）
 - **测试覆盖**: 所有公共 API、边界情况、错误处理（固定描述）
-- **测试环境**: Deno 2.5.0+, Bun 1.3.0+（使用 `deno -v` 和 `bun -v` 获取实际版本号）
+- **测试环境**: Deno 2.5.0+, Bun 1.3.0+（使用 `deno -v` 和 `bun -v`
+  获取实际版本号）
 
 **测试类型**（从 TEST_REPORT.md 统计各类型测试数量）：
+
 - ✅ 单元测试（1,740 个）
 - ✅ 集成测试（包含在测试总数中）
 - ✅ 边界情况和错误处理测试（包含在测试总数中）
 
 **测试亮点**（根据实际测试情况填写）：
+
 - ✅ 所有功能、边界情况、错误处理都有完整的测试覆盖
 - ✅ 集成测试验证了端到端的完整流程
 - ✅ 4 个数据库适配器（MySQL、PostgreSQL、SQLite、MongoDB）全部通过测试
-- ✅ `query()` 和 `find()` 方法都支持完整的查询条件 API（where、orWhere、andWhere、like、orLike、andLike）
+- ✅ `query()` 和 `find()` 方法都支持完整的查询条件
+  API（where、orWhere、andWhere、like、orLike、andLike）
 - ✅ 30+ 种数据验证规则全部测试通过
 - ✅ 完整的软删除、关联查询、事务处理等功能全部测试通过
 - ✅ 无资源泄漏，长时间运行稳定
