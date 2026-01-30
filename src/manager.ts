@@ -1,6 +1,7 @@
 /**
  * 数据库管理器
  * 管理多个数据库连接
+ * 支持服务容器集成，可通过依赖注入方式管理
  */
 
 import { MongoDBAdapter } from "./adapters/mongodb.ts";
@@ -16,6 +17,17 @@ import type {
   PostgreSQLConfig,
   SQLiteConfig,
 } from "./types.ts";
+
+// 导入服务容器类型（可选依赖）
+import type { ServiceContainer } from "@dreamer/service";
+
+/**
+ * 数据库管理器配置选项
+ */
+export interface DatabaseManagerOptions {
+  /** 管理器名称（用于服务容器注册） */
+  name?: string;
+}
 
 /**
  * 连接状态信息
@@ -42,10 +54,73 @@ export type AdapterFactory = (type: DatabaseType) => DatabaseAdapter;
 
 /**
  * 数据库管理器类
+ * 支持服务容器集成，可通过依赖注入方式管理
  */
 export class DatabaseManager {
+  /** 数据库适配器映射 */
   private adapters: Map<string, DatabaseAdapter> = new Map();
+  /** 适配器工厂函数 */
   private adapterFactory?: AdapterFactory;
+  /** 服务容器引用 */
+  private container?: ServiceContainer;
+  /** 管理器名称 */
+  private readonly managerName: string;
+
+  /**
+   * 创建数据库管理器
+   * @param options 配置选项
+   */
+  constructor(options?: DatabaseManagerOptions) {
+    this.managerName = options?.name || "default";
+  }
+
+  /**
+   * 获取管理器名称
+   * @returns 管理器名称
+   */
+  getName(): string {
+    return this.managerName;
+  }
+
+  /**
+   * 设置服务容器
+   * 将管理器注册到服务容器中
+   * @param container 服务容器实例
+   * @returns 当前管理器实例（链式调用）
+   */
+  setContainer(container: ServiceContainer): this {
+    this.container = container;
+    // 注册自身到容器
+    const serviceName = this.managerName === "default"
+      ? "databaseManager"
+      : `databaseManager:${this.managerName}`;
+    container.registerSingleton(serviceName, () => this);
+    return this;
+  }
+
+  /**
+   * 获取服务容器
+   * @returns 服务容器实例或 undefined
+   */
+  getContainer(): ServiceContainer | undefined {
+    return this.container;
+  }
+
+  /**
+   * 从服务容器获取数据库管理器
+   * @param container 服务容器实例
+   * @param name 管理器名称（默认：default）
+   * @returns 数据库管理器实例
+   */
+  static fromContainer(
+    container: ServiceContainer,
+    name?: string,
+  ): DatabaseManager {
+    const serviceName = !name || name === "default"
+      ? "databaseManager"
+      : `databaseManager:${name}`;
+    return container.get<DatabaseManager>(serviceName);
+  }
 
   /**
    * 设置适配器工厂（用于测试）
@@ -190,4 +265,35 @@ export class DatabaseManager {
   getConnectionNames(): string[] {
     return Array.from(this.adapters.keys());
   }
+}
+
+/**
+ * 创建数据库管理器的工厂函数
+ * @param options 管理器配置选项
+ * @param container 服务容器实例（可选）
+ * @returns 数据库管理器实例
+ *
+ * @example
+ * ```typescript
+ * import { createDatabaseManager } from "@dreamer/database";
+ * import { ServiceContainer } from "@dreamer/service";
+ *
+ * const container = new ServiceContainer();
+ *
+ * // 创建并注册到服务容器
+ * const dbManager = createDatabaseManager({ name: "main" }, container);
+ *
+ * // 之后可以从容器获取
+ * const dbFromContainer = DatabaseManager.fromContainer(container, "main");
+ * ```
+ */
+export function createDatabaseManager(
+  options?: DatabaseManagerOptions,
+  container?: ServiceContainer,
+): DatabaseManager {
+  const manager = new DatabaseManager(options);
+  if (container) {
+    manager.setContainer(container);
+  }
+  return manager;
 }

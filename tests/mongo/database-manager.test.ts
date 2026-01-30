@@ -3,8 +3,12 @@
  */
 
 import { getEnv } from "@dreamer/runtime-adapter";
+import { ServiceContainer } from "@dreamer/service";
 import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
-import { DatabaseManager } from "../../src/manager.ts";
+import {
+  createDatabaseManager,
+  DatabaseManager,
+} from "../../src/manager.ts";
 import type { DatabaseConfig } from "../../src/types.ts";
 
 /**
@@ -208,6 +212,134 @@ describe("DatabaseManager", () => {
 
       expect(status.type).toBe("mongodb");
       expect(status.connected).toBe(true);
+    });
+  });
+
+  describe("ServiceContainer 集成", () => {
+    it("应该能够设置和获取服务容器", async () => {
+      const container = new ServiceContainer();
+      const dbManager = new DatabaseManager();
+
+      expect(dbManager.getContainer()).toBeUndefined();
+
+      const result = dbManager.setContainer(container);
+      expect(result).toBe(dbManager);
+      expect(dbManager.getContainer()).toBe(container);
+
+      await dbManager.closeAll();
+    });
+
+    it("应该在设置容器时自动注册到服务容器", async () => {
+      const container = new ServiceContainer();
+      const dbManager = new DatabaseManager();
+
+      dbManager.setContainer(container);
+
+      const fromContainer = container.get<DatabaseManager>("databaseManager");
+      expect(fromContainer).toBe(dbManager);
+
+      await dbManager.closeAll();
+    });
+
+    it("应该支持通过 fromContainer 静态方法获取管理器", async () => {
+      const container = new ServiceContainer();
+      const dbManager = new DatabaseManager();
+
+      dbManager.setContainer(container);
+
+      const fromContainer = DatabaseManager.fromContainer(container);
+      expect(fromContainer).toBe(dbManager);
+
+      await dbManager.closeAll();
+    });
+
+    it("应该支持命名管理器", async () => {
+      const container = new ServiceContainer();
+      const dbManager = new DatabaseManager({ name: "mongodb" });
+
+      expect(dbManager.getName()).toBe("mongodb");
+
+      dbManager.setContainer(container);
+
+      const fromContainer = DatabaseManager.fromContainer(container, "mongodb");
+      expect(fromContainer).toBe(dbManager);
+
+      await dbManager.closeAll();
+    });
+
+    it("应该支持多个命名管理器", async () => {
+      const container = new ServiceContainer();
+      const manager1 = new DatabaseManager({ name: "primary" });
+      const manager2 = new DatabaseManager({ name: "analytics" });
+
+      manager1.setContainer(container);
+      manager2.setContainer(container);
+
+      expect(DatabaseManager.fromContainer(container, "primary")).toBe(manager1);
+      expect(DatabaseManager.fromContainer(container, "analytics")).toBe(
+        manager2,
+      );
+
+      await manager1.closeAll();
+      await manager2.closeAll();
+    });
+
+    it("应该在获取不存在的管理器时抛出错误", () => {
+      const container = new ServiceContainer();
+      expect(() => DatabaseManager.fromContainer(container)).toThrow();
+    });
+
+    it("默认名称应该是 default", async () => {
+      const dbManager = new DatabaseManager();
+      expect(dbManager.getName()).toBe("default");
+      await dbManager.closeAll();
+    });
+  });
+
+  describe("createDatabaseManager 工厂函数", () => {
+    it("应该创建数据库管理器", async () => {
+      const dbManager = createDatabaseManager();
+      expect(dbManager).toBeInstanceOf(DatabaseManager);
+      expect(dbManager.getName()).toBe("default");
+      await dbManager.closeAll();
+    });
+
+    it("应该支持传入服务容器", async () => {
+      const container = new ServiceContainer();
+      const dbManager = createDatabaseManager(undefined, container);
+
+      expect(dbManager.getContainer()).toBe(container);
+      expect(DatabaseManager.fromContainer(container)).toBe(dbManager);
+
+      await dbManager.closeAll();
+    });
+
+    it("应该支持命名管理器", async () => {
+      const container = new ServiceContainer();
+      const dbManager = createDatabaseManager({ name: "custom" }, container);
+
+      expect(dbManager.getName()).toBe("custom");
+      expect(DatabaseManager.fromContainer(container, "custom")).toBe(dbManager);
+
+      await dbManager.closeAll();
+    });
+
+    it("应该在不传入容器时正常工作", async () => {
+      const dbManager = createDatabaseManager({ name: "test" });
+      expect(dbManager.getContainer()).toBeUndefined();
+      await dbManager.closeAll();
+    });
+
+    it("应该支持连接数据库", async () => {
+      const container = new ServiceContainer();
+      const dbManager = createDatabaseManager({ name: "mongo" }, container);
+
+      const config = createMongoConfig();
+
+      const status = await dbManager.connect("test", config);
+      expect(status.connected).toBe(true);
+
+      await dbManager.closeAll();
     });
   });
 }, {

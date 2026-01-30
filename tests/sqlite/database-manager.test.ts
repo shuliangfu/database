@@ -2,8 +2,12 @@
  * @fileoverview DatabaseManager 测试
  */
 
+import { ServiceContainer } from "@dreamer/service";
 import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
-import { DatabaseManager } from "../../src/manager.ts";
+import {
+  createDatabaseManager,
+  DatabaseManager,
+} from "../../src/manager.ts";
 import type { DatabaseConfig } from "../../src/types.ts";
 
 describe("DatabaseManager", () => {
@@ -228,6 +232,165 @@ describe("DatabaseManager", () => {
 
       expect(status.type).toBe("sqlite");
       expect(status.connected).toBe(true);
+    });
+  });
+
+  describe("ServiceContainer 集成", () => {
+    it("应该能够设置和获取服务容器", async () => {
+      const container = new ServiceContainer();
+      const dbManager = new DatabaseManager();
+
+      // 初始状态：没有服务容器
+      expect(dbManager.getContainer()).toBeUndefined();
+
+      // 设置服务容器
+      const result = dbManager.setContainer(container);
+
+      // 链式调用应该返回自身
+      expect(result).toBe(dbManager);
+
+      // 验证已设置
+      expect(dbManager.getContainer()).toBe(container);
+
+      await dbManager.closeAll();
+    });
+
+    it("应该在设置容器时自动注册到服务容器", async () => {
+      const container = new ServiceContainer();
+      const dbManager = new DatabaseManager();
+
+      dbManager.setContainer(container);
+
+      // 从容器获取应该返回同一个实例
+      const fromContainer = container.get<DatabaseManager>("databaseManager");
+      expect(fromContainer).toBe(dbManager);
+
+      await dbManager.closeAll();
+    });
+
+    it("应该支持通过 fromContainer 静态方法获取管理器", async () => {
+      const container = new ServiceContainer();
+      const dbManager = new DatabaseManager();
+
+      dbManager.setContainer(container);
+
+      // 使用静态方法获取
+      const fromContainer = DatabaseManager.fromContainer(container);
+      expect(fromContainer).toBe(dbManager);
+
+      await dbManager.closeAll();
+    });
+
+    it("应该支持命名管理器", async () => {
+      const container = new ServiceContainer();
+      const dbManager = new DatabaseManager({ name: "custom" });
+
+      expect(dbManager.getName()).toBe("custom");
+
+      dbManager.setContainer(container);
+
+      // 应该使用命名键注册
+      const fromContainer = DatabaseManager.fromContainer(container, "custom");
+      expect(fromContainer).toBe(dbManager);
+
+      await dbManager.closeAll();
+    });
+
+    it("应该支持多个命名管理器", async () => {
+      const container = new ServiceContainer();
+      const manager1 = new DatabaseManager({ name: "mysql" });
+      const manager2 = new DatabaseManager({ name: "postgres" });
+
+      manager1.setContainer(container);
+      manager2.setContainer(container);
+
+      // 验证两个都能正确获取
+      const fromContainer1 = DatabaseManager.fromContainer(container, "mysql");
+      const fromContainer2 = DatabaseManager.fromContainer(
+        container,
+        "postgres",
+      );
+
+      expect(fromContainer1).toBe(manager1);
+      expect(fromContainer2).toBe(manager2);
+
+      await manager1.closeAll();
+      await manager2.closeAll();
+    });
+
+    it("应该在获取不存在的管理器时抛出错误", () => {
+      const container = new ServiceContainer();
+
+      expect(() => {
+        DatabaseManager.fromContainer(container);
+      }).toThrow();
+    });
+
+    it("默认名称应该是 default", async () => {
+      const dbManager = new DatabaseManager();
+      expect(dbManager.getName()).toBe("default");
+      await dbManager.closeAll();
+    });
+  });
+
+  describe("createDatabaseManager 工厂函数", () => {
+    it("应该创建数据库管理器", async () => {
+      const dbManager = createDatabaseManager();
+
+      expect(dbManager).toBeInstanceOf(DatabaseManager);
+      expect(dbManager.getName()).toBe("default");
+
+      await dbManager.closeAll();
+    });
+
+    it("应该支持传入服务容器", async () => {
+      const container = new ServiceContainer();
+      const dbManager = createDatabaseManager(undefined, container);
+
+      expect(dbManager.getContainer()).toBe(container);
+
+      // 从容器获取
+      const fromContainer = DatabaseManager.fromContainer(container);
+      expect(fromContainer).toBe(dbManager);
+
+      await dbManager.closeAll();
+    });
+
+    it("应该支持命名管理器", async () => {
+      const container = new ServiceContainer();
+      const dbManager = createDatabaseManager({ name: "custom" }, container);
+
+      expect(dbManager.getName()).toBe("custom");
+
+      const fromContainer = DatabaseManager.fromContainer(container, "custom");
+      expect(fromContainer).toBe(dbManager);
+
+      await dbManager.closeAll();
+    });
+
+    it("应该在不传入容器时正常工作", async () => {
+      const dbManager = createDatabaseManager({ name: "test" });
+
+      expect(dbManager.getContainer()).toBeUndefined();
+      expect(dbManager.getName()).toBe("test");
+
+      await dbManager.closeAll();
+    });
+
+    it("应该支持链式调用", async () => {
+      const container = new ServiceContainer();
+      const dbManager = createDatabaseManager({ name: "chain" }, container);
+
+      const config: DatabaseConfig = {
+        type: "sqlite",
+        connection: { filename: ":memory:" },
+      };
+
+      // 连接测试
+      const status = await dbManager.connect("test", config);
+      expect(status.connected).toBe(true);
+
+      await dbManager.closeAll();
     });
   });
 });

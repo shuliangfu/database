@@ -5,8 +5,8 @@
 > ORM/ODM、查询构建器和迁移管理功能
 
 [![JSR](https://jsr.io/badges/@dreamer/database)](https://jsr.io/@dreamer/database)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://img.shields.io/badge/tests-1,740%20passed-brightgreen)](./TEST_REPORT.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE.md)
+[![Tests](https://img.shields.io/badge/tests-1,788%20passed-brightgreen)](./TEST_REPORT.md)
 
 ---
 
@@ -56,6 +56,7 @@ bunx jsr add @dreamer/database
   - 统一的数据库接口（DatabaseAdapter）- 所有适配器实现统一接口
   - 运行时切换数据库后端 - 支持动态切换数据库
   - 多数据库实例支持 - 同时使用多个数据库连接
+  - 服务容器集成 - 支持依赖注入和服务容器管理
 
 - **ORM/ODM 功能**：
   - SQLModel - 关系型数据库 ORM（PostgreSQL、MySQL、SQLite）
