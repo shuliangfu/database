@@ -27,6 +27,11 @@ export interface QueryLoggerConfig {
   slowQueryThreshold?: number; // 慢查询阈值（毫秒）
   /** 自定义 logger 实例（可选，如果不提供则使用默认 logger） */
   logger?: Logger;
+  /**
+   * 内存中保留的日志条数上限（防止内存泄漏，默认 1000）
+   * 超过时自动移除最旧的条目，设为 0 表示不限制（不推荐长期运行场景）
+   */
+  maxLogs?: number;
 }
 
 /**
@@ -42,6 +47,7 @@ export class QueryLogger {
       enabled: config.enabled ?? true,
       logLevel: config.logLevel ?? "all",
       slowQueryThreshold: config.slowQueryThreshold ?? 1000,
+      maxLogs: config.maxLogs ?? 1000,
     };
 
     // 使用提供的 logger 或创建新的 logger
@@ -87,8 +93,12 @@ export class QueryLogger {
       error,
     };
 
-    // 保存到内存（用于 getLogs）
+    // 保存到内存（用于 getLogs），超过 maxLogs 时移除最旧条目，防止内存泄漏
     this.logs.push(entry);
+    const maxLogs = this.config.maxLogs ?? 1000;
+    if (maxLogs > 0 && this.logs.length > maxLogs) {
+      this.logs = this.logs.slice(-maxLogs);
+    }
 
     // 使用 logger 库记录日志
     const logData = {

@@ -2,45 +2,10 @@
  * @fileoverview DatabaseManager 测试
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import { ServiceContainer } from "@dreamer/service";
 import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
 import { createDatabaseManager, DatabaseManager } from "../../src/manager.ts";
-import type { DatabaseConfig } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
-
-/**
- * 创建 MongoDB 配置（包含副本集设置）
- */
-function createMongoConfig(): DatabaseConfig {
-  const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
-  const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
-  const mongoDatabase = getEnvWithDefault("MONGODB_DATABASE", "test");
-  const replicaSet = getEnvWithDefault("MONGODB_REPLICA_SET", "rs0");
-  const directConnection = getEnvWithDefault(
-    "MONGODB_DIRECT_CONNECTION",
-    "true",
-  ) === "true";
-
-  return {
-    type: "mongodb",
-    connection: {
-      host: mongoHost,
-      port: mongoPort,
-      database: mongoDatabase,
-    },
-    mongoOptions: {
-      replicaSet: replicaSet,
-      directConnection: directConnection,
-    },
-  };
-}
+import { createMongoConfig } from "./mongo-test-utils.ts";
 
 describe("DatabaseManager", () => {
   let manager: DatabaseManager;

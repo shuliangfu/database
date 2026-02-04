@@ -3,60 +3,23 @@
  * 测试数据库连接断开后的自动恢复能力
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { MongoDBAdapter } from "../../src/adapters/mongodb.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createMongoConfig } from "./mongo-test-utils.ts";
 
 // 定义集合名常量（使用目录名_文件名_作为前缀）
 const COLLECTION_NAME = "mongo_fault_recovery_fault_recovery_test";
-
-/**
- * 创建 MongoDB 配置
- */
-function createMongoConfig() {
-  const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
-  const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
-  const mongoDatabase = getEnvWithDefault(
-    "MONGODB_DATABASE",
-    "test_fault_recovery",
-  );
-  const replicaSet = getEnvWithDefault("MONGODB_REPLICA_SET", "rs0");
-  const directConnection = getEnvWithDefault(
-    "MONGODB_DIRECT_CONNECTION",
-    "true",
-  ) === "true";
-
-  return {
-    type: "mongodb" as const,
-    connection: {
-      host: mongoHost,
-      port: mongoPort,
-      database: mongoDatabase,
-    },
-    mongoOptions: {
-      replicaSet: replicaSet,
-      directConnection: directConnection,
-    },
-  };
-}
 
 describe("MongoDB 故障恢复集成测试", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    const config = createMongoConfig();
-
-    // 使用 initDatabase 初始化全局 dbManager
-    await initDatabase(config);
+    // 使用 initDatabase 初始化全局 dbManager（含认证：默认 root/8866231）
+    await initDatabase(
+      createMongoConfig({ database: "test_fault_recovery" }),
+    );
 
     // 从全局 dbManager 获取适配器
     adapter = getDatabase();
@@ -93,8 +56,9 @@ describe("MongoDB 故障恢复集成测试", () => {
     expect(adapter.isConnected()).toBe(false);
 
     // 重新连接
-    const config = createMongoConfig();
-    await adapter.connect(config);
+    await adapter.connect(
+      createMongoConfig({ database: "test_fault_recovery" }),
+    );
 
     expect(adapter.isConnected()).toBe(true);
 

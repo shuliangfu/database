@@ -3,7 +3,6 @@
  * 测试虚拟字段（virtuals）和查询作用域（scopes）
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import {
   afterAll,
   beforeAll,
@@ -15,13 +14,7 @@ import {
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { MongoModel } from "../../src/orm/mongo-model.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createMongoConfig } from "./mongo-test-utils.ts";
 
 // 定义集合名常量（使用目录名_文件名_作为前缀）
 const COLLECTION_VIRTUALS = "mongo_model_advanced_users_virtuals";
@@ -29,36 +22,6 @@ const COLLECTION_SCOPES = "mongo_model_advanced_users_scopes";
 const COLLECTION_SCOPES_SINGLE = "mongo_model_advanced_users_scopes_single";
 const COLLECTION_SCOPES_COMBINE = "mongo_model_advanced_users_scopes_combine";
 const COLLECTION_SCOPES_COUNT = "mongo_model_advanced_users_scopes_count";
-
-/**
- * 创建 MongoDB 配置
- */
-function createMongoConfig() {
-  const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
-  const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
-  const mongoDatabase = getEnvWithDefault(
-    "MONGODB_DATABASE",
-    "test_mongodb_advanced",
-  );
-  const replicaSet = getEnvWithDefault("MONGODB_REPLICA_SET", "rs0");
-  const directConnection = getEnvWithDefault(
-    "MONGODB_DIRECT_CONNECTION",
-    "true",
-  ) === "true";
-
-  return {
-    type: "mongodb" as const,
-    connection: {
-      host: mongoHost,
-      port: mongoPort,
-      database: mongoDatabase,
-    },
-    mongoOptions: {
-      replicaSet: replicaSet,
-      directConnection: directConnection,
-    },
-  };
-}
 
 /**
  * 测试用户模型（带虚拟字段）
@@ -103,11 +66,10 @@ describe("MongoModel 高级功能", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    const config = createMongoConfig();
-
     try {
-      // 使用 initDatabase 初始化全局 dbManager
-      await initDatabase(config);
+      await initDatabase(
+        createMongoConfig({ database: "test_mongodb_advanced" }),
+      );
 
       // 从全局 dbManager 获取适配器
       adapter = getDatabase();

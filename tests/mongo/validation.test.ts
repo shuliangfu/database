@@ -14,6 +14,7 @@ import {
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { type ModelSchema, MongoModel } from "../../src/orm/mongo-model.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
+import { createMongoConfig } from "./mongo-test-utils.ts";
 
 // 定义集合名常量（使用目录名_文件名_作为前缀）
 const COLLECTION_NAME = "mongo_validation_users";
@@ -26,20 +27,10 @@ describe("MongoModel 数据验证", () => {
 
   beforeAll(async () => {
     try {
-      // 使用 initDatabase 初始化全局 dbManager
-      await initDatabase({
-        type: "mongodb",
-        connection: {
-          host: "localhost",
-          port: 27017,
-          database: "test_mongo_validation",
-        },
-        mongoOptions: {
-          serverSelectionTimeoutMS: 5000,
-          replicaSet: "rs0", // 指定副本集名称
-          directConnection: true,
-        },
-      });
+      // 使用 initDatabase 初始化全局 dbManager（含认证：默认 root/8866231）
+      await initDatabase(
+        createMongoConfig({ database: "test_mongo_validation" }),
+      );
       adapter = getDatabase() as DatabaseAdapter;
     } catch (error) {
       console.log("MongoDB not available, skipping validation tests");

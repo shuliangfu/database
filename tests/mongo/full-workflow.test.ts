@@ -3,7 +3,6 @@
  * 测试从数据库连接到 CRUD 操作的完整流程
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import {
   afterAll,
   beforeAll,
@@ -17,43 +16,7 @@ import { MongoDBAdapter } from "../../src/adapters/mongodb.ts";
 import { closeDatabase } from "../../src/init-database.ts";
 import { MongoModel } from "../../src/orm/mongo-model.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
-
-/**
- * 创建 MongoDB 配置
- */
-function createMongoConfig() {
-  const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
-  const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
-  const mongoDatabase = getEnvWithDefault(
-    "MONGODB_DATABASE",
-    "test_integration",
-  );
-  const replicaSet = getEnvWithDefault("MONGODB_REPLICA_SET", "rs0");
-  const directConnection = getEnvWithDefault(
-    "MONGODB_DIRECT_CONNECTION",
-    "true",
-  ) === "true";
-
-  return {
-    type: "mongodb" as const,
-    connection: {
-      host: mongoHost,
-      port: mongoPort,
-      database: mongoDatabase,
-    },
-    mongoOptions: {
-      replicaSet: replicaSet,
-      directConnection: directConnection,
-    },
-  };
-}
+import { createMongoConfig } from "./mongo-test-utils.ts";
 
 /**
  * 测试用户模型
@@ -70,10 +33,9 @@ describe("MongoDB 完整工作流程集成测试", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    const config = createMongoConfig();
-
-    // 初始化数据库
-    await initDatabase(config);
+    await initDatabase(
+      createMongoConfig({ database: "test_integration" }),
+    );
 
     adapter = getDatabase()!;
 

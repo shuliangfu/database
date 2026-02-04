@@ -2,7 +2,6 @@
  * @fileoverview 数据库访问辅助函数测试
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import {
   afterAll,
   assertRejects,
@@ -19,14 +18,7 @@ import {
   isDatabaseInitialized,
 } from "../../src/access.ts";
 import { closeDatabase } from "../../src/init-database.ts";
-import type { DatabaseConfig } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createMongoConfig } from "./mongo-test-utils.ts";
 
 describe("access", () => {
   // 每个测试前清理状态
@@ -41,31 +33,9 @@ describe("access", () => {
 
   describe("getDatabase", () => {
     it("应该获取数据库连接（同步版本）", async () => {
-      const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
-      const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
-      const mongoDatabase = getEnvWithDefault("MONGODB_DATABASE", "test");
-      const replicaSet = getEnvWithDefault("MONGODB_REPLICA_SET", "rs0");
-      const directConnection = getEnvWithDefault(
-        "MONGODB_DIRECT_CONNECTION",
-        "true",
-      ) === "true";
-
-      const config: DatabaseConfig = {
-        type: "mongodb",
-        connection: {
-          host: mongoHost,
-          port: mongoPort,
-          database: mongoDatabase,
-        },
-        mongoOptions: {
-          replicaSet: replicaSet,
-          directConnection: directConnection,
-        },
-      };
-
       try {
         // MongoDB serverSelectionTimeoutMS 默认是 30 秒，所以设置 35 秒超时
-        const initPromise = initDatabase(config);
+        const initPromise = initDatabase(createMongoConfig());
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error("Connection timeout")), 35000)
         );
@@ -86,31 +56,9 @@ describe("access", () => {
     }, { timeout: 30000 });
 
     it("应该支持自定义连接名称", async () => {
-      const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
-      const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
-      const mongoDatabase = getEnvWithDefault("MONGODB_DATABASE", "test");
-      const replicaSet = getEnvWithDefault("MONGODB_REPLICA_SET", "rs0");
-      const directConnection = getEnvWithDefault(
-        "MONGODB_DIRECT_CONNECTION",
-        "true",
-      ) === "true";
-
-      const config: DatabaseConfig = {
-        type: "mongodb",
-        connection: {
-          host: mongoHost,
-          port: mongoPort,
-          database: mongoDatabase,
-        },
-        mongoOptions: {
-          replicaSet: replicaSet,
-          directConnection: directConnection,
-        },
-      };
-
       try {
         // MongoDB serverSelectionTimeoutMS 默认是 30 秒，所以设置 35 秒超时
-        const initPromise = initDatabase(config, "custom_conn");
+        const initPromise = initDatabase(createMongoConfig(), "custom_conn");
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error("Connection timeout")), 35000)
         );
@@ -147,30 +95,8 @@ describe("access", () => {
 
   describe("getDatabaseAsync", () => {
     it("应该获取数据库连接（异步版本）", async () => {
-      const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
-      const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
-      const mongoDatabase = getEnvWithDefault("MONGODB_DATABASE", "test");
-      const replicaSet = getEnvWithDefault("MONGODB_REPLICA_SET", "rs0");
-      const directConnection = getEnvWithDefault(
-        "MONGODB_DIRECT_CONNECTION",
-        "true",
-      ) === "true";
-
-      const config: DatabaseConfig = {
-        type: "mongodb",
-        connection: {
-          host: mongoHost,
-          port: mongoPort,
-          database: mongoDatabase,
-        },
-        mongoOptions: {
-          replicaSet: replicaSet,
-          directConnection: directConnection,
-        },
-      };
-
       try {
-        const initPromise = initDatabase(config);
+        const initPromise = initDatabase(createMongoConfig());
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error("Connection timeout")), 35000)
         );
@@ -191,30 +117,8 @@ describe("access", () => {
     }, { timeout: 30000 });
 
     it("应该支持自定义连接名称", async () => {
-      const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
-      const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
-      const mongoDatabase = getEnvWithDefault("MONGODB_DATABASE", "test");
-      const replicaSet = getEnvWithDefault("MONGODB_REPLICA_SET", "rs0");
-      const directConnection = getEnvWithDefault(
-        "MONGODB_DIRECT_CONNECTION",
-        "true",
-      ) === "true";
-
-      const config: DatabaseConfig = {
-        type: "mongodb",
-        connection: {
-          host: mongoHost,
-          port: mongoPort,
-          database: mongoDatabase,
-        },
-        mongoOptions: {
-          replicaSet: replicaSet,
-          directConnection: directConnection,
-        },
-      };
-
       try {
-        const initPromise = initDatabase(config, "async_conn");
+        const initPromise = initDatabase(createMongoConfig(), "async_conn");
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error("Connection timeout")), 35000)
         );
@@ -249,30 +153,8 @@ describe("access", () => {
 
   describe("getDatabaseManager", () => {
     it("应该获取数据库管理器实例", async () => {
-      const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
-      const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
-      const mongoDatabase = getEnvWithDefault("MONGODB_DATABASE", "test");
-      const replicaSet = getEnvWithDefault("MONGODB_REPLICA_SET", "rs0");
-      const directConnection = getEnvWithDefault(
-        "MONGODB_DIRECT_CONNECTION",
-        "true",
-      ) === "true";
-
-      const config: DatabaseConfig = {
-        type: "mongodb",
-        connection: {
-          host: mongoHost,
-          port: mongoPort,
-          database: mongoDatabase,
-        },
-        mongoOptions: {
-          replicaSet: replicaSet,
-          directConnection: directConnection,
-        },
-      };
-
       try {
-        const initPromise = initDatabase(config);
+        const initPromise = initDatabase(createMongoConfig());
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error("Connection timeout")), 35000)
         );
@@ -309,30 +191,8 @@ describe("access", () => {
     });
 
     it("应该在数据库初始化后返回 true", async () => {
-      const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
-      const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
-      const mongoDatabase = getEnvWithDefault("MONGODB_DATABASE", "test");
-      const replicaSet = getEnvWithDefault("MONGODB_REPLICA_SET", "rs0");
-      const directConnection = getEnvWithDefault(
-        "MONGODB_DIRECT_CONNECTION",
-        "true",
-      ) === "true";
-
-      const config: DatabaseConfig = {
-        type: "mongodb",
-        connection: {
-          host: mongoHost,
-          port: mongoPort,
-          database: mongoDatabase,
-        },
-        mongoOptions: {
-          replicaSet: replicaSet,
-          directConnection: directConnection,
-        },
-      };
-
       try {
-        const initPromise = initDatabase(config);
+        const initPromise = initDatabase(createMongoConfig());
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error("Connection timeout")), 35000)
         );

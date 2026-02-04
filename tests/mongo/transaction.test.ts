@@ -3,7 +3,6 @@
  * 注意：MongoDB 不支持保存点（savepoints），只支持基本事务
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import {
   afterEach,
   assertRejects,
@@ -14,13 +13,7 @@ import {
 } from "@dreamer/test";
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
-
-/**
- * 获取环境变量（跨运行时，带默认值）
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createMongoConfig } from "./mongo-test-utils.ts";
 
 // 定义集合名常量（使用目录名_文件名_作为前缀）
 const COLLECTION_ACCOUNTS = "mongo_transaction_accounts";
@@ -29,25 +22,9 @@ describe("事务测试", () => {
   let adapter: DatabaseAdapter;
 
   beforeEach(async () => {
-    // 注意：需要实际的 MongoDB 数据库连接
-    const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
-    const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
-    const mongoDatabase = getEnvWithDefault("MONGODB_DATABASE", "test");
-
     try {
-      // 使用 initDatabase 初始化全局 dbManager
-      await initDatabase({
-        type: "mongodb",
-        connection: {
-          host: mongoHost,
-          port: mongoPort,
-          database: mongoDatabase,
-        },
-        mongoOptions: {
-          replicaSet: "rs0", // 指定副本集名称
-          directConnection: true,
-        },
-      });
+      // 使用 initDatabase 初始化全局 dbManager（含认证：默认 root/8866231）
+      await initDatabase(createMongoConfig({ database: "test" }));
 
       // 从全局 dbManager 获取适配器
       adapter = getDatabase();

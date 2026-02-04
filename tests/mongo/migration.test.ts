@@ -23,6 +23,7 @@ import {
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { MigrationManager } from "../../src/migration/manager.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
+import { createMongoConfig } from "./mongo-test-utils.ts";
 
 // 定义集合名常量（使用目录名_文件名_作为前缀）
 const COLLECTION_MIGRATIONS = "mongo_migration_test_migrations";
@@ -42,19 +43,9 @@ describe("MigrationManager", () => {
     await mkdir(testMigrationsDir, { recursive: true });
 
     try {
-      // 使用 initDatabase 初始化全局 dbManager
-      await initDatabase({
-        type: "mongodb",
-        connection: {
-          host: "localhost",
-          port: 27017,
-          database: "test_migrations",
-        },
-        mongoOptions: {
-          replicaSet: "rs0",
-          directConnection: true,
-        },
-      });
+      await initDatabase(
+        createMongoConfig({ database: "test_migrations" }),
+      );
 
       // 从全局 dbManager 获取适配器
       mongoAdapter = getDatabase();

@@ -2,7 +2,6 @@
  * @fileoverview MongoDBAdapter 基础功能测试
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import {
   afterAll,
   assertRejects,
@@ -14,14 +13,8 @@ import {
 } from "@dreamer/test";
 import { MongoDBAdapter } from "../../src/adapters/mongodb.ts";
 import { QueryLogger } from "../../src/logger/query-logger.ts";
-import type { DatabaseAdapter, DatabaseConfig } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import type { DatabaseAdapter } from "../../src/types.ts";
+import { createMongoConfig } from "./mongo-test-utils.ts";
 
 // 定义集合名常量（使用目录名_文件名_作为前缀）
 const COLLECTION_USERS = "mongo_adapter_test_users";
@@ -31,33 +24,12 @@ describe("MongoDBAdapter", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
-    const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
-    const mongoDatabase = getEnvWithDefault(
-      "MONGODB_DATABASE",
-      "test_mongodb_adapter",
-    );
-    const replicaSet = getEnvWithDefault("MONGODB_REPLICA_SET", "rs0");
-    const directConnection = getEnvWithDefault(
-      "MONGODB_DIRECT_CONNECTION",
-      "true",
-    ) === "true";
-
     try {
-      // 直接创建适配器实例进行测试
+      // 直接创建适配器实例进行测试（含认证：默认 root/8866231）
       adapter = new MongoDBAdapter();
-      await adapter.connect({
-        type: "mongodb",
-        connection: {
-          host: mongoHost,
-          port: mongoPort,
-          database: mongoDatabase,
-        },
-        mongoOptions: {
-          replicaSet: replicaSet, // 从环境变量获取副本集名称
-          directConnection: directConnection,
-        },
-      });
+      await adapter.connect(
+        createMongoConfig({ database: "test_mongodb_adapter" }),
+      );
     } catch (error) {
       console.warn(
         `MongoDB not available, skipping tests: ${
@@ -396,27 +368,11 @@ describe("MongoDBAdapter", () => {
       }
 
       const testAdapter = new MongoDBAdapter();
-      const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
-      const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
-      const replicaSet = getEnvWithDefault("MONGODB_REPLICA_SET", "rs0");
-      const directConnection = getEnvWithDefault(
-        "MONGODB_DIRECT_CONNECTION",
-        "true",
-      ) === "true";
 
       try {
-        await testAdapter.connect({
-          type: "mongodb",
-          connection: {
-            host: mongoHost,
-            port: mongoPort,
-            database: "test_close",
-          },
-          mongoOptions: {
-            replicaSet: replicaSet,
-            directConnection: directConnection,
-          },
-        });
+        await testAdapter.connect(
+          createMongoConfig({ database: "test_close" }),
+        );
 
         expect(testAdapter.isConnected()).toBe(true);
 
@@ -435,27 +391,11 @@ describe("MongoDBAdapter", () => {
       }
 
       const testAdapter = new MongoDBAdapter();
-      const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
-      const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
-      const replicaSet = getEnvWithDefault("MONGODB_REPLICA_SET", "rs0");
-      const directConnection = getEnvWithDefault(
-        "MONGODB_DIRECT_CONNECTION",
-        "true",
-      ) === "true";
 
       try {
-        await testAdapter.connect({
-          type: "mongodb",
-          connection: {
-            host: mongoHost,
-            port: mongoPort,
-            database: "test_close",
-          },
-          mongoOptions: {
-            replicaSet: replicaSet,
-            directConnection: directConnection,
-          },
-        });
+        await testAdapter.connect(
+          createMongoConfig({ database: "test_close" }),
+        );
 
         await testAdapter.close();
         await testAdapter.close(); // 第二次调用不应该出错
@@ -588,28 +528,7 @@ describe("MongoDBAdapter", () => {
 
       it("应该在健康检查后返回时间", async () => {
         const newAdapter = new MongoDBAdapter();
-        const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
-        const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
-        const mongoDatabase = getEnvWithDefault("MONGODB_DATABASE", "test");
-        const replicaSet = getEnvWithDefault("MONGODB_REPLICA_SET", "rs0");
-        const directConnection = getEnvWithDefault(
-          "MONGODB_DIRECT_CONNECTION",
-          "true",
-        ) === "true";
-
-        const config: DatabaseConfig = {
-          type: "mongodb",
-          connection: {
-            host: mongoHost,
-            port: mongoPort,
-            database: mongoDatabase,
-          },
-          mongoOptions: {
-            replicaSet: replicaSet,
-            directConnection: directConnection,
-          },
-        };
-        await newAdapter.connect(config);
+        await newAdapter.connect(createMongoConfig());
 
         const before = new Date();
         await newAdapter.healthCheck();
@@ -678,28 +597,7 @@ describe("MongoDBAdapter", () => {
     describe("getQueryLogger", () => {
       it("应该在未设置时返回 null", async () => {
         const newAdapter = new MongoDBAdapter();
-        const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
-        const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
-        const mongoDatabase = getEnvWithDefault("MONGODB_DATABASE", "test");
-        const replicaSet = getEnvWithDefault("MONGODB_REPLICA_SET", "rs0");
-        const directConnection = getEnvWithDefault(
-          "MONGODB_DIRECT_CONNECTION",
-          "true",
-        ) === "true";
-
-        const config: DatabaseConfig = {
-          type: "mongodb",
-          connection: {
-            host: mongoHost,
-            port: mongoPort,
-            database: mongoDatabase,
-          },
-          mongoOptions: {
-            replicaSet: replicaSet,
-            directConnection: directConnection,
-          },
-        };
-        await newAdapter.connect(config);
+        await newAdapter.connect(createMongoConfig());
 
         expect(newAdapter.getQueryLogger()).toBeNull();
 
@@ -729,28 +627,7 @@ describe("MongoDBAdapter", () => {
         const newAdapter = new MongoDBAdapter();
         expect(newAdapter.isConnected()).toBe(false);
 
-        const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
-        const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
-        const mongoDatabase = getEnvWithDefault("MONGODB_DATABASE", "test");
-        const replicaSet = getEnvWithDefault("MONGODB_REPLICA_SET", "rs0");
-        const directConnection = getEnvWithDefault(
-          "MONGODB_DIRECT_CONNECTION",
-          "true",
-        ) === "true";
-
-        const config: DatabaseConfig = {
-          type: "mongodb",
-          connection: {
-            host: mongoHost,
-            port: mongoPort,
-            database: mongoDatabase,
-          },
-          mongoOptions: {
-            replicaSet: replicaSet,
-            directConnection: directConnection,
-          },
-        };
-        await newAdapter.connect(config);
+        await newAdapter.connect(createMongoConfig());
         expect(newAdapter.isConnected()).toBe(true);
 
         await newAdapter.close();
@@ -1435,33 +1312,23 @@ describe("MongoDBAdapter", () => {
         return;
       }
 
-      // 测试副本集配置（如果环境支持）
-      const testAdapter = new MongoDBAdapter();
-      const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
-      const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
-      const mongoDatabase = getEnvWithDefault("MONGODB_DATABASE", "test");
-      const replicaSet = getEnvWithDefault("MONGODB_REPLICA_SET", "");
-
-      if (replicaSet) {
-        await testAdapter.connect({
-          type: "mongodb",
-          connection: {
-            host: mongoHost,
-            port: mongoPort,
-            database: mongoDatabase,
-          },
-          mongoOptions: {
-            replicaSet: replicaSet,
-            directConnection: false,
-          },
-        });
-
-        expect(testAdapter.isConnected()).toBe(true);
-        await testAdapter.close();
-      } else {
-        // 如果没有配置副本集，跳过测试
+      const replicaSet = (await import("@dreamer/runtime-adapter")).getEnv(
+        "MONGODB_REPLICA_SET",
+      );
+      if (!replicaSet) {
         console.log("Replica set not configured, skipping test");
+        return;
       }
+
+      const testAdapter = new MongoDBAdapter();
+      await testAdapter.connect(
+        createMongoConfig({
+          mongoOptions: { directConnection: false, replicaSet },
+        }),
+      );
+
+      expect(testAdapter.isConnected()).toBe(true);
+      await testAdapter.close();
     }, { sanitizeOps: false, sanitizeResources: false });
   });
 

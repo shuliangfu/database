@@ -3,61 +3,25 @@
  * 测试连接池在达到最大连接数时的行为
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createMongoConfig } from "./mongo-test-utils.ts";
 
 // 定义集合名常量（使用目录名_文件名_作为前缀）
 const COLLECTION_NAME = "mongo_pool_exhaustion_test_collection";
-
-/**
- * 创建 MongoDB 配置
- */
-function createMongoConfig() {
-  const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
-  const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
-  const mongoDatabase = getEnvWithDefault(
-    "MONGODB_DATABASE",
-    "test_mongodb_pool",
-  );
-  const replicaSet = getEnvWithDefault("MONGODB_REPLICA_SET", "rs0");
-  const directConnection = getEnvWithDefault(
-    "MONGODB_DIRECT_CONNECTION",
-    "true",
-  ) === "true";
-
-  return {
-    type: "mongodb" as const,
-    connection: {
-      host: mongoHost,
-      port: mongoPort,
-      database: mongoDatabase,
-    },
-    mongoOptions: {
-      replicaSet: replicaSet,
-      directConnection: directConnection,
-      maxPoolSize: 2, // 设置较小的最大连接数以便测试
-    },
-  };
-}
 
 describe("MongoDB 连接池耗尽测试", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    const config = createMongoConfig();
-
     try {
-      // 使用 initDatabase 初始化全局 dbManager
-      await initDatabase(config);
+      await initDatabase(
+        createMongoConfig({
+          database: "test_mongodb_pool",
+          mongoOptions: { maxPoolSize: 2 }, // 设置较小的最大连接数以便测试
+        }),
+      );
 
       // 从全局 dbManager 获取适配器
       adapter = getDatabase();

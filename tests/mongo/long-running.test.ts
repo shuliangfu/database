@@ -3,60 +3,22 @@
  * 测试数据库连接在长时间运行场景下的稳定性
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { MongoDBAdapter } from "../../src/adapters/mongodb.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createMongoConfig } from "./mongo-test-utils.ts";
 
 // 定义集合名常量（使用目录名_文件名_作为前缀）
 const COLLECTION_NAME = "mongo_long_running_long_running_test";
-
-/**
- * 创建 MongoDB 配置
- */
-function createMongoConfig() {
-  const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
-  const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
-  const mongoDatabase = getEnvWithDefault(
-    "MONGODB_DATABASE",
-    "test_long_running",
-  );
-  const replicaSet = getEnvWithDefault("MONGODB_REPLICA_SET", "rs0");
-  const directConnection = getEnvWithDefault(
-    "MONGODB_DIRECT_CONNECTION",
-    "true",
-  ) === "true";
-
-  return {
-    type: "mongodb" as const,
-    connection: {
-      host: mongoHost,
-      port: mongoPort,
-      database: mongoDatabase,
-    },
-    mongoOptions: {
-      replicaSet: replicaSet,
-      directConnection: directConnection,
-    },
-  };
-}
 
 describe("MongoDB 长时间运行集成测试", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    const config = createMongoConfig();
-
-    // 使用 initDatabase 初始化全局 dbManager
-    await initDatabase(config);
+    await initDatabase(
+      createMongoConfig({ database: "test_long_running" }),
+    );
 
     // 从全局 dbManager 获取适配器
     adapter = getDatabase();

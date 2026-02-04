@@ -2,7 +2,6 @@
  * @fileoverview 数据库初始化工具测试
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import {
   afterAll,
   assertRejects,
@@ -24,41 +23,7 @@ import {
   setupDatabaseConfigLoader,
 } from "../../src/init-database.ts";
 import { DatabaseManager } from "../../src/manager.ts";
-import type { DatabaseConfig } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
-
-/**
- * 创建 MongoDB 配置（包含副本集设置）
- */
-function createMongoConfig(): DatabaseConfig {
-  const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
-  const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
-  const mongoDatabase = getEnvWithDefault("MONGODB_DATABASE", "test");
-  const replicaSet = getEnvWithDefault("MONGODB_REPLICA_SET", "rs0");
-  const directConnection = getEnvWithDefault(
-    "MONGODB_DIRECT_CONNECTION",
-    "true",
-  ) === "true";
-
-  return {
-    type: "mongodb",
-    connection: {
-      host: mongoHost,
-      port: mongoPort,
-      database: mongoDatabase,
-    },
-    mongoOptions: {
-      replicaSet: replicaSet,
-      directConnection: directConnection,
-    },
-  };
-}
+import { createMongoConfig } from "./mongo-test-utils.ts";
 
 describe("init-database", () => {
   // 每个测试前清理状态
@@ -74,9 +39,7 @@ describe("init-database", () => {
 
   describe("initDatabase", () => {
     it("应该初始化数据库连接", async () => {
-      const config = createMongoConfig();
-
-      const status = await initDatabase(config);
+      const status = await initDatabase(createMongoConfig());
 
       expect(status).toBeTruthy();
       expect(status.name).toBe("default");
@@ -86,20 +49,18 @@ describe("init-database", () => {
     });
 
     it("应该支持自定义连接名称", async () => {
-      const config = createMongoConfig();
-
-      const status = await initDatabase(config, "custom_connection");
+      const status = await initDatabase(
+        createMongoConfig(),
+        "custom_connection",
+      );
 
       expect(status.name).toBe("custom_connection");
       expect(hasConnection("custom_connection")).toBe(true);
     });
 
     it("应该复用已存在的数据库管理器", async () => {
-      const config1 = createMongoConfig();
-      const config2 = createMongoConfig();
-
-      const status1 = await initDatabase(config1, "conn1");
-      const status2 = await initDatabase(config2, "conn2");
+      const status1 = await initDatabase(createMongoConfig(), "conn1");
+      const status2 = await initDatabase(createMongoConfig(), "conn2");
 
       expect(status1.name).toBe("conn1");
       expect(status2.name).toBe("conn2");
@@ -110,9 +71,8 @@ describe("init-database", () => {
 
   describe("initDatabaseFromConfig", () => {
     it("应该从配置对象初始化数据库", async () => {
-      const mongoConfig = createMongoConfig();
       const config = {
-        database: mongoConfig,
+        database: createMongoConfig(),
       };
 
       const status = await initDatabaseFromConfig(config);

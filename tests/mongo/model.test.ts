@@ -2,7 +2,6 @@
  * @fileoverview MongoModel MongoDB 测试 - 基于最新统一接口
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import {
   afterAll,
   beforeAll,
@@ -14,13 +13,7 @@ import {
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { MongoModel } from "../../src/orm/mongo-model.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createMongoConfig } from "./mongo-test-utils.ts";
 
 // 定义集合名常量
 const COLLECTION_NAME = "mongo_model_users";
@@ -42,24 +35,13 @@ describe("MongoModel MongoDB", () => {
 
   beforeAll(async () => {
     try {
-      // 获取 MongoDB 连接配置
-      const mongoHost = getEnvWithDefault("MONGO_HOST", "localhost");
-      const mongoPort = parseInt(getEnvWithDefault("MONGO_PORT", "27017"));
-      const mongoDatabase = getEnvWithDefault("MONGO_DATABASE", "test");
-
-      // 初始化数据库
-      await initDatabase({
-        type: "mongodb",
-        connection: {
-          host: mongoHost,
-          port: mongoPort,
-          database: mongoDatabase,
-        },
-        mongoOptions: {
-          serverSelectionTimeoutMS: 5000,
-          directConnection: true,
-        },
-      });
+      // 初始化数据库（含认证：默认 root/8866231）
+      const config = createMongoConfig({ database: "test" });
+      (config as any).mongoOptions = {
+        ...(config as any).mongoOptions,
+        serverSelectionTimeoutMS: 5000,
+      };
+      await initDatabase(config);
 
       adapter = getDatabase();
 

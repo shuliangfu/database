@@ -3,7 +3,6 @@
  * 测试 MongoDB 适配器在各种错误场景下的处理能力
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import {
   afterAll,
   assertRejects,
@@ -15,13 +14,7 @@ import {
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { MongoDBAdapter } from "../../src/adapters/mongodb.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createMongoConfig } from "./mongo-test-utils.ts";
 
 // 定义集合名常量（使用目录名_文件名_作为前缀）
 const COLLECTION_NAME = "mongo_error_handling_test_collection";
@@ -32,32 +25,9 @@ describe("MongoDB 错误处理", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
-    const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
-    const mongoDatabase = getEnvWithDefault(
-      "MONGODB_DATABASE",
-      "test_mongodb_errors",
-    );
-    const replicaSet = getEnvWithDefault("MONGODB_REPLICA_SET", "rs0");
-    const directConnection = getEnvWithDefault(
-      "MONGODB_DIRECT_CONNECTION",
-      "true",
-    ) === "true";
-
     try {
-      // 使用 initDatabase 初始化全局 dbManager
-      await initDatabase({
-        type: "mongodb",
-        connection: {
-          host: mongoHost,
-          port: mongoPort,
-          database: mongoDatabase,
-        },
-        mongoOptions: {
-          replicaSet: replicaSet,
-          directConnection: directConnection,
-        },
-      });
+      // 使用 initDatabase 初始化全局 dbManager（含认证：默认 root/8866231）
+      await initDatabase(createMongoConfig({ database: "test_mongodb_errors" }));
 
       // 从全局 dbManager 获取适配器
       adapter = getDatabase();
@@ -289,27 +259,7 @@ describe("MongoDB 错误处理", () => {
       }
 
       const testAdapter = new MongoDBAdapter();
-      const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
-      const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
-      const mongoDatabase = getEnvWithDefault("MONGODB_DATABASE", "test");
-      const replicaSet = getEnvWithDefault("MONGODB_REPLICA_SET", "rs0");
-      const directConnection = getEnvWithDefault(
-        "MONGODB_DIRECT_CONNECTION",
-        "true",
-      ) === "true";
-
-      await testAdapter.connect({
-        type: "mongodb",
-        connection: {
-          host: mongoHost,
-          port: mongoPort,
-          database: mongoDatabase,
-        },
-        mongoOptions: {
-          replicaSet: replicaSet,
-          directConnection: directConnection,
-        },
-      });
+      await testAdapter.connect(createMongoConfig());
 
       await testAdapter.close();
 

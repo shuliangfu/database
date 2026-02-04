@@ -3,7 +3,6 @@
  * 测试 MongoDB 适配器在高负载下的性能表现
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import {
   afterAll,
   beforeAll,
@@ -14,13 +13,7 @@ import {
 } from "@dreamer/test";
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createMongoConfig } from "./mongo-test-utils.ts";
 
 // 定义集合名常量（使用目录名_文件名_作为前缀）
 const COLLECTION_NAME = "mongo_performance_test_perf_data";
@@ -29,32 +22,10 @@ describe("MongoDB 性能测试", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    const mongoHost = getEnvWithDefault("MONGODB_HOST", "localhost");
-    const mongoPort = parseInt(getEnvWithDefault("MONGODB_PORT", "27017"));
-    const mongoDatabase = getEnvWithDefault(
-      "MONGODB_DATABASE",
-      "test_mongodb_perf",
-    );
-    const replicaSet = getEnvWithDefault("MONGODB_REPLICA_SET", "rs0");
-    const directConnection = getEnvWithDefault(
-      "MONGODB_DIRECT_CONNECTION",
-      "true",
-    ) === "true";
-
     try {
-      // 使用 initDatabase 初始化全局 dbManager
-      await initDatabase({
-        type: "mongodb",
-        connection: {
-          host: mongoHost,
-          port: mongoPort,
-          database: mongoDatabase,
-        },
-        mongoOptions: {
-          replicaSet: replicaSet,
-          directConnection: directConnection,
-        },
-      });
+      await initDatabase(
+        createMongoConfig({ database: "test_mongodb_perf" }),
+      );
 
       // 从全局 dbManager 获取适配器
       adapter = getDatabase();

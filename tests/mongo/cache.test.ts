@@ -10,6 +10,7 @@ import {
 import { getDatabaseAsync } from "../../src/access.ts";
 import { initDatabase } from "../../src/init-database.ts";
 import { type ModelSchema, MongoModel } from "../../src/orm/mongo-model.ts";
+import { createMongoConfig } from "./mongo-test-utils.ts";
 
 // 定义集合名常量（使用目录名_文件名_作为前缀）
 const COLLECTION_NAME = "mongo_cache_cache_test_mongo_users";
@@ -32,29 +33,10 @@ describe("MongoModel 缓存机制测试", () => {
   let adapter: any;
 
   beforeAll(async () => {
-    // 初始化数据库
-    const mongoHost = globalThis.Deno?.env?.get("MONGO_HOST") || "localhost";
-    const mongoPort = parseInt(
-      globalThis.Deno?.env?.get("MONGO_PORT") || "27017",
+    // 初始化数据库（含认证：默认 root/8866231）
+    await initDatabase(
+      createMongoConfig({ database: "test_mongo_cache" }),
     );
-    const mongoDatabase = globalThis.Deno?.env?.get("MONGO_DATABASE") ||
-      "test_mongo_cache";
-    const replicaSet = globalThis.Deno?.env?.get("MONGO_REPLICA_SET") || "rs0";
-    const directConnection =
-      globalThis.Deno?.env?.get("MONGO_DIRECT_CONNECTION") === "true" || true;
-
-    await initDatabase({
-      type: "mongodb",
-      connection: {
-        host: mongoHost,
-        port: mongoPort,
-        database: mongoDatabase,
-      },
-      mongoOptions: {
-        replicaSet,
-        directConnection,
-      },
-    });
     adapter = await getDatabaseAsync();
 
     // 设置模型适配器
