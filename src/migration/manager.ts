@@ -64,13 +64,13 @@ export class MigrationManager {
    */
   private async ensureHistoryTable(): Promise<void> {
     const db = this.config.adapter;
-    const dbType = (db as any).config?.type as DatabaseType | undefined;
+    const dbAdapter = (db as any).config?.adapter as DatabaseType | undefined;
 
-    if (!dbType) {
+    if (!dbAdapter) {
       throw new Error("Cannot determine database type from adapter");
     }
 
-    if (dbType === "mongodb") {
+    if (dbAdapter === "mongodb") {
       // MongoDB: 检查集合是否存在，不存在则创建
       try {
         await (db as any).query(this.historyCollectionName, {}, { limit: 1 });
@@ -98,7 +98,7 @@ export class MigrationManager {
       } catch (error) {
         // 某些数据库可能需要不同的 SQL 语法
         // PostgreSQL/MySQL 使用不同的语法
-        if (dbType === "postgresql" || dbType === "mysql") {
+        if (dbAdapter === "postgresql" || dbAdapter === "mysql") {
           const pgCreateTableSQL = `
             CREATE TABLE IF NOT EXISTS ${this.historyTableName} (
               id SERIAL PRIMARY KEY,
@@ -121,13 +121,13 @@ export class MigrationManager {
   private async getExecutedMigrations(): Promise<string[]> {
     await this.ensureHistoryTable();
     const db = this.config.adapter;
-    const dbType = (db as any).config?.type as DatabaseType | undefined;
+    const dbAdapter = (db as any).config?.adapter as DatabaseType | undefined;
 
-    if (!dbType) {
+    if (!dbAdapter) {
       throw new Error("Cannot determine database type from adapter");
     }
 
-    if (dbType === "mongodb") {
+    if (dbAdapter === "mongodb") {
       const results = await (db as any).query(
         this.historyCollectionName,
         {},
@@ -149,13 +149,13 @@ export class MigrationManager {
   private async recordMigration(name: string, batch: number): Promise<void> {
     await this.ensureHistoryTable();
     const db = this.config.adapter;
-    const dbType = (db as any).config?.type as DatabaseType | undefined;
+    const dbAdapter = (db as any).config?.adapter as DatabaseType | undefined;
 
-    if (!dbType) {
+    if (!dbAdapter) {
       throw new Error("Cannot determine database type from adapter");
     }
 
-    if (dbType === "mongodb") {
+    if (dbAdapter === "mongodb") {
       await (db as any).execute("insert", this.historyCollectionName, {
         name,
         batch,
@@ -175,13 +175,13 @@ export class MigrationManager {
   private async removeMigrationRecord(name: string): Promise<void> {
     await this.ensureHistoryTable();
     const db = this.config.adapter;
-    const dbType = (db as any).config?.type as DatabaseType | undefined;
+    const dbAdapter = (db as any).config?.adapter as DatabaseType | undefined;
 
-    if (!dbType) {
+    if (!dbAdapter) {
       throw new Error("Cannot determine database type from adapter");
     }
 
-    if (dbType === "mongodb") {
+    if (dbAdapter === "mongodb") {
       await (db as any).execute("delete", this.historyCollectionName, {
         filter: { name },
       });
@@ -198,13 +198,13 @@ export class MigrationManager {
   private async getNextBatch(): Promise<number> {
     await this.ensureHistoryTable();
     const db = this.config.adapter;
-    const dbType = (db as any).config?.type as DatabaseType | undefined;
+    const dbAdapter = (db as any).config?.adapter as DatabaseType | undefined;
 
-    if (!dbType) {
+    if (!dbAdapter) {
       throw new Error("Cannot determine database type from adapter");
     }
 
-    if (dbType === "mongodb") {
+    if (dbAdapter === "mongodb") {
       const results = await (db as any).query(
         this.historyCollectionName,
         {},
@@ -229,12 +229,12 @@ export class MigrationManager {
   /**
    * 创建迁移文件
    * @param name 迁移名称
-   * @param dbType 数据库类型（可选，用于选择模板）
+   * @param dbAdapter 数据库适配器（可选，用于选择模板）
    * @returns 创建的迁移文件路径
    */
   async create(
     name: string,
-    dbType?: DatabaseType,
+    dbAdapter?: DatabaseType,
   ): Promise<string> {
     await ensureMigrationsDir(this.config.migrationsDir);
 
@@ -242,15 +242,15 @@ export class MigrationManager {
     const filepath = join(this.config.migrationsDir, filename);
     const className = generateClassName(name);
 
-    // 如果未指定数据库类型，尝试从适配器获取
-    if (!dbType) {
-      dbType = (this.config.adapter as any).config?.type as
+    // 如果未指定数据库适配器，尝试从适配器配置获取
+    if (!dbAdapter) {
+      dbAdapter = (this.config.adapter as any).config?.adapter as
         | DatabaseType
         | undefined;
     }
 
-    // 根据数据库类型选择模板
-    const template = dbType === "mongodb"
+    // 根据数据库适配器选择模板
+    const template = dbAdapter === "mongodb"
       ? MONGO_MIGRATION_TEMPLATE
       : SQL_MIGRATION_TEMPLATE;
 
@@ -483,9 +483,9 @@ export class MigrationManager {
     const executed = await this.getExecutedMigrations();
     const files = await this.getMigrationFiles();
     const db = this.config.adapter;
-    const dbType = (db as any).config?.type as DatabaseType | undefined;
+    const dbAdapter = (db as any).config?.adapter as DatabaseType | undefined;
 
-    if (!dbType) {
+    if (!dbAdapter) {
       throw new Error("Cannot determine database type from adapter");
     }
 
@@ -495,7 +495,7 @@ export class MigrationManager {
       { executedAt: Date; batch: number }
     >();
 
-    if (dbType === "mongodb") {
+    if (dbAdapter === "mongodb") {
       const results = await (db as any).query(
         this.historyCollectionName,
         {},

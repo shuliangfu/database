@@ -13,7 +13,7 @@ describe("SQLite 故障恢复集成测试", () => {
   beforeAll(async () => {
     // 使用 initDatabase 初始化全局 dbManager
     await initDatabase({
-      type: "sqlite",
+      adapter: "sqlite",
       connection: {
         filename: ":memory:",
       },
@@ -52,7 +52,7 @@ describe("SQLite 故障恢复集成测试", () => {
 
     // 重新连接
     await adapter.connect({
-      type: "sqlite",
+      adapter: "sqlite",
       connection: {
         filename: ":memory:",
       },

@@ -181,11 +181,11 @@ export abstract class BaseAdapter implements DatabaseAdapter {
    * 验证配置
    */
   protected validateConfig(config: DatabaseConfig): void {
-    if (!config.type) {
-      throw new Error("Database type is required");
+    if (!config.adapter) {
+      throw new Error("Database adapter is required");
     }
 
-    if (config.type === "sqlite") {
+    if (config.adapter === "sqlite") {
       // SQLite 需要 filename
       const sqliteConfig = config as SQLiteConfig;
       if (!sqliteConfig.connection.filename) {

@@ -33,7 +33,7 @@ describe("access", () => {
   describe("getDatabase", () => {
     it("应该获取数据库连接（同步版本）", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: ":memory:",
         },
@@ -48,7 +48,7 @@ describe("access", () => {
 
     it("应该支持自定义连接名称", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: ":memory:",
         },
@@ -79,7 +79,7 @@ describe("access", () => {
   describe("getDatabaseAsync", () => {
     it("应该获取数据库连接（异步版本）", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: ":memory:",
         },
@@ -94,7 +94,7 @@ describe("access", () => {
 
     it("应该支持自定义连接名称", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: ":memory:",
         },
@@ -123,7 +123,7 @@ describe("access", () => {
   describe("getDatabaseManager", () => {
     it("应该获取数据库管理器实例", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: ":memory:",
         },
@@ -154,7 +154,7 @@ describe("access", () => {
 
     it("应该在数据库初始化后返回 true", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: ":memory:",
         },

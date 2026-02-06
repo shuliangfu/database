@@ -167,7 +167,7 @@ export class SQLiteAdapter extends BaseAdapter {
    */
   async connect(config: SQLiteConfig | DatabaseConfig): Promise<void> {
     // 类型守卫：确保是 SQLite 配置
-    if (config.type !== "sqlite") {
+    if (config.adapter !== "sqlite") {
       throw new Error("Invalid config type for SQLite adapter");
     }
 

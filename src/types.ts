@@ -13,9 +13,9 @@ export type DatabaseType = "postgresql" | "mongodb" | "mysql" | "sqlite";
  */
 export interface PostgreSQLConfig {
   /**
-   * 数据库类型
+   * 数据库适配器
    */
-  type: "postgresql";
+  adapter: "postgresql";
 
   /**
    * 连接配置
@@ -110,9 +110,9 @@ export interface PostgreSQLConfig {
  */
 export interface MySQLConfig {
   /**
-   * 数据库类型
+   * 数据库适配器
    */
-  type: "mysql";
+  adapter: "mysql";
 
   /**
    * 连接配置
@@ -206,9 +206,9 @@ export interface MySQLConfig {
  */
 export interface MongoConfig {
   /**
-   * 数据库类型
+   * 数据库适配器
    */
-  type: "mongodb";
+  adapter: "mongodb";
 
   /**
    * 连接配置
@@ -331,7 +331,7 @@ export interface MongoConfig {
      * ```typescript
      * // 单节点副本集（Docker 开发环境）
      * await adapter.connect({
-     *   type: "mongodb",
+     *   adapter: "mongodb",
      *   connection: { host: "localhost", port: 27017, database: "mydb" },
      *   mongoOptions: {
      *     replicaSet: "rs0", // 必须设置，即使只有一个节点
@@ -389,9 +389,9 @@ export interface MongoConfig {
  */
 export interface SQLiteConfig {
   /**
-   * 数据库类型
+   * 数据库适配器
    */
-  type: "sqlite";
+  adapter: "sqlite";
 
   /**
    * 连接配置

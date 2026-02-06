@@ -23,7 +23,7 @@ describe("多适配器集成测试", () => {
 
     // 使用 initDatabase 初始化 SQLite 连接
     await initDatabase({
-      type: "sqlite",
+      adapter: "sqlite",
       connection: {
         filename: ":memory:",
       },

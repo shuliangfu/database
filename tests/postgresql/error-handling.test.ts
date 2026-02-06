@@ -66,7 +66,7 @@ describe("PostgreSQL 错误处理", () => {
         await assertRejects(
           async () => {
             await badAdapter.connect({
-              type: "postgresql",
+              adapter: "postgresql",
               connection: {
                 host: "invalid_host_that_does_not_exist_12345",
                 port: 5432,
@@ -100,7 +100,7 @@ describe("PostgreSQL 错误处理", () => {
             // 使用有效但不可达的端口（65534），而不是无效的端口号
             await Promise.race([
               badAdapter.connect({
-                type: "postgresql",
+                adapter: "postgresql",
                 connection: {
                   host: "localhost",
                   port: 65534, // 有效但不可达的端口
@@ -142,7 +142,7 @@ describe("PostgreSQL 错误处理", () => {
         await assertRejects(
           async () => {
             await badAdapter.connect({
-              type: "postgresql",
+              adapter: "postgresql",
               connection: {
                 host: "localhost",
                 port: 5432,

@@ -20,7 +20,7 @@ describe("SQLite 性能测试", () => {
   beforeAll(async () => {
     // 使用 initDatabase 初始化全局 dbManager
     await initDatabase({
-      type: "sqlite",
+      adapter: "sqlite",
       connection: {
         filename: ":memory:",
       },

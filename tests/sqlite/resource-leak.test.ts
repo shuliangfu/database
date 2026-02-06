@@ -14,7 +14,7 @@ describe("资源泄漏测试", () => {
   beforeAll(async () => {
     // 使用 initDatabase 初始化全局 dbManager
     await initDatabase({
-      type: "sqlite",
+      adapter: "sqlite",
       connection: {
         filename: ":memory:",
       },
@@ -38,7 +38,7 @@ describe("资源泄漏测试", () => {
     // 创建临时适配器
     const testAdapter = new SQLiteAdapter();
     await testAdapter.connect({
-      type: "sqlite",
+      adapter: "sqlite",
       connection: {
         filename: ":memory:",
       },

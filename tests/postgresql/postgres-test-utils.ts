@@ -34,7 +34,7 @@ export function createPostgresConfig(
   const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "8866231");
 
   const config: PostgreSQLConfig = {
-    type: "postgresql",
+    adapter: "postgresql",
     connection: {
       host: pgHost,
       port: pgPort,

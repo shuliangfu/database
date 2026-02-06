@@ -53,7 +53,7 @@ export class MySQLAdapter extends BaseAdapter {
     retryCount: number = 0,
   ): Promise<void> {
     // 类型守卫：确保是 MySQL 配置
-    if (config.type !== "mysql") {
+    if (config.adapter !== "mysql") {
       throw new Error("Invalid config type for MySQL adapter");
     }
 

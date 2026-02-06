@@ -37,7 +37,7 @@ describe("SQLite 完整工作流程集成测试", () => {
 
     // 初始化数据库
     await initDatabase({
-      type: "sqlite",
+      adapter: "sqlite",
       connection: {
         filename: ":memory:",
       },
@@ -79,7 +79,7 @@ describe("SQLite 完整工作流程集成测试", () => {
       // 如果未连接，重新初始化
       await closeDatabase();
       await initDatabase({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: ":memory:",
         },

@@ -118,7 +118,7 @@ import { getDatabase, initDatabase } from "jsr:@dreamer/database";
 
 // 初始化 SQLite 数据库
 await initDatabase({
-  type: "sqlite",
+  adapter: "sqlite",
   connection: {
     filename: ":memory:", // 或文件路径
   },
@@ -191,7 +191,7 @@ class User extends SQLModel {
 
 // 初始化数据库
 await initDatabase({
-  type: "sqlite",
+  adapter: "sqlite",
   connection: { filename: ":memory:" },
 });
 
@@ -291,7 +291,7 @@ class Article extends MongoModel {
 
 // 初始化数据库
 await initDatabase({
-  type: "mongodb",
+  adapter: "mongodb",
   connection: {
     host: "localhost",
     port: 27017,
@@ -353,13 +353,13 @@ initDatabase(config: DatabaseConfig, connectionName?: string): Promise<Connectio
 ```typescript
 // SQLite
 await initDatabase({
-  type: "sqlite",
+  adapter: "sqlite",
   connection: { filename: ":memory:" },
 });
 
 // PostgreSQL
 await initDatabase({
-  type: "postgresql",
+  adapter: "postgresql",
   connection: {
     host: "localhost",
     port: 5432,
@@ -371,7 +371,7 @@ await initDatabase({
 
 // MySQL
 await initDatabase({
-  type: "mysql",
+  adapter: "mysql",
   connection: {
     host: "localhost",
     port: 3306,
@@ -383,7 +383,7 @@ await initDatabase({
 
 // MongoDB
 await initDatabase({
-  type: "mongodb",
+  adapter: "mongodb",
   connection: {
     host: "localhost",
     port: 27017,

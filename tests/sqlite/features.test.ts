@@ -21,7 +21,7 @@ describe("SQLite 特有功能", () => {
   beforeAll(async () => {
     // 使用 initDatabase 初始化全局 dbManager
     await initDatabase({
-      type: "sqlite",
+      adapter: "sqlite",
       connection: {
         filename: ":memory:",
       },
@@ -434,7 +434,7 @@ describe("SQLite 特有功能", () => {
       // 此测试主要用于验证配置选项的语法正确性
       const testAdapter = new SQLiteAdapter();
       await testAdapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: ":memory:",
         },

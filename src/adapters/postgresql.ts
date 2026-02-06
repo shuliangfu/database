@@ -65,7 +65,7 @@ export class PostgreSQLAdapter extends BaseAdapter {
     retryCount: number = 0,
   ): Promise<void> {
     // 类型守卫：确保是 PostgreSQL 配置
-    if (config.type !== "postgresql") {
+    if (config.adapter !== "postgresql") {
       throw new Error("Invalid config type for PostgreSQL adapter");
     }
 

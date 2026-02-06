@@ -21,7 +21,7 @@ describe("SQLite 错误处理", () => {
   beforeAll(async () => {
     // 使用 initDatabase 初始化全局 dbManager
     await initDatabase({
-      type: "sqlite",
+      adapter: "sqlite",
       connection: {
         filename: ":memory:",
       },
@@ -46,7 +46,7 @@ describe("SQLite 错误处理", () => {
       await assertRejects(
         async () => {
           await badAdapter.connect({
-            type: "sqlite",
+            adapter: "sqlite",
             connection: {} as any,
           });
         },
@@ -59,7 +59,7 @@ describe("SQLite 错误处理", () => {
       // 使用无效的路径（在某些系统上可能会失败）
       try {
         await badAdapter.connect({
-          type: "sqlite",
+          adapter: "sqlite",
           connection: {
             filename: "/invalid/path/that/does/not/exist/test.db",
           },

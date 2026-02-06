@@ -57,7 +57,7 @@ describe("SQLiteAdapter", () => {
     it("应该连接到内存数据库", async () => {
       adapter = new SQLiteAdapter();
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: ":memory:",
         },
@@ -71,7 +71,7 @@ describe("SQLiteAdapter", () => {
     it("应该连接到文件数据库", async () => {
       adapter = new SQLiteAdapter();
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: testDbPath,
         },
@@ -85,7 +85,7 @@ describe("SQLiteAdapter", () => {
     it("应该使用自定义 SQLite 选项", async () => {
       adapter = new SQLiteAdapter();
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: ":memory:",
         },
@@ -104,7 +104,7 @@ describe("SQLiteAdapter", () => {
     it("应该在缺少 filename 时抛出错误", async () => {
       adapter = new SQLiteAdapter();
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {},
       };
 
@@ -116,7 +116,7 @@ describe("SQLiteAdapter", () => {
     beforeEach(async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -190,7 +190,7 @@ describe("SQLiteAdapter", () => {
     beforeEach(async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -279,7 +279,7 @@ describe("SQLiteAdapter", () => {
     beforeEach(async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -353,7 +353,7 @@ describe("SQLiteAdapter", () => {
     it("应该关闭数据库连接", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -367,7 +367,7 @@ describe("SQLiteAdapter", () => {
     it("应该可以多次调用 close 而不出错", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -380,7 +380,7 @@ describe("SQLiteAdapter", () => {
     it("应该返回连接池状态", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -399,7 +399,7 @@ describe("SQLiteAdapter", () => {
     it("应该返回健康检查结果", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -425,7 +425,7 @@ describe("SQLiteAdapter", () => {
     it("应该在连接后返回 true", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -435,7 +435,7 @@ describe("SQLiteAdapter", () => {
     it("应该在关闭后返回 false", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -449,7 +449,7 @@ describe("SQLiteAdapter", () => {
     it("应该支持创建保存点", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -496,7 +496,7 @@ describe("SQLiteAdapter", () => {
     it("应该支持释放保存点", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -535,7 +535,7 @@ describe("SQLiteAdapter", () => {
     it("应该支持设置和获取查询日志记录器", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -566,7 +566,7 @@ describe("SQLiteAdapter", () => {
       it("应该在健康检查后返回时间", async () => {
         const newAdapter = new SQLiteAdapter();
         const config: DatabaseConfig = {
-          type: "sqlite",
+          adapter: "sqlite",
           connection: {
             filename: ":memory:",
           },
@@ -641,7 +641,7 @@ describe("SQLiteAdapter", () => {
       it("应该在未设置时返回 null", async () => {
         const newAdapter = new SQLiteAdapter();
         const config: DatabaseConfig = {
-          type: "sqlite",
+          adapter: "sqlite",
           connection: {
             filename: ":memory:",
           },
@@ -672,7 +672,7 @@ describe("SQLiteAdapter", () => {
         // 确保 adapter 已连接
         if (!adapter.isConnected()) {
           const config: DatabaseConfig = {
-            type: "sqlite",
+            adapter: "sqlite",
             connection: {
               filename: ":memory:",
             },
@@ -687,7 +687,7 @@ describe("SQLiteAdapter", () => {
         expect(newAdapter.isConnected()).toBe(false);
 
         const config: DatabaseConfig = {
-          type: "sqlite",
+          adapter: "sqlite",
           connection: {
             filename: ":memory:",
           },
@@ -705,7 +705,7 @@ describe("SQLiteAdapter", () => {
     it("应该在事务适配器中执行查询", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -739,7 +739,7 @@ describe("SQLiteAdapter", () => {
     it("应该在事务适配器中执行更新", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -778,7 +778,7 @@ describe("SQLiteAdapter", () => {
     it("应该在事务适配器中获取连接池状态", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -795,7 +795,7 @@ describe("SQLiteAdapter", () => {
     it("应该在事务适配器中执行健康检查", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -811,7 +811,7 @@ describe("SQLiteAdapter", () => {
     it("应该禁止在事务适配器中关闭连接", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -830,7 +830,7 @@ describe("SQLiteAdapter", () => {
     it("应该支持嵌套事务", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -872,7 +872,7 @@ describe("SQLiteAdapter", () => {
     it("应该处理保存点名称冲突", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -918,7 +918,7 @@ describe("SQLiteAdapter", () => {
     it("应该处理保存点不存在的情况", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -947,7 +947,7 @@ describe("SQLiteAdapter", () => {
     it("应该支持多层保存点", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -1003,7 +1003,7 @@ describe("SQLiteAdapter", () => {
     it("应该支持JOIN查询", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -1061,7 +1061,7 @@ describe("SQLiteAdapter", () => {
     it("应该支持聚合函数", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -1109,7 +1109,7 @@ describe("SQLiteAdapter", () => {
     it("应该支持子查询", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -1144,7 +1144,7 @@ describe("SQLiteAdapter", () => {
     it("应该支持批量插入", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -1179,7 +1179,7 @@ describe("SQLiteAdapter", () => {
     it("应该支持批量更新", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -1227,7 +1227,7 @@ describe("SQLiteAdapter", () => {
     it("应该支持批量删除", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -1272,7 +1272,7 @@ describe("SQLiteAdapter", () => {
     it("应该支持获取最后插入的行ID", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -1302,7 +1302,7 @@ describe("SQLiteAdapter", () => {
     it("应该记录查询日志", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -1323,7 +1323,7 @@ describe("SQLiteAdapter", () => {
     it("应该记录执行日志", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -1355,7 +1355,7 @@ describe("SQLiteAdapter", () => {
     it("应该记录错误日志", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -1379,7 +1379,7 @@ describe("SQLiteAdapter", () => {
     it("应该处理空参数数组", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -1393,7 +1393,7 @@ describe("SQLiteAdapter", () => {
     it("应该处理null参数", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -1426,7 +1426,7 @@ describe("SQLiteAdapter", () => {
     it("应该处理特殊字符", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -1459,7 +1459,7 @@ describe("SQLiteAdapter", () => {
     it("应该防止SQL注入", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -1493,7 +1493,7 @@ describe("SQLiteAdapter", () => {
       await assertRejects(
         async () => {
           await badAdapter.connect({
-            type: "sqlite",
+            adapter: "sqlite",
             connection: {} as any,
           });
         },
@@ -1504,7 +1504,7 @@ describe("SQLiteAdapter", () => {
     it("应该处理SQL语法错误", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -1521,7 +1521,7 @@ describe("SQLiteAdapter", () => {
     it("应该处理表不存在错误", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -1540,7 +1540,7 @@ describe("SQLiteAdapter", () => {
     it("应该支持并发查询", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -1580,7 +1580,7 @@ describe("SQLiteAdapter", () => {
     it("应该支持并发事务", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -1620,7 +1620,7 @@ describe("SQLiteAdapter", () => {
     it("应该记录查询的详细信息", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 
@@ -1644,7 +1644,7 @@ describe("SQLiteAdapter", () => {
     it("应该记录执行的详细信息", async () => {
       adapter = new SQLiteAdapter();
       await adapter.connect({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       });
 

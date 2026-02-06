@@ -34,7 +34,7 @@ export function createMysqlConfig(
   const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "8866231");
 
   const config: MySQLConfig = {
-    type: "mysql",
+    adapter: "mysql",
     connection: {
       host: mysqlHost,
       port: mysqlPort,

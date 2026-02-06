@@ -56,7 +56,7 @@ describe("MySQL/MariaDB 错误处理", () => {
       await assertRejects(
         async () => {
           await badAdapter.connect({
-            type: "mysql",
+            adapter: "mysql",
             connection: {
               host: "invalid_host_that_does_not_exist_12345",
               port: 3306,
@@ -75,7 +75,7 @@ describe("MySQL/MariaDB 错误处理", () => {
       await assertRejects(
         async () => {
           await badAdapter.connect({
-            type: "mysql",
+            adapter: "mysql",
             connection: {
               host: "localhost",
               port: 99999,
@@ -94,7 +94,7 @@ describe("MySQL/MariaDB 错误处理", () => {
       await assertRejects(
         async () => {
           await badAdapter.connect({
-            type: "mysql",
+            adapter: "mysql",
             connection: {
               host: "localhost",
               port: 3306,
