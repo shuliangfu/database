@@ -40,7 +40,7 @@ export function createMongoConfig(
   ) === "true";
 
   const config: MongoConfig = {
-    type: "mongodb",
+    adapter: "mongodb",
     connection: {
       host: mongoHost,
       port: mongoPort,

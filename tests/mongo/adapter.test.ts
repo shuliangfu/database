@@ -89,7 +89,7 @@ describe("MongoDBAdapter", () => {
       await assertRejects(
         async () => {
           await invalidAdapter.connect({
-            type: "mongodb",
+            adapter: "mongodb",
             connection: {
               host: "invalid_host",
               port: 27017,
@@ -1112,7 +1112,7 @@ describe("MongoDBAdapter", () => {
           // 使用 Promise.race 添加超时，避免长时间等待
           await Promise.race([
             badAdapter.connect({
-              type: "mongodb",
+              adapter: "mongodb",
               connection: {
                 host: "invalid_host_that_does_not_exist",
                 port: 27017,
@@ -1143,7 +1143,7 @@ describe("MongoDBAdapter", () => {
           // 使用 Promise.race 添加超时，避免长时间等待
           await Promise.race([
             badAdapter.connect({
-              type: "mongodb",
+              adapter: "mongodb",
               connection: {
                 host: "",
                 database: "",

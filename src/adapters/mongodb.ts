@@ -52,7 +52,7 @@ export class MongoDBAdapter extends BaseAdapter {
     retryCount: number = 0,
   ): Promise<void> {
     // 类型守卫：确保是 MongoDB 配置
-    if (config.type !== "mongodb") {
+    if (config.adapter !== "mongodb") {
       throw new Error("Invalid config type for MongoDB adapter");
     }
 

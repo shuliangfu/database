@@ -1421,12 +1421,12 @@ export abstract class SQLModel {
     fieldName: string,
     adapter?: DatabaseAdapter | null,
   ): string {
-    const dbType = (adapter as any)?.config?.type;
-    // 根据数据库类型转义字段名
-    if (dbType === "postgresql" && /[A-Z]/.test(fieldName)) {
+    const dbAdapter = (adapter as any)?.config?.adapter;
+    // 根据数据库适配器转义字段名
+    if (dbAdapter === "postgresql" && /[A-Z]/.test(fieldName)) {
       // PostgreSQL 需要为包含大写字母的字段名加双引号
       return `"${fieldName}"`;
-    } else if (dbType === "mysql") {
+    } else if (dbAdapter === "mysql") {
       // MySQL/MariaDB 使用反引号包裹字段名（避免保留字和特殊字符问题）
       return `\`${fieldName}\``;
     }
@@ -1446,10 +1446,10 @@ export abstract class SQLModel {
     adapter?: DatabaseAdapter | null,
   ): string {
     // 检测数据库类型
-    const dbType = (adapter as any)?.config?.type;
+    const dbAdapter = (adapter as any)?.config?.adapter;
 
     // MySQL/MariaDB 的 DATETIME 类型默认不支持毫秒，使用 YYYY-MM-DD HH:MM:SS 格式
-    if (dbType === "mysql") {
+    if (dbAdapter === "mysql") {
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, "0");
       const day = String(date.getDate()).padStart(2, "0");
@@ -3976,7 +3976,7 @@ export abstract class SQLModel {
     let sql = `INSERT INTO ${this.tableName} (${
       escapedKeys.join(", ")
     }) VALUES (${placeholders})`;
-    if ((this.adapter as any)?.config?.type === "postgresql") {
+    if ((this.adapter as any)?.config?.adapter === "postgresql") {
       const escapedPrimaryKey = SQLModel.escapeFieldName.call(
         this,
         this.primaryKey,
@@ -4349,10 +4349,10 @@ export abstract class SQLModel {
     ).join(", ");
 
     let sql = `UPDATE ${this.tableName} SET ${setClause} WHERE ${where}`;
-    const dbType = (this.adapter as any)?.config?.type;
-    const isPostgres = dbType === "postgresql";
-    const isMySQL = dbType === "mysql";
-    const isSQLite = dbType === "sqlite";
+    const dbAdapter = (this.adapter as any)?.config?.adapter;
+    const isPostgres = dbAdapter === "postgresql";
+    const isMySQL = dbAdapter === "mysql";
+    const isSQLite = dbAdapter === "sqlite";
 
     // 如果 returnLatest 为 true，尝试使用 RETURNING 子句获取更新后的值
     if (returnLatest && (isPostgres || isMySQL || isSQLite)) {
@@ -5084,10 +5084,10 @@ export abstract class SQLModel {
     let sql = `INSERT INTO ${this.tableName} (${
       escapedKeys.join(", ")
     }) VALUES ${valuesList}`;
-    const dbType = (this.adapter as any)?.config?.type;
-    const isPostgres = dbType === "postgresql";
-    const isMySQL = dbType === "mysql";
-    const isSQLite = dbType === "sqlite";
+    const dbAdapter = (this.adapter as any)?.config?.adapter;
+    const isPostgres = dbAdapter === "postgresql";
+    const isMySQL = dbAdapter === "mysql";
+    const isSQLite = dbAdapter === "sqlite";
 
     // 尝试使用 RETURNING 子句获取插入的 ID（MySQL 8.0+ 和 SQLite 3.35.0+ 支持）
     // 注意：这里假设数据库版本支持 RETURNING，如果失败会回退到其他方式
@@ -5356,9 +5356,9 @@ export abstract class SQLModel {
     const setClause = setParts.join(", ");
 
     let sql = `UPDATE ${this.tableName} SET ${setClause} WHERE ${where}`;
-    const dbType = (this.adapter as any)?.config?.type;
-    const isPostgres = dbType === "postgresql";
-    const isSQLite = dbType === "sqlite";
+    const dbAdapter = (this.adapter as any)?.config?.adapter;
+    const isPostgres = dbAdapter === "postgresql";
+    const isSQLite = dbAdapter === "sqlite";
 
     // 尝试使用 RETURNING 子句获取更新后的值
     // PostgreSQL 完全支持 RETURNING
@@ -5619,14 +5619,14 @@ export abstract class SQLModel {
 
     const useDialect = options?.useDialectUpsert ??
       ((this as any).useDialectUpsert === true);
-    const type = (this.adapter as any)?.config?.type;
+    const dbAdapter = (this.adapter as any)?.config?.adapter;
     const conflictKeys = options?.conflictKeys ??
       (this as any).upsertConflictKeys ??
       (typeof condition === "object" && !Array.isArray(condition)
         ? Object.keys(condition)
         : []);
 
-    if (useDialect && type === "postgresql" && conflictKeys.length > 0) {
+    if (useDialect && dbAdapter === "postgresql" && conflictKeys.length > 0) {
       try {
         // 如果 resurrect 为 true，先检查并恢复已软删除的记录
         if (resurrect && this.softDelete) {
@@ -5694,7 +5694,7 @@ export abstract class SQLModel {
       }
     }
 
-    if (useDialect && type === "mysql") {
+    if (useDialect && dbAdapter === "mysql") {
       // 如果 resurrect 为 true，先检查并恢复已软删除的记录
       if (resurrect && this.softDelete) {
         const existing = await this.withTrashed().find(condition);
@@ -6875,9 +6875,9 @@ export abstract class SQLModel {
 
     // SQLite 不支持 TRUNCATE TABLE，需要使用 DELETE FROM
     // 对于 SQLite，还需要重置自增计数器（如果表有自增主键）
-    // 通过适配器的 config.type 来判断数据库类型
+    // 通过适配器的 config.adapter 来判断数据库类型
     const adapterConfig = (this.adapter as any).config;
-    const isSQLite = adapterConfig?.type === "sqlite";
+    const isSQLite = adapterConfig?.adapter === "sqlite";
     let sql: string;
 
     if (isSQLite) {

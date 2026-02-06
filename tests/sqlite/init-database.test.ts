@@ -40,7 +40,7 @@ describe("init-database", () => {
   describe("initDatabase", () => {
     it("应该初始化数据库连接", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: ":memory:",
         },
@@ -57,7 +57,7 @@ describe("init-database", () => {
 
     it("应该支持自定义连接名称", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: ":memory:",
         },
@@ -71,11 +71,11 @@ describe("init-database", () => {
 
     it("应该复用已存在的数据库管理器", async () => {
       const config1: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       };
       const config2: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       };
 
@@ -93,7 +93,7 @@ describe("init-database", () => {
     it("应该从配置对象初始化数据库", async () => {
       const config = {
         database: {
-          type: "sqlite" as const,
+          adapter: "sqlite" as const,
           connection: {
             filename: ":memory:",
           },
@@ -111,7 +111,7 @@ describe("init-database", () => {
     it("应该支持自定义连接名称", async () => {
       const config = {
         database: {
-          type: "sqlite" as const,
+          adapter: "sqlite" as const,
           connection: {
             filename: ":memory:",
           },
@@ -142,7 +142,7 @@ describe("init-database", () => {
   describe("autoInitDatabase", () => {
     it("应该从配置加载器自动初始化数据库", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: ":memory:",
         },
@@ -158,7 +158,7 @@ describe("init-database", () => {
 
     it("应该支持自定义连接名称", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: ":memory:",
         },
@@ -209,7 +209,7 @@ describe("init-database", () => {
   describe("getDatabaseManager", () => {
     it("应该获取数据库管理器实例", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: ":memory:",
         },
@@ -240,7 +240,7 @@ describe("init-database", () => {
 
     it("应该在数据库初始化后返回 true", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: ":memory:",
         },
@@ -255,7 +255,7 @@ describe("init-database", () => {
   describe("hasConnection", () => {
     it("应该检查连接是否存在", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: ":memory:",
         },
@@ -270,7 +270,7 @@ describe("init-database", () => {
 
     it("应该使用默认连接名称", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: ":memory:",
         },
@@ -285,7 +285,7 @@ describe("init-database", () => {
   describe("closeDatabase", () => {
     it("应该关闭所有数据库连接", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: ":memory:",
         },
@@ -315,7 +315,7 @@ describe("init-database", () => {
   describe("setDatabaseConfigLoader", () => {
     it("应该设置配置加载器", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: ":memory:",
         },
@@ -337,7 +337,7 @@ describe("init-database", () => {
   describe("setupDatabaseConfigLoader", () => {
     it("应该设置配置加载器（便捷方法）", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: ":memory:",
         },
@@ -360,7 +360,7 @@ describe("init-database", () => {
     it("应该设置数据库管理器实例", async () => {
       const manager = new DatabaseManager();
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: ":memory:",
         },

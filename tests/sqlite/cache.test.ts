@@ -35,7 +35,7 @@ describe("缓存机制测试", () => {
   beforeAll(async () => {
     // 初始化 SQLite 数据库
     await initDatabase({
-      type: "sqlite",
+      adapter: "sqlite",
       connection: {
         filename: ":memory:",
       },

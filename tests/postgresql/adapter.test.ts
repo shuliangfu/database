@@ -101,7 +101,7 @@ describe("PostgreSQLAdapter", () => {
         await assertRejects(
           async () => {
             await invalidAdapter.connect({
-              type: "postgresql",
+              adapter: "postgresql",
               connection: {
                 host: "invalid_host",
                 port: 5432,
@@ -1251,7 +1251,7 @@ describe("PostgreSQLAdapter", () => {
       await assertRejects(
         async () => {
           await badAdapter.connect({
-            type: "postgresql",
+            adapter: "postgresql",
             connection: {
               host: "invalid_host",
               port: 5432,
@@ -1270,7 +1270,7 @@ describe("PostgreSQLAdapter", () => {
       await assertRejects(
         async () => {
           await badAdapter.connect({
-            type: "postgresql",
+            adapter: "postgresql",
             connection: {
               host: "",
               database: "",
@@ -1358,7 +1358,7 @@ describe("PostgreSQLAdapter", () => {
       await assertRejects(
         async () => {
           await testAdapter.connect({
-            type: "postgresql",
+            adapter: "postgresql",
             connection: {
               host: "invalid_host_that_does_not_exist",
               port: 5432,

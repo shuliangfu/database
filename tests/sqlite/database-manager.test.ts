@@ -21,7 +21,7 @@ describe("DatabaseManager", () => {
   describe("connect", () => {
     it("应该连接到 SQLite 数据库", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: ":memory:",
         },
@@ -37,11 +37,11 @@ describe("DatabaseManager", () => {
 
     it("应该支持多个连接", async () => {
       const config1: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       };
       const config2: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       };
 
@@ -54,7 +54,7 @@ describe("DatabaseManager", () => {
 
     it("应该使用默认连接名称", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       };
 
@@ -68,7 +68,7 @@ describe("DatabaseManager", () => {
   describe("getConnection", () => {
     it("应该获取已存在的连接", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       };
 
@@ -81,7 +81,7 @@ describe("DatabaseManager", () => {
 
     it("应该使用默认连接名称", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       };
 
@@ -102,7 +102,7 @@ describe("DatabaseManager", () => {
   describe("close", () => {
     it("应该关闭指定连接", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       };
 
@@ -115,7 +115,7 @@ describe("DatabaseManager", () => {
 
     it("应该关闭所有连接", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       };
 
@@ -141,7 +141,7 @@ describe("DatabaseManager", () => {
   describe("hasConnection", () => {
     it("应该检查连接是否存在", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       };
 
@@ -153,7 +153,7 @@ describe("DatabaseManager", () => {
 
     it("应该使用默认连接名称", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       };
 
@@ -165,7 +165,7 @@ describe("DatabaseManager", () => {
   describe("getConnectionNames", () => {
     it("应该返回所有连接名称", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       };
 
@@ -187,7 +187,7 @@ describe("DatabaseManager", () => {
   describe("createAdapter", () => {
     it("应该为 SQLite 创建适配器", async () => {
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       };
 
@@ -221,7 +221,7 @@ describe("DatabaseManager", () => {
       manager.setAdapterFactory(factory as any);
 
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       };
 
@@ -379,7 +379,7 @@ describe("DatabaseManager", () => {
       const dbManager = createDatabaseManager({ name: "chain" }, container);
 
       const config: DatabaseConfig = {
-        type: "sqlite",
+        adapter: "sqlite",
         connection: { filename: ":memory:" },
       };
 

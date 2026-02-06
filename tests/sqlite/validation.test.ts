@@ -44,7 +44,7 @@ describe("SQLModel 数据验证", () => {
 
       // 使用 initDatabase 初始化全局 dbManager
       await initDatabase({
-        type: "sqlite",
+        adapter: "sqlite",
         connection: {
           filename: ":memory:",
         },

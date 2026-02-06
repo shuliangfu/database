@@ -47,7 +47,7 @@ describe("SQLModel SQLite", () => {
 
     // 初始化数据库
     await initDatabase({
-      type: "sqlite",
+      adapter: "sqlite",
       connection: {
         filename: sqlitePath,
       },

@@ -60,7 +60,7 @@ describe("MongoDB 错误处理", () => {
           // 使用 Promise.race 添加超时，避免长时间等待
           await Promise.race([
             badAdapter.connect({
-              type: "mongodb",
+              adapter: "mongodb",
               connection: {
                 host: "invalid_host_that_does_not_exist_12345",
                 port: 27017,
@@ -91,7 +91,7 @@ describe("MongoDB 错误处理", () => {
           // 使用 Promise.race 添加超时，避免长时间等待
           await Promise.race([
             badAdapter.connect({
-              type: "mongodb",
+              adapter: "mongodb",
               connection: {
                 host: "localhost",
                 port: 99999,

@@ -84,7 +84,7 @@ describe("MySQLAdapter", () => {
       await assertRejects(
         async () => {
           await invalidAdapter.connect({
-            type: "mysql",
+            adapter: "mysql",
             connection: {
               host: "invalid_host",
               port: 3306,
@@ -1200,7 +1200,7 @@ describe("MySQLAdapter", () => {
       await assertRejects(
         async () => {
           await badAdapter.connect({
-            type: "mysql",
+            adapter: "mysql",
             connection: {
               host: "invalid_host",
               port: 3306,
@@ -1219,7 +1219,7 @@ describe("MySQLAdapter", () => {
       await assertRejects(
         async () => {
           await badAdapter.connect({
-            type: "mysql",
+            adapter: "mysql",
             connection: {
               host: "",
               database: "",
@@ -1266,7 +1266,7 @@ describe("MySQLAdapter", () => {
       await assertRejects(
         async () => {
           await testAdapter.connect({
-            type: "mysql",
+            adapter: "mysql",
             connection: {
               host: "invalid_host_that_does_not_exist",
               port: 3306,

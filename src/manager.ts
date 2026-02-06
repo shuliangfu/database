@@ -141,36 +141,36 @@ export class DatabaseManager {
     config: DatabaseConfig,
   ): Promise<ConnectionStatus> {
     const adapter = this.adapterFactory
-      ? this.adapterFactory(config.type)
-      : this.createAdapter(config.type);
+      ? this.adapterFactory(config.adapter)
+      : this.createAdapter(config.adapter);
     await adapter.connect(config);
     this.adapters.set(name, adapter);
 
-    // 返回连接状态（根据配置类型提取相应字段）
+    // 返回连接状态（根据配置适配器提取相应字段）
     let host: string | undefined;
     let database: string | undefined;
     let filename: string | undefined;
 
-    if (config.type === "postgresql") {
+    if (config.adapter === "postgresql") {
       const pgConfig = config as PostgreSQLConfig;
       host = pgConfig.connection.host;
       database = pgConfig.connection.database;
-    } else if (config.type === "mysql") {
+    } else if (config.adapter === "mysql") {
       const mysqlConfig = config as MySQLConfig;
       host = mysqlConfig.connection.host;
       database = mysqlConfig.connection.database;
-    } else if (config.type === "mongodb") {
+    } else if (config.adapter === "mongodb") {
       const mongoConfig = config as MongoConfig;
       host = mongoConfig.connection.host;
       database = mongoConfig.connection.database;
-    } else if (config.type === "sqlite") {
+    } else if (config.adapter === "sqlite") {
       const sqliteConfig = config as SQLiteConfig;
       filename = sqliteConfig.connection.filename;
     }
 
     return {
       name,
-      type: config.type,
+      type: config.adapter,
       connected: adapter.isConnected(),
       host,
       database,

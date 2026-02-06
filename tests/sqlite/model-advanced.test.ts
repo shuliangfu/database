@@ -65,7 +65,7 @@ describe("SQLModel 高级功能", () => {
   beforeAll(async () => {
     // 使用 initDatabase 初始化全局 dbManager
     await initDatabase({
-      type: "sqlite",
+      adapter: "sqlite",
       connection: {
         filename: ":memory:",
       },
@@ -118,7 +118,7 @@ describe("SQLModel 高级功能", () => {
       } catch {
         // 如果数据库未初始化，重新初始化
         await initDatabase({
-          type: "sqlite",
+          adapter: "sqlite",
           connection: {
             filename: ":memory:",
           },
