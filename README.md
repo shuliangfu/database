@@ -1,8 +1,8 @@
 # @dreamer/database
 
-> 一个兼容 Deno 和 Bun
-> 的数据库工具库，提供统一的抽象层支持多种数据库，提供完整的
-> ORM/ODM、查询构建器和迁移管理功能
+> A database utility library compatible with Deno and Bun, providing a unified abstraction layer for multiple databases, with complete ORM/ODM, query builder, and migration management features
+
+English | [中文 (Chinese)](./README-zh.md)
 
 [![JSR](https://jsr.io/badges/@dreamer/database)](https://jsr.io/@dreamer/database)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE.md)
@@ -10,15 +10,13 @@
 
 ---
 
-## 🎯 功能
+## 🎯 Features
 
-一个经过性能优化的数据库工具库，通过统一的抽象层支持
-PostgreSQL、MySQL、SQLite、MongoDB 等多种数据库，提供完整的
-ORM/ODM、查询构建器和迁移管理功能。
+A performance-optimized database utility library that supports PostgreSQL, MySQL, SQLite, MongoDB and other databases through a unified abstraction layer, providing complete ORM/ODM, query builder, and migration management features.
 
 ---
 
-## 📦 安装
+## 📦 Installation
 
 ### Deno
 
@@ -34,112 +32,109 @@ bunx jsr add @dreamer/database
 
 ---
 
-## 🌍 环境兼容性
+## 🌍 Environment Compatibility
 
-| 环境       | 版本要求 | 状态                                                          |
-| ---------- | -------- | ------------------------------------------------------------- |
-| **Deno**   | 2.5+     | ✅ 完全支持                                                   |
-| **Bun**    | 1.0+     | ✅ 完全支持                                                   |
-| **服务端** | -        | ✅ 支持（兼容 Deno 和 Bun 运行时，需要数据库驱动）            |
-| **客户端** | -        | ❌ 不支持（浏览器环境无法直接连接数据库）                     |
-| **依赖**   | -        | 📦 需要相应的数据库驱动（PostgreSQL、MySQL、SQLite、MongoDB） |
+| Environment | Version Requirement | Status                                                          |
+| ----------- | ------------------- | --------------------------------------------------------------- |
+| **Deno**    | 2.5+                | ✅ Fully supported                                              |
+| **Bun**     | 1.0+                | ✅ Fully supported                                              |
+| **Server**  | -                   | ✅ Supported (compatible with Deno and Bun runtimes, requires database driver) |
+| **Client**  | -                   | ❌ Not supported (browser cannot connect to database directly)  |
+| **Dependencies** | -             | 📦 Requires corresponding database drivers (PostgreSQL, MySQL, SQLite, MongoDB) |
 
 ---
 
-## ✨ 特性
+## ✨ Characteristics
 
-- **多数据库适配器**：
-  - PostgreSQL 适配器（PostgreSQLAdapter）- 完全支持 PostgreSQL 14+
-  - MySQL/MariaDB 适配器（MySQLAdapter）- 完全支持 MySQL 8.0+
-  - SQLite 适配器（SQLiteAdapter）- 支持 SQLite 3.35.0+，优先使用 Bun 原生 API
-  - MongoDB 适配器（MongoDBAdapter）- 完全支持 MongoDB 7.0+
-  - 统一的数据库接口（DatabaseAdapter）- 所有适配器实现统一接口
-  - 运行时切换数据库后端 - 支持动态切换数据库
-  - 多数据库实例支持 - 同时使用多个数据库连接
-  - 服务容器集成 - 支持依赖注入和服务容器管理
+- **Multi-database adapters**:
+  - PostgreSQL adapter (PostgreSQLAdapter) - Full support for PostgreSQL 14+
+  - MySQL/MariaDB adapter (MySQLAdapter) - Full support for MySQL 8.0+
+  - SQLite adapter (SQLiteAdapter) - Supports SQLite 3.35.0+, prefers Bun native API
+  - MongoDB adapter (MongoDBAdapter) - Full support for MongoDB 7.0+
+  - Unified database interface (DatabaseAdapter) - All adapters implement unified interface
+  - Runtime database backend switching - Supports dynamic database switching
+  - Multi-database instance support - Use multiple database connections simultaneously
+  - Service container integration - Supports dependency injection and service container management
 
-- **ORM/ODM 功能**：
-  - SQLModel - 关系型数据库 ORM（PostgreSQL、MySQL、SQLite）
+- **ORM/ODM features**:
+  - SQLModel - Relational database ORM (PostgreSQL, MySQL, SQLite)
   - MongoModel - MongoDB ODM
-  - 统一接口 - SQLModel 和 MongoModel 接口完全统一（91.7% 统一率）
-  - 链式查询构建器 - 流畅的查询 API，支持 `query()` 和 `find()` 方法
-  - 查询条件方法 - `query()` 支持
-    `where`、`orWhere`、`andWhere`、`like`、`orLike`、`andLike`；`find()` 支持
-    `orWhere`、`andWhere`、`orLike`、`andLike`（`find()` 不支持 `where` 和
-    `like`，因为已有初始条件，不应重置）
-  - asArray() 方法 - 返回纯 JSON 对象数组，支持所有链式调用和聚合方法
-  - 数据验证 - 30+ 种验证规则（详见验证规则章节）
-  - 生命周期钩子 - beforeCreate、afterCreate、beforeUpdate、afterUpdate 等
-  - 软删除支持 - 完整的软删除功能
-  - 查询结果缓存 - 自动缓存查询结果
-  - 关联关系 - belongsTo、hasOne、hasMany
+  - Unified interface - SQLModel and MongoModel interfaces fully unified (91.7% unification rate)
+  - Chained query builder - Fluent query API, supports `query()` and `find()` methods
+  - Query condition methods - `query()` supports `where`, `orWhere`, `andWhere`, `like`, `orLike`, `andLike`; `find()` supports `orWhere`, `andWhere`, `orLike`, `andLike` (`find()` does not support `where` and `like` because it already has initial condition and should not reset)
+  - asArray() method - Returns pure JSON object array, supports all chained calls and aggregation methods
+  - Data validation - 30+ validation rules (see validation rules section)
+  - Lifecycle hooks - beforeCreate, afterCreate, beforeUpdate, afterUpdate, etc.
+  - Soft delete support - Complete soft delete functionality
+  - Query result caching - Auto cache query results
+  - Associations - belongsTo, hasOne, hasMany
 
-- **查询构建器**：
-  - SQLQueryBuilder - 关系型数据库查询构建器
-  - MongoQueryBuilder - MongoDB 查询构建器
-  - 链式 API - 流畅的链式查询语法
-  - 类型安全 - 完整的 TypeScript 类型支持
+- **Query builder**:
+  - SQLQueryBuilder - Relational database query builder
+  - MongoQueryBuilder - MongoDB query builder
+  - Chained API - Fluent chained query syntax
+  - Type safe - Complete TypeScript type support
 
-- **迁移管理**：
-  - MigrationManager - 数据库迁移管理工具
-  - SQL 迁移支持 - PostgreSQL、MySQL、SQLite
-  - MongoDB 迁移支持 - MongoDB 集合迁移
-  - 迁移历史跟踪 - 自动记录迁移历史
-  - 迁移回滚支持 - 支持迁移回滚
+- **Migration management**:
+  - MigrationManager - Database migration management tool
+  - SQL migration support - PostgreSQL, MySQL, SQLite
+  - MongoDB migration support - MongoDB collection migration
+  - Migration history tracking - Auto record migration history
+  - Migration rollback support - Supports migration rollback
 
-- **其他功能**：
-  - 事务支持 - 基本事务、嵌套事务、保存点
-  - 连接池管理 - 自动管理数据库连接池
-  - 查询日志记录 - 支持日志级别过滤、慢查询检测、翻译函数 `t`、自定义 `logger`、`debug` 参数
-  - 健康检查 - 数据库连接健康检查
-  - 数据库初始化工具 - 支持自动初始化、配置加载
-  - 预处理语句 - 防止 SQL 注入
+- **Other features**:
+  - Transaction support - Basic transactions, nested transactions, savepoints
+  - Connection pool management - Auto manage database connection pool
+  - Query logging - Supports log level filtering, slow query detection, translation function `t`, custom `logger`, `debug` parameter
+  - Health check - Database connection health check
+  - Database initialization tool - Supports auto initialization, config loading
+  - Prepared statements - Prevents SQL injection
 
 ---
 
-## 🎯 使用场景
+## 🎯 Use Cases
 
-- **关系型数据库操作**：PostgreSQL、MySQL、SQLite 数据持久化
-- **MongoDB 文档数据库操作**：MongoDB 集合操作和查询
-- **ORM/ODM 开发**：使用模型进行数据库操作
-- **多数据库项目**：同时使用关系型数据库和 MongoDB
-- **数据库迁移**：数据库结构版本管理和迁移
-- **事务处理**：复杂业务逻辑的事务支持
-- **查询优化**：使用查询构建器优化查询性能
+- **Relational database operations**: PostgreSQL, MySQL, SQLite data persistence
+- **MongoDB document database operations**: MongoDB collection operations and queries
+- **ORM/ODM development**: Use models for database operations
+- **Multi-database projects**: Use relational database and MongoDB simultaneously
+- **Database migration**: Database structure version management and migration
+- **Transaction handling**: Transaction support for complex business logic
+- **Query optimization**: Use query builder to optimize query performance
 
 ---
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 基础数据库操作
+### Basic Database Operations
 
 ```typescript
 import { getDatabase, initDatabase } from "jsr:@dreamer/database";
 
-// 初始化 SQLite 数据库
+// Initialize SQLite database
 await initDatabase({
   adapter: "sqlite",
   connection: {
-    filename: ":memory:", // 或文件路径
+    filename: ":memory:", // or file path
   },
 });
 
-// 获取数据库适配器
+// Get database adapter
 const db = getDatabase();
 
-// 执行 SQL 查询
+// Execute SQL query
 const users = await db.query(
   "SELECT * FROM users WHERE age > ?",
   [18],
 );
 
-// 执行更新操作
+// Execute update operation
 await db.execute(
   "INSERT INTO users (name, email) VALUES (?, ?)",
   ["Alice", "alice@example.com"],
 );
 
-// 事务支持
+// Transaction support
 await db.transaction(async (trx) => {
   await trx.execute("INSERT INTO users (name, email) VALUES (?, ?)", [
     "Alice",
@@ -157,12 +152,12 @@ await db.transaction(async (trx) => {
 ```typescript
 import { initDatabase, SQLModel } from "jsr:@dreamer/database";
 
-// 定义用户模型
+// Define user model
 class User extends SQLModel {
   static override tableName = "users";
   static override primaryKey = "id";
 
-  // 定义字段和验证规则
+  // Define fields and validation rules
   static override schema = {
     name: {
       type: "string",
@@ -189,70 +184,70 @@ class User extends SQLModel {
   };
 }
 
-// 初始化数据库
+// Initialize database
 await initDatabase({
   adapter: "sqlite",
   connection: { filename: ":memory:" },
 });
 
-// 初始化模型
+// Initialize model
 await User.init();
 
-// 创建用户
+// Create user
 const user = await User.create({
   name: "Alice",
   email: "alice@example.com",
   age: 25,
 });
 
-// 查询用户
+// Query user
 const foundUser = await User.findById(user.id);
 
-// 使用 query() 方法进行链式查询
+// Chain query using query() method
 const users = await User.query()
   .where({ age: { $gt: 18 } })
   .sort({ created_at: "desc" })
   .findAll();
 
-// 使用 find() 方法进行链式查询（支持追加查询条件）
+// Chain query using find() method (supports appending query conditions)
 const users2 = await User.find({ age: { $gt: 18 } })
   .sort({ created_at: "desc" })
   .findAll();
 
-// find() 方法支持追加条件（orWhere, andWhere, orLike, andLike）
+// find() method supports appending conditions (orWhere, andWhere, orLike, andLike)
 const users2a = await User.find({ status: "active" })
   .andWhere({ age: { $gte: 18 } })
   .orWhere({ status: "inactive" })
   .findAll();
 
-// 使用 query() 方法进行链式查询（支持所有查询条件方法）
+// Chain query using query() method (supports all query condition methods)
 const users3 = await User.query()
   .where({ status: "active" })
   .andWhere({ age: { $gte: 18 } })
   .orWhere({ status: "inactive" })
   .findAll();
 
-// 使用模糊查询
+// Fuzzy query
 const users4 = await User.query()
   .like({ name: "Alice" })
   .orLike({ name: "Bob" })
   .findAll();
 
-// find() 方法也支持模糊查询（使用 orLike 和 andLike）
+// find() method also supports fuzzy query (using orLike and andLike)
 const users4a = await User.find({ name: { $like: "%Alice%" } })
   .orLike({ name: "Bob" })
   .findAll();
 
-// 返回纯 JSON 对象数组（不是模型实例）
+// Return plain JSON object array (not model instances)
 const jsonUsers = await User.query()
   .where("age", ">", 18)
   .asArray()
   .findAll();
 
-// 更新用户
+// Update user
 await User.updateById(user.id, { age: 26 });
 
-// 删除用户（软删除）
+// Delete user (soft delete)
 await User.deleteById(user.id);
 ```
 
@@ -261,7 +256,7 @@ await User.deleteById(user.id);
 ```typescript
 import { initDatabase, MongoModel } from "jsr:@dreamer/database";
 
-// 定义文章模型
+// Define article model
 class Article extends MongoModel {
   static override collectionName = "articles";
   static override primaryKey = "_id";
@@ -289,7 +284,7 @@ class Article extends MongoModel {
   };
 }
 
-// 初始化数据库
+// Initialize database
 await initDatabase({
   adapter: "mongodb",
   connection: {
@@ -299,28 +294,28 @@ await initDatabase({
   },
 });
 
-// 初始化模型
+// Initialize model
 await Article.init();
 
-// 创建文章
+// Create article
 const article = await Article.create({
   title: "Hello World",
   content: "This is my first article",
   status: "published",
 });
 
-// 查询文章
+// Query articles
 const articles = await Article.query()
   .where({ status: "published" })
   .sort({ created_at: -1 })
   .findAll();
 
-// 使用 find() 方法进行链式查询
+// Chain query using find() method
 const articles2 = await Article.find({ status: "published" })
   .sort({ created_at: -1 })
   .findAll();
 
-// 返回纯 JSON 对象数组（不是模型实例）
+// Return plain JSON object array (not model instances)
 const jsonArticles = await Article.query()
   .where("status", "published")
   .asArray()
@@ -329,26 +324,26 @@ const jsonArticles = await Article.query()
 
 ---
 
-## 📚 API 文档
+## 📚 API Documentation
 
-### 数据库初始化
+### Database Initialization
 
 #### initDatabase
 
-初始化数据库连接。
+Initialize database connection.
 
 ```typescript
 initDatabase(config: DatabaseConfig, connectionName?: string): Promise<ConnectionStatus>
 ```
 
-**参数：**
+**Parameters:**
 
-- `config: DatabaseConfig` - 数据库配置
-- `connectionName?: string` - 连接名称（默认为 'default'）
+- `config: DatabaseConfig` - Database configuration
+- `connectionName?: string` - Connection name (default: 'default')
 
-**返回：** `Promise<ConnectionStatus>` - 连接状态信息
+**Returns:** `Promise<ConnectionStatus>` - Connection status information
 
-**示例：**
+**Example:**
 
 ```typescript
 // SQLite
@@ -389,69 +384,69 @@ await initDatabase({
     port: 27017,
     database: "mydb",
   },
-  // MongoDB 特定配置选项（可选）
+  // MongoDB specific configuration options (optional)
   mongoOptions: {
-    // 服务器选择超时时间（毫秒），默认：30000
+    // Server selection timeout (ms), default: 30000
     serverSelectionTimeoutMS: 30000,
-    // 连接超时时间（毫秒），默认：5000
+    // Connection timeout (ms), default: 5000
     connectTimeoutMS: 5000,
-    // Socket 超时时间（毫秒），默认：5000
+    // Socket timeout (ms), default: 5000
     socketTimeoutMS: 5000,
-    // 副本集名称（如果 MongoDB 开启了副本集，必须设置）
+    // Replica set name (required if MongoDB uses replica set)
     replicaSet: "rs0",
-    // 是否使用直接连接模式（单节点副本集建议设置为 true）
+    // Use direct connection mode (recommended true for single-node replica set)
     directConnection: true,
-    // 连接池配置
+    // Connection pool configuration
     maxPoolSize: 10,
     minPoolSize: 2,
   },
 });
 ```
 
-#### 数据库配置参数与环境变量
+#### Database Configuration Parameters and Environment Variables
 
-各数据库支持通过环境变量覆盖连接配置，便于测试与部署：
+Each database supports overriding connection configuration via environment variables for testing and deployment:
 
-**MySQL/MariaDB**：
+**MySQL/MariaDB**:
 
-| 环境变量 | 默认值 | 说明 |
-|----------|--------|------|
-| `MYSQL_HOST` | `127.0.0.1` | 主机地址 |
-| `MYSQL_PORT` | `3306` | 端口 |
-| `MYSQL_DATABASE` | `test` | 数据库名 |
-| `MYSQL_USER` | `root` | 用户名 |
-| `MYSQL_PASSWORD` | `8866231` | 密码 |
+| Environment Variable | Default | Description |
+|----------------------|---------|-------------|
+| `MYSQL_HOST` | `127.0.0.1` | Host address |
+| `MYSQL_PORT` | `3306` | Port |
+| `MYSQL_DATABASE` | `test` | Database name |
+| `MYSQL_USER` | `root` | Username |
+| `MYSQL_PASSWORD` | `8866231` | Password |
 
-**PostgreSQL**：
+**PostgreSQL**:
 
-| 环境变量 | 默认值 | 说明 |
-|----------|--------|------|
-| `POSTGRES_HOST` | `localhost` | 主机地址 |
-| `POSTGRES_PORT` | `5432` | 端口 |
-| `POSTGRES_DATABASE` | `postgres` | 数据库名 |
-| `POSTGRES_USER` | `root` | 用户名 |
-| `POSTGRES_PASSWORD` | `8866231` | 密码 |
+| Environment Variable | Default | Description |
+|----------------------|---------|-------------|
+| `POSTGRES_HOST` | `localhost` | Host address |
+| `POSTGRES_PORT` | `5432` | Port |
+| `POSTGRES_DATABASE` | `postgres` | Database name |
+| `POSTGRES_USER` | `root` | Username |
+| `POSTGRES_PASSWORD` | `8866231` | Password |
 
-**MongoDB**：
+**MongoDB**:
 
-| 环境变量 | 默认值 | 说明 |
-|----------|--------|------|
-| `MONGODB_HOST` | `localhost` | 主机地址 |
-| `MONGODB_PORT` | `27017` | 端口 |
-| `MONGODB_DATABASE` | `test` | 数据库名 |
-| `MONGODB_USER` | `root` | 用户名（空则无认证） |
-| `MONGODB_PASSWORD` | `8866231` | 密码 |
-| `MONGODB_AUTH_SOURCE` | `admin` | 认证库 |
-| `MONGODB_REPLICA_SET` | `rs0` | 副本集名称 |
-| `MONGODB_DIRECT_CONNECTION` | `true` | 是否直接连接 |
+| Environment Variable | Default | Description |
+|----------------------|---------|-------------|
+| `MONGODB_HOST` | `localhost` | Host address |
+| `MONGODB_PORT` | `27017` | Port |
+| `MONGODB_DATABASE` | `test` | Database name |
+| `MONGODB_USER` | `root` | Username (empty for no auth) |
+| `MONGODB_PASSWORD` | `8866231` | Password |
+| `MONGODB_AUTH_SOURCE` | `admin` | Auth database |
+| `MONGODB_REPLICA_SET` | `rs0` | Replica set name |
+| `MONGODB_DIRECT_CONNECTION` | `true` | Direct connection |
 
-**配置覆盖**：`initDatabase` 传入的 `config` 优先于环境变量。可选覆盖项：
-- **MySQL/PostgreSQL**：`pool` 合并连接池配置，`database` 指定数据库名
-- **MongoDB**：`mongoOptions` 合并 MongoDB 选项（如 `maxPoolSize`），`database` 指定数据库名
+**Configuration Override**: `config` passed to `initDatabase` takes precedence over environment variables. Optional overrides:
+- **MySQL/PostgreSQL**: `pool` merges connection pool config, `database` specifies database name
+- **MongoDB**: `mongoOptions` merges MongoDB options (e.g. `maxPoolSize`), `database` specifies database name
 
 #### getDatabase
 
-同步获取数据库连接（如果未初始化会抛出错误）。
+Synchronously get database connection (throws if not initialized).
 
 ```typescript
 getDatabase(connectionName?: string): DatabaseAdapter
@@ -459,7 +454,7 @@ getDatabase(connectionName?: string): DatabaseAdapter
 
 #### getDatabaseAsync
 
-异步获取数据库连接（支持自动初始化）。
+Asynchronously get database connection (supports auto-initialization).
 
 ```typescript
 getDatabaseAsync(connectionName?: string): Promise<DatabaseAdapter>
@@ -467,7 +462,7 @@ getDatabaseAsync(connectionName?: string): Promise<DatabaseAdapter>
 
 #### closeDatabase
 
-关闭所有数据库连接。
+Close all database connections.
 
 ```typescript
 closeDatabase(): Promise<void>
@@ -475,111 +470,110 @@ closeDatabase(): Promise<void>
 
 ---
 
-## 📖 SQLModel 详细 API
+## 📖 SQLModel API Reference
 
-SQLModel 是关系型数据库（PostgreSQL、MySQL、SQLite）的 ORM
-基类，提供完整的数据库操作功能。
+SQLModel is the ORM base class for relational databases (PostgreSQL, MySQL, SQLite), providing full database operation capabilities.
 
-### 模型定义
+### Model Definition
 
 ```typescript
 class User extends SQLModel {
-  // 必须定义表名
+  // Table name (required)
   static override tableName = "users";
 
-  // 主键字段名（默认为 "id"）
+  // Primary key field name (default: "id")
   static override primaryKey = "id";
 
-  // 字段定义和验证规则
+  // Field definitions and validation rules
   static override schema = {
     name: { type: "string", validate: { required: true } },
     email: { type: "string", validate: { required: true, unique: true } },
     age: { type: "number", validate: { min: 0, max: 150 } },
   };
 
-  // 软删除支持（可选）
+  // Soft delete support (optional)
   static override softDelete = true;
   static override deletedAtField = "deleted_at";
 
-  // 时间戳字段（可选）
+  // Timestamp fields (optional)
   static override timestamps = true;
   static override createdAtField = "created_at";
   static override updatedAtField = "updated_at";
 }
 ```
 
-### 数据验证规则
+### Data Validation Rules
 
-数据库模型支持丰富的数据验证规则，确保数据完整性和正确性。
+Database models support rich data validation rules to ensure data integrity and correctness.
 
-#### 基础验证
+#### Basic Validation
 
-- **`required: boolean`** - 必填字段
-- **`type: FieldType`** - 字段类型（string、number、boolean、date 等）
-- **`min: number`** - 最小值（数字）或最小长度（字符串）
-- **`max: number`** - 最大值（数字）或最大长度（字符串）
-- **`length: number`** - 固定长度（字符串）
-- **`pattern: RegExp | string`** - 正则表达式验证
-- **`enum: any[]`** - 枚举值验证
-- **`custom: (value: any) => boolean | string`** - 自定义验证函数
+- **`required: boolean`** - Required field
+- **`type: FieldType`** - Field type (string, number, boolean, date, etc.)
+- **`min: number`** - Minimum value (number) or min length (string)
+- **`max: number`** - Maximum value (number) or max length (string)
+- **`length: number`** - Fixed length (string)
+- **`pattern: RegExp | string`** - Regex validation
+- **`enum: any[]`** - Enum value validation
+- **`custom: (value: any) => boolean | string`** - Custom validation function
 
-#### 跨字段验证
+#### Cross-Field Validation
 
-- **`equals: string`** - 与另一个字段值相等
-- **`notEquals: string`** - 与另一个字段值不相等
-- **`compare: (value, allValues) => boolean | string`** - 自定义字段比较函数
-- **`compareValue`** - 跨表/跨字段值比较验证（支持跨表、多种操作符）
+- **`equals: string`** - Equal to another field value
+- **`notEquals: string`** - Not equal to another field value
+- **`compare: (value, allValues) => boolean | string`** - Custom field comparison function
+- **`compareValue`** - Cross-table/cross-field value comparison (supports cross-table, multiple operators)
 
-#### 数据库查询验证（异步）
+#### Database Query Validation (async)
 
-- **`unique: boolean | object`** - 在数据表中唯一
-- **`exists: boolean | object`** - 在数据表中存在
-- **`notExists: boolean | object`** - 在数据表中不存在
+- **`unique: boolean | object`** - Unique in table
+- **`exists: boolean | object`** - Exists in table
+- **`notExists: boolean | object`** - Does not exist in table
 
-#### 高级验证功能
+#### Advanced Validation
 
-- **`when`** - 条件验证（根据其他字段值决定是否验证）
-- **`requiredWhen`** - 条件必填（根据条件决定是否必填）
-- **`asyncCustom`** - 异步自定义验证（可访问数据库）
-- **`groups: string[]`** - 验证组（只在指定组中验证）
-- **`array`** - 数组验证（验证数组元素）
-- **`format`** - 内置格式验证器（email、url、uuid、date 等）
+- **`when`** - Conditional validation (validate based on other field values)
+- **`requiredWhen`** - Conditional required (required based on condition)
+- **`asyncCustom`** - Async custom validation (database access)
+- **`groups: string[]`** - Validation groups (validate only in specified groups)
+- **`array`** - Array validation (validate array elements)
+- **`format`** - Built-in format validators (email, url, uuid, date, etc.)
 
-#### 数值验证增强
+#### Numeric Validation
 
-- **`integer: boolean`** - 整数验证
-- **`positive: boolean`** - 正数验证
-- **`negative: boolean`** - 负数验证
-- **`multipleOf: number`** - 倍数验证
-- **`range: [number, number]`** - 范围验证
+- **`integer: boolean`** - Integer validation
+- **`positive: boolean`** - Positive number validation
+- **`negative: boolean`** - Negative number validation
+- **`multipleOf: number`** - Multiple of validation
+- **`range: [number, number]`** - Range validation
 
-#### 字符串验证增强
+#### String Validation
 
-- **`alphanumeric: boolean`** - 字母数字验证
-- **`numeric: boolean`** - 数字字符串验证
-- **`alpha: boolean`** - 字母验证
-- **`lowercase: boolean`** - 小写验证
-- **`uppercase: boolean`** - 大写验证
-- **`startsWith: string`** - 前缀验证
-- **`endsWith: string`** - 后缀验证
-- **`contains: string`** - 包含验证
-- **`trim: boolean`** - 自动去除首尾空格
-- **`toLowerCase: boolean`** - 自动转换为小写
-- **`toUpperCase: boolean`** - 自动转换为大写
+- **`alphanumeric: boolean`** - Alphanumeric validation
+- **`numeric: boolean`** - Numeric string validation
+- **`alpha: boolean`** - Alpha validation
+- **`lowercase: boolean`** - Lowercase validation
+- **`uppercase: boolean`** - Uppercase validation
+- **`startsWith: string`** - Prefix validation
+- **`endsWith: string`** - Suffix validation
+- **`contains: string`** - Contains validation
+- **`trim: boolean`** - Auto trim leading/trailing spaces
+- **`toLowerCase: boolean`** - Auto convert to lowercase
+- **`toUpperCase: boolean`** - Auto convert to uppercase
 
-#### 日期时间验证增强
+#### Date/Time Validation
 
-- **`before: string | Date`** - 早于验证
-- **`after: string | Date`** - 晚于验证
-- **`beforeTime: string`** - 早于时间验证
-- **`afterTime: string`** - 晚于时间验证
-- **`timezone: string`** - 时区验证
+- **`before: string | Date`** - Before validation
+- **`after: string | Date`** - After validation
+- **`beforeTime: string`** - Before time validation
+- **`afterTime: string`** - After time validation
+- **`timezone: string`** - Timezone validation
 
-#### 密码验证
+#### Password Validation
 
-- **`passwordStrength`** - 密码强度验证（最小长度、大小写、数字、符号要求）
+- **`passwordStrength`** - Password strength validation (min length, case, digits, symbols)
 
-#### 验证示例
+#### Validation Example
 
 ```typescript
 class User extends SQLModel {
@@ -630,51 +624,50 @@ class User extends SQLModel {
       type: "number",
       validate: {
         required: true,
-        exists: true, // 必须在 categories 表中存在
+        exists: true, // Must exist in categories table
       },
     },
   };
 }
 ```
 
-> 💡 **提示**：数据验证规则同时适用于 `SQLModel` 和
-> `MongoModel`，两者使用完全相同的验证规则。
+> 💡 **Tip**: Data validation rules apply to both `SQLModel` and `MongoModel`, using the same validation rules.
 
-### 静态查询方法
+### Static Query Methods
 
 #### find
 
-通过 ID 或条件查找记录。
+Find records by ID or conditions.
 
 ```typescript
-// 通过 ID 查找
+// Find by ID
 const user = await User.find(1);
 
-// 通过条件查找
+// Find by condition
 const user = await User.find({ email: "alice@example.com" });
 ```
 
 #### findAll
 
-查找多条记录。
+Find multiple records.
 
 ```typescript
-// 查找所有记录
+// Find all records
 const users = await User.findAll();
 
-// 条件查询
+// Conditional query
 const users = await User.findAll({ age: { $gt: 18 } });
 
-// 排序
+// Sort
 const users = await User.findAll({}, { sort: { age: "desc" } });
 
-// 分页
+// Pagination
 const users = await User.findAll({}, { limit: 10, offset: 0 });
 ```
 
 #### findOne
 
-查找单条记录。
+Find single record.
 
 ```typescript
 const user = await User.findOne({ email: "alice@example.com" });
@@ -682,7 +675,7 @@ const user = await User.findOne({ email: "alice@example.com" });
 
 #### findById
 
-通过 ID 查找记录。
+Find record by ID.
 
 ```typescript
 const user = await User.findById(1);
@@ -690,19 +683,19 @@ const user = await User.findById(1);
 
 #### count
 
-统计记录数。
+Count records.
 
 ```typescript
-// 统计所有记录
+// Count all records
 const total = await User.count();
 
-// 条件统计
+// Conditional count
 const count = await User.count({ age: { $gt: 18 } });
 ```
 
 #### exists
 
-检查记录是否存在。
+Check if record exists.
 
 ```typescript
 const exists = await User.exists({ email: "alice@example.com" });
@@ -710,26 +703,26 @@ const exists = await User.exists({ email: "alice@example.com" });
 
 #### paginate
 
-分页查询。
+Paginated query.
 
 ```typescript
 const result = await User.paginate(1, 10, { age: { $gt: 18 } });
-// 返回: { data: User[], total: number, page: number, pageSize: number, totalPages: number }
+// Returns: { data: User[], total: number, page: number, pageSize: number, totalPages: number }
 ```
 
 #### distinct
 
-获取字段的唯一值列表。
+Get unique values for a field.
 
 ```typescript
 const emails = await User.distinct("email");
 ```
 
-### 静态操作方法
+### Static Operation Methods
 
 #### create
 
-创建新记录。
+Create new record.
 
 ```typescript
 const user = await User.create({
@@ -741,7 +734,7 @@ const user = await User.create({
 
 #### createMany
 
-批量创建记录。
+Batch create records.
 
 ```typescript
 const users = await User.createMany([
@@ -752,22 +745,22 @@ const users = await User.createMany([
 
 #### update
 
-更新记录。
+Update records.
 
 ```typescript
-// 通过条件更新
+// Update by condition
 await User.update({ age: { $lt: 18 } }, { status: "minor" });
 
-// 通过 ID 更新
+// Update by ID
 await User.update(1, { age: 26 });
 
-// 支持 returnLatest 选项返回更新后的记录
+// returnLatest option returns updated record
 const updated = await User.update(1, { age: 26 }, { returnLatest: true });
 ```
 
 #### updateById
 
-通过 ID 更新记录。
+Update record by ID.
 
 ```typescript
 await User.updateById(1, { age: 26 });
@@ -775,7 +768,7 @@ await User.updateById(1, { age: 26 });
 
 #### updateMany
 
-批量更新记录。
+Batch update records.
 
 ```typescript
 await User.updateMany({ status: "active" }, { lastLogin: new Date() });
@@ -783,19 +776,19 @@ await User.updateMany({ status: "active" }, { lastLogin: new Date() });
 
 #### delete
 
-删除记录（支持软删除）。
+Delete records (supports soft delete).
 
 ```typescript
-// 通过条件删除
+// Delete by condition
 await User.delete({ age: { $lt: 0 } });
 
-// 通过 ID 删除
+// Delete by ID
 await User.delete(1);
 ```
 
 #### deleteById
 
-通过 ID 删除记录。
+Delete record by ID.
 
 ```typescript
 await User.deleteById(1);
@@ -803,52 +796,52 @@ await User.deleteById(1);
 
 #### deleteMany
 
-批量删除记录。
+Batch delete records.
 
 ```typescript
-// 返回删除的记录数
+// Returns count of deleted records
 const count = await User.deleteMany({ status: "inactive" });
 
-// 支持 returnIds 选项返回删除的记录 ID
+// returnIds option returns deleted record IDs
 const result = await User.deleteMany({ status: "inactive" }, {
   returnIds: true,
 });
-// 返回: { count: number, ids: any[] }
+// Returns: { count: number, ids: any[] }
 ```
 
 #### increment
 
-增加字段值。
+Increment field value.
 
 ```typescript
-// 单个字段
+// Single field
 await User.increment(1, "age", 1);
 
-// 对象格式（批量自增）
+// Object format (batch increment)
 await User.increment(1, { age: 1, score: 10 });
 
-// 支持 returnLatest 选项返回更新后的记录
+// returnLatest option returns updated record
 const updated = await User.increment(1, "age", 5, true);
 ```
 
 #### decrement
 
-减少字段值。
+Decrement field value.
 
 ```typescript
-// 单个字段
+// Single field
 await User.decrement(1, "age", 1);
 
-// 对象格式（批量自减）
+// Object format (batch decrement)
 await User.decrement(1, { age: 1, score: 10 });
 
-// 支持 returnLatest 选项返回更新后的记录
+// returnLatest option returns updated record
 const updated = await User.decrement(1, "age", 5, true);
 ```
 
 #### incrementMany
 
-批量自增多个字段。
+Batch increment multiple fields.
 
 ```typescript
 await User.incrementMany({ status: "active" }, { views: 1, likes: 1 });
@@ -856,7 +849,7 @@ await User.incrementMany({ status: "active" }, { views: 1, likes: 1 });
 
 #### decrementMany
 
-批量自减多个字段。
+Batch decrement multiple fields.
 
 ```typescript
 await User.decrementMany({ status: "active" }, { views: 1, likes: 1 });
@@ -864,23 +857,23 @@ await User.decrementMany({ status: "active" }, { views: 1, likes: 1 });
 
 #### upsert
 
-插入或更新记录。
+Insert or update record.
 
 ```typescript
-// 如果记录不存在则创建，存在则更新
+// Create if not exists, update if exists
 const user = await User.upsert(
   { email: "alice@example.com" },
   { name: "Alice", age: 25 },
 );
 
-// 支持 returnLatest 选项
+// returnLatest option supported
 const user = await User.upsert(
   { email: "alice@example.com" },
   { name: "Alice", age: 25 },
   { returnLatest: true },
 );
 
-// 支持 resurrect 选项（恢复软删除的记录）
+// resurrect option (restore soft-deleted records)
 const user = await User.upsert(
   { email: "alice@example.com" },
   { name: "Alice", age: 25 },
@@ -890,16 +883,16 @@ const user = await User.upsert(
 
 #### findOrCreate
 
-查找或创建记录。
+Find or create record.
 
 ```typescript
-// 如果记录存在则返回，不存在则创建
+// Return if exists, create if not
 const user = await User.findOrCreate(
   { email: "alice@example.com" },
   { name: "Alice", age: 25 },
 );
 
-// 支持 resurrect 选项（恢复软删除的记录）
+// resurrect option (restore soft-deleted records)
 const user = await User.findOrCreate(
   { email: "alice@example.com" },
   { name: "Alice", age: 25 },
@@ -909,7 +902,7 @@ const user = await User.findOrCreate(
 
 #### findOneAndUpdate
 
-查找并更新记录。
+Find and update record.
 
 ```typescript
 const user = await User.findOneAndUpdate(
@@ -920,7 +913,7 @@ const user = await User.findOneAndUpdate(
 
 #### findOneAndDelete
 
-查找并删除记录。
+Find and delete record.
 
 ```typescript
 const user = await User.findOneAndDelete({ email: "alice@example.com" });
@@ -928,10 +921,10 @@ const user = await User.findOneAndDelete({ email: "alice@example.com" });
 
 #### findOneAndReplace
 
-查找并替换记录。
+Find and replace record.
 
 ```typescript
-// 返回替换后的记录
+// Returns replaced record
 const user = await User.findOneAndReplace(
   { email: "alice@example.com" },
   { name: "Alice Updated", age: 26 },
@@ -941,17 +934,17 @@ const user = await User.findOneAndReplace(
 
 #### truncate
 
-清空表。
+Truncate table.
 
 ```typescript
 await User.truncate();
 ```
 
-### 软删除相关方法
+### Soft Delete Methods
 
 #### withTrashed
 
-包含已删除记录的查询。
+Query including deleted records.
 
 ```typescript
 const users = await User.withTrashed().findAll();
@@ -959,7 +952,7 @@ const users = await User.withTrashed().findAll();
 
 #### onlyTrashed
 
-仅查询已删除记录。
+Query only deleted records.
 
 ```typescript
 const deletedUsers = await User.onlyTrashed().findAll();
@@ -967,19 +960,19 @@ const deletedUsers = await User.onlyTrashed().findAll();
 
 #### restore
 
-恢复软删除记录。
+Restore soft-deleted records.
 
 ```typescript
-// 通过条件恢复
+// Restore by condition
 await User.restore({ status: "inactive" });
 
-// 支持 returnIds 选项
+// returnIds option supported
 const result = await User.restore({ status: "inactive" }, { returnIds: true });
 ```
 
 #### restoreById
 
-通过 ID 恢复软删除记录。
+Restore soft-deleted record by ID.
 
 ```typescript
 await User.restoreById(1);
@@ -987,13 +980,13 @@ await User.restoreById(1);
 
 #### forceDelete
 
-强制删除记录（物理删除）。
+Force delete records (physical delete).
 
 ```typescript
-// 通过条件强制删除
+// Force delete by condition
 await User.forceDelete({ status: "deleted" });
 
-// 支持 returnIds 选项
+// returnIds option supported
 const result = await User.forceDelete({ status: "deleted" }, {
   returnIds: true,
 });
@@ -1001,132 +994,131 @@ const result = await User.forceDelete({ status: "deleted" }, {
 
 #### forceDeleteById
 
-通过 ID 强制删除记录。
+Force delete record by ID.
 
 ```typescript
 await User.forceDeleteById(1);
 ```
 
-### 链式查询构建器
+### Chained Query Builder
 
-通过 `query()` 和 `find()`
-方法获取链式查询构建器。两者都支持链式调用，但在使用方式和功能上有所不同。
+Get chained query builder via `query()` and `find()` methods. Both support chaining but differ in usage and features.
 
-#### query() 与 find() 功能对比
+#### query() vs find() Comparison
 
-| 功能                  | `query()` | `find()` | 说明                                                                                            |
-| --------------------- | --------- | -------- | ----------------------------------------------------------------------------------------------- |
-| **查询条件方法**      |           |          |                                                                                                 |
-| `where()`             | ✅        | ❌       | 设置查询条件（重置之前的所有条件）。`find()` 不支持，因为 `find()` 已有初始条件，不应重置       |
-| `orWhere()`           | ✅        | ✅       | 添加 OR 查询条件                                                                                |
-| `andWhere()`          | ✅        | ✅       | 添加 AND 查询条件                                                                               |
-| `like()`              | ✅        | ❌       | 设置 LIKE 查询条件（重置之前的所有条件）。`find()` 不支持，因为 `find()` 已有初始条件，不应重置 |
-| `orLike()`            | ✅        | ✅       | 添加 OR LIKE 查询条件                                                                           |
-| `andLike()`           | ✅        | ✅       | 添加 AND LIKE 查询条件                                                                          |
-| **查询方法**          |           |          |                                                                                                 |
-| `findAll()`           | ✅        | ✅       | 查找多条记录                                                                                    |
-| `findOne()`           | ✅        | ✅       | 查找单条记录                                                                                    |
-| `one()`               | ✅        | ✅       | 查找单条记录（别名）                                                                            |
-| `all()`               | ✅        | ✅       | 查找多条记录（别名）                                                                            |
-| `findById()`          | ✅        | ❌       | 通过 ID 查找（find 本身就需要 ID）                                                              |
-| **聚合方法**          |           |          |                                                                                                 |
-| `count()`             | ✅        | ✅       | 统计记录数                                                                                      |
-| `exists()`            | ✅        | ✅       | 检查记录是否存在                                                                                |
-| `distinct()`          | ✅        | ✅       | 获取字段唯一值列表                                                                              |
-| `paginate()`          | ✅        | ✅       | 分页查询                                                                                        |
-| `aggregate()`         | ✅        | ✅       | 聚合查询（仅 MongoDB）                                                                          |
-| **操作方法**          |           |          |                                                                                                 |
-| `update()`            | ✅        | ❌       | 更新记录（find 专注于查询，操作请使用 query）                                                   |
-| `updateById()`        | ✅        | ❌       | 通过 ID 更新（find 专注于查询，操作请使用 query）                                               |
-| `updateMany()`        | ✅        | ❌       | 批量更新（find 专注于查询，操作请使用 query）                                                   |
-| `deleteById()`        | ✅        | ❌       | 通过 ID 删除（find 专注于查询，操作请使用 query）                                               |
-| `deleteMany()`        | ✅        | ❌       | 批量删除（find 专注于查询，操作请使用 query）                                                   |
-| `increment()`         | ✅        | ❌       | 自增字段（find 专注于查询，操作请使用 query）                                                   |
-| `decrement()`         | ✅        | ❌       | 自减字段（find 专注于查询，操作请使用 query）                                                   |
-| `incrementMany()`     | ✅        | ❌       | 批量自增（find 专注于查询，操作请使用 query）                                                   |
-| `decrementMany()`     | ✅        | ❌       | 批量自减（find 专注于查询，操作请使用 query）                                                   |
-| `restore()`           | ✅        | ❌       | 恢复软删除记录（find 专注于查询，操作请使用 query）                                             |
-| `restoreById()`       | ✅        | ❌       | 通过 ID 恢复（find 专注于查询，操作请使用 query）                                               |
-| `forceDelete()`       | ✅        | ❌       | 强制删除（find 专注于查询，操作请使用 query）                                                   |
-| `forceDeleteById()`   | ✅        | ❌       | 通过 ID 强制删除（find 专注于查询，操作请使用 query）                                           |
-| `upsert()`            | ✅        | ❌       | 插入或更新（find 专注于查询，操作请使用 query）                                                 |
-| `findOrCreate()`      | ✅        | ❌       | 查找或创建（find 专注于查询，操作请使用 query）                                                 |
-| `findOneAndUpdate()`  | ✅        | ❌       | 查找并更新（find 专注于查询，操作请使用 query）                                                 |
-| `findOneAndDelete()`  | ✅        | ❌       | 查找并删除（find 专注于查询，操作请使用 query）                                                 |
-| `findOneAndReplace()` | ✅        | ❌       | 查找并替换（find 专注于查询，操作请使用 query）                                                 |
-| **其他方法**          |           |          |                                                                                                 |
-| `sort()`              | ✅        | ✅       | 排序                                                                                            |
-| `limit()`             | ✅        | ✅       | 限制数量                                                                                        |
-| `skip()`              | ✅        | ✅       | 跳过数量                                                                                        |
-| `fields()`            | ✅        | ✅       | 选择字段                                                                                        |
-| `includeTrashed()`    | ✅        | ✅       | 包含已删除记录                                                                                  |
-| `onlyTrashed()`       | ✅        | ✅       | 仅查询已删除记录                                                                                |
-| `asArray()`           | ✅        | ✅       | 返回纯 JSON 对象数组                                                                            |
+| Feature | `query()` | `find()` | Description |
+|---------|-----------|----------|-------------|
+| **Query Condition Methods** | | | |
+| `where()` | ✅ | ❌ | Set query conditions (resets all prior). `find()` has initial conditions, no reset |
+| `orWhere()` | ✅ | ✅ | Add OR query condition |
+| `andWhere()` | ✅ | ✅ | Add AND query condition |
+| `like()` | ✅ | ❌ | Set LIKE conditions (resets all prior). `find()` has initial conditions, no reset |
+| `orLike()` | ✅ | ✅ | Add OR LIKE query condition |
+| `andLike()` | ✅ | ✅ | Add AND LIKE query condition |
+| **Query Methods** | | | |
+| `findAll()` | ✅ | ✅ | Find multiple records |
+| `findOne()` | ✅ | ✅ | Find single record |
+| `one()` | ✅ | ✅ | Find single record (alias) |
+| `all()` | ✅ | ✅ | Find multiple records (alias) |
+| `findById()` | ✅ | ❌ | Find by ID (find itself needs ID) |
+| **Aggregation Methods** | | | |
+| `count()` | ✅ | ✅ | Count records |
+| `exists()` | ✅ | ✅ | Check if record exists |
+| `distinct()` | ✅ | ✅ | Get unique field values |
+| `paginate()` | ✅ | ✅ | Paginated query |
+| `aggregate()` | ✅ | ✅ | Aggregate query (MongoDB only) |
+| **Operation Methods** | | | |
+| `update()` | ✅ | ❌ | Update records (find is for query, use query for ops) |
+| `updateById()` | ✅ | ❌ | Update by ID (find is for query, use query for ops) |
+| `updateMany()` | ✅ | ❌ | Batch update (find is for query, use query for ops) |
+| `deleteById()` | ✅ | ❌ | Delete by ID (find is for query, use query for ops) |
+| `deleteMany()` | ✅ | ❌ | Batch delete (find is for query, use query for ops) |
+| `increment()` | ✅ | ❌ | Increment field (find is for query, use query for ops) |
+| `decrement()` | ✅ | ❌ | Decrement field (find is for query, use query for ops) |
+| `incrementMany()` | ✅ | ❌ | Batch increment (find is for query, use query for ops) |
+| `decrementMany()` | ✅ | ❌ | Batch decrement (find is for query, use query for ops) |
+| `restore()` | ✅ | ❌ | Restore soft-deleted (find is for query, use query for ops) |
+| `restoreById()` | ✅ | ❌ | Restore by ID (find is for query, use query for ops) |
+| `forceDelete()` | ✅ | ❌ | Force delete (find is for query, use query for ops) |
+| `forceDeleteById()` | ✅ | ❌ | Force delete by ID (find is for query, use query for ops) |
+| `upsert()` | ✅ | ❌ | Insert or update (find is for query, use query for ops) |
+| `findOrCreate()` | ✅ | ❌ | Find or create (find is for query, use query for ops) |
+| `findOneAndUpdate()` | ✅ | ❌ | Find and update (find is for query, use query for ops) |
+| `findOneAndDelete()` | ✅ | ❌ | Find and delete (find is for query, use query for ops) |
+| `findOneAndReplace()` | ✅ | ❌ | Find and replace (find is for query, use query for ops) |
+| **Other Methods** | | | |
+| `sort()` | ✅ | ✅ | Sort |
+| `limit()` | ✅ | ✅ | Limit count |
+| `skip()` | ✅ | ✅ | Skip count |
+| `fields()` | ✅ | ✅ | Select fields |
+| `includeTrashed()` | ✅ | ✅ | Include deleted records |
+| `onlyTrashed()` | ✅ | ✅ | Query only deleted records |
+| `asArray()` | ✅ | ✅ | Return plain JSON object array |
 
-**使用建议：**
+**Usage Recommendation:**
 
-- 使用 `query()`：从空查询开始构建复杂查询，需要执行更新/删除等操作
-- 使用 `find()`：已有初始条件（ID 或条件对象），专注于查询操作
+- Use `query()`: Build complex queries from scratch, perform update/delete operations
+- Use `find()`: When you have initial conditions (ID or condition object), focus on query operations
 
-#### 查询方法
+#### Query Methods
 
 ```typescript
-// findAll - 查找所有记录
+// findAll - Find all records
 const users = await User.query()
   .where("age", ">", 18)
   .sort("created_at", "desc")
   .findAll();
 
-// findOne - 查找单条记录
+// findOne - Find single record
 const user = await User.query()
   .where("email", "alice@example.com")
   .findOne();
 
-// one / all - 别名方法
+// one / all - Alias methods
 const user = await User.query().where("id", 1).one();
 const users = await User.query().where("age", ">", 18).all();
 
-// findById - 通过 ID 查找
+// findById - Find by ID
 const user = await User.query().findById(1);
-const user = await User.query().findById(1, ["name", "email"]); // 指定字段
+const user = await User.query().findById(1, ["name", "email"]); // Specify fields
 
-// count - 统计记录数
+// count - Count records
 const count = await User.query().where("age", ">", 18).count();
 
-// exists - 检查记录是否存在
+// exists - Check if record exists
 const exists = await User.query().where("email", "alice@example.com").exists();
 
-// distinct - 获取唯一值列表
+// distinct - Get unique values
 const emails = await User.query().distinct("email");
 
-// paginate - 分页查询
+// paginate - Paginated query
 const result = await User.query()
   .where("age", ">", 18)
   .paginate(1, 10);
 ```
 
-#### 操作方法
+#### Operation Methods
 
 ```typescript
-// update - 更新记录
+// update - Update records
 await User.query()
   .where("age", ">", 18)
   .update({ status: "adult" });
 
-// update - 支持 returnLatest 选项
+// update - returnLatest option supported
 const updated = await User.query()
   .where("id", 1)
   .update({ age: 26 }, true); // returnLatest
 
-// updateById - 通过 ID 更新
+// updateById - Update by ID
 await User.query().updateById(1, { age: 26 });
 
-// updateMany - 批量更新
+// updateMany - Batch update
 await User.query()
   .where("status", "active")
   .updateMany({ lastLogin: new Date() });
 
-// increment - 自增（支持对象格式）
+// increment - Increment (object format supported)
 await User.query()
   .where("id", 1)
   .increment("age", 1);
@@ -1135,7 +1127,7 @@ await User.query()
   .where("id", 1)
   .increment({ age: 1, score: 10 }, true); // returnLatest
 
-// decrement - 自减（支持对象格式）
+// decrement - Decrement (object format supported)
 await User.query()
   .where("id", 1)
   .decrement("age", 1);
@@ -1144,199 +1136,197 @@ await User.query()
   .where("id", 1)
   .decrement({ age: 1, score: 10 }, true); // returnLatest
 
-// incrementMany - 批量自增
+// incrementMany - Batch increment
 await User.query()
   .where("status", "active")
   .incrementMany({ views: 1, likes: 1 });
 
-// decrementMany - 批量自减
+// decrementMany - Batch decrement
 await User.query()
   .where("status", "active")
   .decrementMany({ views: 1, likes: 1 });
 
-// deleteById - 通过 ID 删除
+// deleteById - Delete by ID
 await User.query().deleteById(1);
 
-// deleteMany - 批量删除
+// deleteMany - Batch delete
 await User.query()
   .where("status", "inactive")
   .deleteMany();
 
-// deleteMany - 支持 returnIds 选项
+// deleteMany - returnIds option supported
 const result = await User.query()
   .where("status", "inactive")
   .deleteMany({ returnIds: true });
 
-// upsert - 插入或更新
+// upsert - Insert or update
 const user = await User.query()
   .where("email", "alice@example.com")
   .upsert({ name: "Alice", age: 25 }, true, true); // returnLatest, resurrect
 
-// findOrCreate - 查找或创建
+// findOrCreate - Find or create
 const user = await User.query()
   .where("email", "alice@example.com")
   .findOrCreate({ name: "Alice", age: 25 }, true); // resurrect
 
-// findOneAndUpdate - 查找并更新
+// findOneAndUpdate - Find and update
 const user = await User.query()
   .where("email", "alice@example.com")
   .findOneAndUpdate({ age: 26 });
 
-// findOneAndDelete - 查找并删除
+// findOneAndDelete - Find and delete
 const user = await User.query()
   .where("email", "alice@example.com")
   .findOneAndDelete();
 
-// findOneAndReplace - 查找并替换
+// findOneAndReplace - Find and replace
 const user = await User.query()
   .where("email", "alice@example.com")
   .findOneAndReplace({ name: "Alice Updated", age: 26 }, true); // returnLatest
 
-// restore - 恢复软删除记录
+// restore - Restore soft-deleted records
 await User.query()
   .where("status", "inactive")
   .restore();
 
-// restore - 支持 returnIds 选项
+// restore - returnIds option supported
 const result = await User.query()
   .where("status", "inactive")
   .restore({ returnIds: true });
 
-// restoreById - 通过 ID 恢复
+// restoreById - Restore by ID
 await User.query().restoreById(1);
 
-// forceDelete - 强制删除
+// forceDelete - Force delete
 await User.query()
   .where("status", "deleted")
   .forceDelete();
 
-// forceDelete - 支持 returnIds 选项
+// forceDelete - returnIds option supported
 const result = await User.query()
   .where("status", "deleted")
   .forceDelete({ returnIds: true });
 
-// forceDeleteById - 通过 ID 强制删除
+// forceDeleteById - Force delete by ID
 await User.query().forceDeleteById(1);
 ```
 
-#### 链式条件构建
+#### Chained Condition Building
 
 ```typescript
-// where - 设置查询条件（重置所有之前的条件）
+// where - Set query conditions (resets all prior conditions)
 const users = await User.query()
   .where({ status: "active" })
   .findAll();
 
-// orWhere - 添加 OR 查询条件
+// orWhere - Add OR query condition
 const users = await User.query()
   .where({ name: "Alice" })
   .orWhere({ name: "Bob" })
   .findAll();
 
-// andWhere - 添加 AND 查询条件
+// andWhere - Add AND query condition
 const users = await User.query()
   .where({ status: "active" })
   .andWhere({ age: { $gte: 18 } })
   .findAll();
 
-// like - 设置 LIKE 查询条件（模糊查询，大小写不敏感）
+// like - Set LIKE query conditions (fuzzy, case-insensitive)
 const users = await User.query()
   .like({ name: "Alice" })
   .findAll();
 
-// orLike - 添加 OR LIKE 查询条件
+// orLike - Add OR LIKE query condition
 const users = await User.query()
   .like({ name: "Alice" })
   .orLike({ name: "Bob" })
   .findAll();
 
-// andLike - 添加 AND LIKE 查询条件
+// andLike - Add AND LIKE query condition
 const users = await User.query()
   .where({ age: { $gte: 18 } })
   .andLike({ email: "example" })
   .findAll();
 
-// find() 方法支持追加查询条件（orWhere, andWhere, orLike, andLike）
-// 注意：find() 不支持 where() 和 like()，因为已有初始条件，不应重置
+// find() supports appending conditions (orWhere, andWhere, orLike, andLike)
+// Note: find() does not support where() and like() since it has initial conditions
 const users = await User.find({ status: "active" })
   .andWhere({ age: { $gte: 18 } })
   .orWhere({ status: "inactive" })
   .findAll();
 
-// find() 方法支持模糊查询（使用 orLike 和 andLike）
+// find() supports fuzzy query (using orLike and andLike)
 const users = await User.find({ name: { $like: "%Alice%" } })
   .orLike({ name: "Bob" })
   .findAll();
 
-// fields - 选择字段
+// fields - Select fields
 const users = await User.query()
   .fields(["name", "email"])
   .findAll();
 
-// sort - 排序
+// sort - Sort
 const users = await User.query()
   .sort("created_at", "desc")
   .findAll();
 
-// 多字段排序
+// Multi-field sort
 const users = await User.query()
   .sort({ age: "desc", name: "asc" })
   .findAll();
 
-// limit / skip - 分页
+// limit / skip - Pagination
 const users = await User.query()
   .limit(10)
   .skip(20)
   .findAll();
 
-// includeTrashed - 包含已删除记录
+// includeTrashed - Include deleted records
 const users = await User.query()
   .includeTrashed()
   .findAll();
 
-// onlyTrashed - 仅查询已删除记录
+// onlyTrashed - Query only deleted records
 const users = await User.query()
   .onlyTrashed()
   .findAll();
 
-// scope - 作用域查询
+// scope - Scope query
 const users = await User.scope("active").findAll();
 ```
 
-#### asArray() - 返回纯 JSON 对象数组
+#### asArray() - Return Plain JSON Object Array
 
-`asArray()` 方法可以将查询结果转换为纯 JSON
-对象数组，而不是模型实例。这对于需要纯数据格式的场景非常有用，比如 API
-响应、数据序列化等。
+The `asArray()` method converts query results to plain JSON object arrays instead of model instances. Useful for API responses, serialization, etc.
 
-**特点：**
+**Features:**
 
-- 返回纯 JSON 对象数组（`Record<string, any>[]`），不是模型实例
-- 支持所有链式调用方法（sort、limit、skip、fields 等）
-- 支持聚合方法（count、exists、distinct、paginate）
-- 返回的对象可以安全地进行 JSON 序列化
-- 返回的对象没有模型方法（如 `save`、`update` 等）
+- Returns plain JSON object array (`Record<string, any>[]`), not model instances
+- Supports all chained methods (sort, limit, skip, fields, etc.)
+- Supports aggregation methods (count, exists, distinct, paginate)
+- Returned objects are safe for JSON serialization
+- Returned objects have no model methods (e.g. `save`, `update`)
 
-**使用方式：**
+**Usage:**
 
 ```typescript
-// 通过 find().asArray() 返回纯 JSON 对象数组
+// find().asArray() returns plain JSON object array
 const users = await User.find({ status: "active" })
   .asArray()
   .findAll();
 
-// 通过 find().asArray() 返回纯 JSON 对象或 null
+// find().asArray() returns plain JSON object or null
 const user = await User.find({ status: "active" })
   .asArray()
   .findOne();
 
-// 通过 query().where().asArray() 返回纯 JSON 对象数组
+// query().where().asArray() returns plain JSON object array
 const users = await User.query()
   .where({ status: "active" })
   .asArray()
   .findAll();
 
-// 支持链式调用 sort、limit、skip 等
+// Supports chained sort, limit, skip, etc.
 const users = await User.query()
   .where({ status: "active" })
   .asArray()
@@ -1345,14 +1335,14 @@ const users = await User.query()
   .skip(20)
   .findAll();
 
-// 支持 fields 字段选择
+// Supports fields selection
 const user = await User.query()
   .where({ status: "active" })
   .asArray()
   .fields(["name", "age"])
   .findOne();
 
-// 支持聚合方法
+// Supports aggregation methods
 const count = await User.query()
   .where({ status: "active" })
   .asArray()
@@ -1368,13 +1358,13 @@ const ages = await User.query()
   .asArray()
   .distinct("age");
 
-// 支持分页
+// Supports pagination
 const result = await User.query()
   .where({ status: "active" })
   .asArray()
   .paginate(1, 10);
 
-// 支持别名方法 all() 和 one()
+// Supports alias methods all() and one()
 const users = await User.find({ status: "active" })
   .asArray()
   .all();
@@ -1383,7 +1373,7 @@ const user = await User.find({ status: "active" })
   .asArray()
   .one();
 
-// 复杂链式调用
+// Complex chained calls
 const users = await User.query()
   .where({ status: "active" })
   .asArray()
@@ -1392,51 +1382,50 @@ const users = await User.query()
   .limit(10)
   .findAll();
 
-// 验证返回的是纯 JSON 对象
+// Verify returned plain JSON object
 const users = await User.query()
   .where({ status: "active" })
   .asArray()
   .findAll();
 
-// 可以安全地进行 JSON 序列化
+// Safe for JSON serialization
 const json = JSON.stringify(users);
 const parsed = JSON.parse(json);
 
-// 返回的对象没有模型方法
+// Returned object has no model methods
 const user = await User.find({ status: "active" })
   .asArray()
   .findOne();
 
 console.log(typeof user?.save); // "undefined"
-console.log(user?.constructor.name); // "Object" 而不是 "User"
+console.log(user?.constructor.name); // "Object" not "User"
 ```
 
-**注意事项：**
+**Notes:**
 
-- `asArray()` 返回的是纯 JSON 对象，不能调用模型方法（如
-  `save`、`update`、`delete` 等）
-- 如果需要模型实例的功能，请使用普通的 `find()` 或 `query()` 方法
-- 返回的对象使用浅拷贝（`{ ...row }`），性能优于 `JSON.parse(JSON.stringify())`
+- `asArray()` returns plain JSON objects, cannot call model methods (`save`, `update`, `delete`, etc.)
+- Use regular `find()` or `query()` if you need model instance features
+- Returned objects use shallow copy (`{ ...row }`), better performance than `JSON.parse(JSON.stringify())`
 
-### 实例方法
+### Instance Methods
 
 #### save
 
-保存实例（新建或更新）。
+Save instance (create or update).
 
 ```typescript
 const user = new User();
 user.name = "Alice";
 user.email = "alice@example.com";
-await user.save(); // 新建
+await user.save(); // Create
 
 user.age = 26;
-await user.save(); // 更新
+await user.save(); // Update
 ```
 
 #### update
 
-更新实例。
+Update instance.
 
 ```typescript
 await user.update({ age: 26 });
@@ -1444,26 +1433,26 @@ await user.update({ age: 26 });
 
 #### delete
 
-删除实例。
+Delete instance.
 
 ```typescript
 await user.delete();
 ```
 
-### 关联查询
+### Association Queries
 
 #### belongsTo
 
-多对一关系（当前模型属于另一个模型）。
+Many-to-one (current model belongs to another).
 
 ```typescript
-// 定义关联
+// Define association
 const author = await post.belongsTo(User, "user_id", "id");
 
-// 支持字段选择
+// Field selection supported
 const author = await post.belongsTo(User, "user_id", "id", ["name", "email"]);
 
-// 支持 includeTrashed 选项
+// includeTrashed option supported
 const author = await post.belongsTo(User, "user_id", "id", undefined, {
   includeTrashed: true,
 });
@@ -1471,16 +1460,16 @@ const author = await post.belongsTo(User, "user_id", "id", undefined, {
 
 #### hasOne
 
-一对一关系（当前模型拥有一个关联模型）。
+One-to-one (current model has one associated model).
 
 ```typescript
-// 定义关联
+// Define association
 const profile = await user.hasOne(Profile, "user_id", "id");
 
-// 支持字段选择
+// Field selection supported
 const profile = await user.hasOne(Profile, "user_id", "id", ["bio", "avatar"]);
 
-// 支持 includeTrashed 选项
+// includeTrashed option supported
 const profile = await user.hasOne(Profile, "user_id", "id", undefined, {
   includeTrashed: true,
 });
@@ -1488,22 +1477,22 @@ const profile = await user.hasOne(Profile, "user_id", "id", undefined, {
 
 #### hasMany
 
-一对多关系（当前模型拥有多个关联模型）。
+One-to-many (current model has many associated models).
 
 ```typescript
-// 定义关联
+// Define association
 const posts = await user.hasMany(Post, "user_id", "id");
 
-// 支持字段选择
+// Field selection supported
 const posts = await user.hasMany(Post, "user_id", "id", ["title", "content"]);
 
-// 支持 options 参数（排序、分页等）
+// options param (sort, pagination, etc.) supported
 const posts = await user.hasMany(Post, "user_id", "id", undefined, {
   sort: { created_at: "desc" },
   limit: 10,
 });
 
-// 支持 includeTrashed 选项
+// includeTrashed option supported
 const posts = await user.hasMany(
   Post,
   "user_id",
@@ -1513,7 +1502,7 @@ const posts = await user.hasMany(
   true,
 );
 
-// 支持 onlyTrashed 选项
+// onlyTrashed option supported (query only deleted)
 const deletedPosts = await user.hasMany(
   Post,
   "user_id",
@@ -1525,64 +1514,64 @@ const deletedPosts = await user.hasMany(
 );
 ```
 
-### 生命周期钩子
+### Lifecycle Hooks
 
 ```typescript
 class User extends SQLModel {
   static override tableName = "users";
 
-  // 创建前钩子
+  // beforeCreate hook
   static override beforeCreate(data: any) {
     data.created_at = new Date();
     return data;
   }
 
-  // 创建后钩子
+  // afterCreate hook
   static override afterCreate(instance: any) {
     console.log("User created:", instance.id);
   }
 
-  // 更新前钩子
+  // beforeUpdate hook
   static override beforeUpdate(data: any, conditions: any) {
     data.updated_at = new Date();
     return data;
   }
 
-  // 更新后钩子
+  // afterUpdate hook
   static override afterUpdate(instance: any) {
     console.log("User updated:", instance.id);
   }
 
-  // 保存前钩子（创建和更新都会调用）
+  // beforeSave hook (called for both create and update)
   static override beforeSave(data: any) {
-    // 处理逻辑
+    // Handle logic
     return data;
   }
 
-  // 保存后钩子
+  // afterSave hook
   static override afterSave(instance: any) {
     console.log("User saved:", instance.id);
   }
 
-  // 删除前钩子
+  // beforeDelete hook
   static override beforeDelete(conditions: any) {
     console.log("Deleting user:", conditions);
   }
 
-  // 删除后钩子
+  // afterDelete hook
   static override afterDelete(instance: any) {
     console.log("User deleted:", instance.id);
   }
 
-  // 验证前钩子
+  // beforeValidate hook
   static override beforeValidate(data: any) {
-    // 预处理数据
+    // Preprocess data
     return data;
   }
 
-  // 验证后钩子
+  // afterValidate hook
   static override afterValidate(data: any) {
-    // 后处理数据
+    // Postprocess data
     return data;
   }
 }
@@ -1590,21 +1579,21 @@ class User extends SQLModel {
 
 ---
 
-## 📖 MongoModel 详细 API
+## 📖 MongoModel API Reference
 
-MongoModel 是 MongoDB 的 ODM 基类，提供完整的 MongoDB 操作功能。
+MongoModel is the ODM base class for MongoDB, providing full MongoDB operation capabilities.
 
-### 模型定义
+### Model Definition
 
 ```typescript
 class Article extends MongoModel {
-  // 必须定义集合名
+  // Collection name (required)
   static override collectionName = "articles";
 
-  // 主键字段名（默认为 "_id"）
+  // Primary key field (default: "_id")
   static override primaryKey = "_id";
 
-  // 字段定义和验证规则
+  // Field definitions and validation rules
   static override schema = {
     title: { type: "string", validate: { required: true, max: 200 } },
     content: { type: "string", validate: { required: true } },
@@ -1614,16 +1603,16 @@ class Article extends MongoModel {
     },
   };
 
-  // 软删除支持（可选）
+  // Soft delete support (optional)
   static override softDelete = true;
   static override deletedAtField = "deleted_at";
 
-  // 时间戳字段（可选）
+  // Timestamp fields (optional)
   static override timestamps = true;
   static override createdAtField = "created_at";
   static override updatedAtField = "updated_at";
 
-  // 索引定义（可选）
+  // Index definitions (optional)
   static override indexes = [
     { fields: { title: 1 }, options: { unique: true } },
     { fields: { status: 1, created_at: -1 } },
@@ -1631,43 +1620,39 @@ class Article extends MongoModel {
 }
 ```
 
-### 数据验证规则
+### Data Validation Rules
 
-MongoModel 的数据验证规则与 SQLModel 完全一致，详见
-[SQLModel 文档](#数据验证规则)。
+MongoModel validation rules are identical to SQLModel. See [SQLModel docs](#data-validation-rules).
 
-### 静态查询方法
+### Static Query Methods
 
-MongoModel 的静态查询方法与 SQLModel 完全一致，详见
-[SQLModel 文档](#静态查询方法)。
+MongoModel static query methods are identical to SQLModel. See [SQLModel docs](#static-query-methods).
 
-### 静态操作方法
+### Static Operation Methods
 
-MongoModel 的静态操作方法与 SQLModel 完全一致，详见
-[SQLModel 文档](#静态操作方法)。
+MongoModel static operation methods are identical to SQLModel. See [SQLModel docs](#static-operation-methods).
 
-### 链式查询构建器
+### Chained Query Builder
 
-MongoModel 的链式查询构建器方法与 SQLModel 完全一致，详见
-[SQLModel 文档](#链式查询构建器)。
+MongoModel chained query builder methods are identical to SQLModel. See [SQLModel docs](#chained-query-builder).
 
-### MongoModel 独有方法
+### MongoModel-Specific Methods
 
 #### createIndexes
 
-创建索引（根据模型定义的 indexes 创建）。
+Create indexes (from model-defined indexes).
 
 ```typescript
-// 创建所有定义的索引
+// Create all defined indexes
 const indexNames = await Article.createIndexes();
 
-// 强制重新创建索引（删除后重建）
+// Force recreate indexes (drop then rebuild)
 const indexNames = await Article.createIndexes(true);
 ```
 
 #### dropIndexes
 
-删除所有索引（除了 _id 索引）。
+Drop all indexes (except _id).
 
 ```typescript
 const droppedIndexes = await Article.dropIndexes();
@@ -1675,7 +1660,7 @@ const droppedIndexes = await Article.dropIndexes();
 
 #### getIndexes
 
-获取所有索引信息。
+Get all index information.
 
 ```typescript
 const indexes = await Article.getIndexes();
@@ -1683,17 +1668,17 @@ const indexes = await Article.getIndexes();
 
 #### aggregate
 
-聚合查询（MongoDB 特有功能）。
+Aggregate query (MongoDB-specific).
 
 ```typescript
-// 静态方法
+// Static method
 const result = await Article.aggregate([
   { $match: { status: "published" } },
   { $group: { _id: "$author", count: { $sum: 1 } } },
   { $sort: { count: -1 } },
 ]);
 
-// 链式查询
+// Chained query
 const result = await Article.query()
   .aggregate([
     { $match: { status: "published" } },
@@ -1703,38 +1688,37 @@ const result = await Article.query()
 
 #### transaction
 
-MongoDB 事务（MongoModel 特有）。
+MongoDB transaction (MongoModel-specific).
 
 ```typescript
 await Article.transaction(async (session) => {
   const article1 = await Article.create({ title: "Article 1" }, { session });
   const article2 = await Article.create({ title: "Article 2" }, { session });
-  // 如果任何操作失败，事务会自动回滚
+  // Transaction auto-rolls back if any operation fails
 });
 ```
 
-### 实例方法
+### Instance Methods
 
-MongoModel 的实例方法与 SQLModel 完全一致，详见 [SQLModel 文档](#实例方法)。
+MongoModel instance methods are identical to SQLModel. See [SQLModel docs](#instance-methods).
 
-### 关联查询
+### Association Queries
 
-MongoModel 的关联查询方法与 SQLModel 完全一致，详见 [SQLModel 文档](#关联查询)。
+MongoModel association query methods are identical to SQLModel. See [SQLModel docs](#association-queries).
 
-### 生命周期钩子
+### Lifecycle Hooks
 
-MongoModel 的生命周期钩子与 SQLModel 完全一致，详见
-[SQLModel 文档](#生命周期钩子)。
+MongoModel lifecycle hooks are identical to SQLModel. See [SQLModel docs](#lifecycle-hooks).
 
 ---
 
-## 🔧 查询构建器详细文档
+## 🔧 Query Builder Documentation
 
 ### SQLQueryBuilder
 
-SQL 查询构建器，用于构建复杂的 SQL 查询。
+SQL query builder for complex SQL queries.
 
-#### 基本用法
+#### Basic Usage
 
 ```typescript
 import { getDatabase, SQLQueryBuilder } from "jsr:@dreamer/database";
@@ -1742,7 +1726,7 @@ import { getDatabase, SQLQueryBuilder } from "jsr:@dreamer/database";
 const db = getDatabase();
 const builder = new SQLQueryBuilder(db);
 
-// SELECT 查询
+// SELECT query
 const users = await builder
   .select("id", "name", "email")
   .from("users")
@@ -1751,27 +1735,27 @@ const users = await builder
   .limit(10)
   .execute();
 
-// INSERT 操作
+// INSERT operation
 await builder
   .insert("users")
   .values({ name: "Alice", email: "alice@example.com", age: 25 })
   .executeUpdate();
 
-// UPDATE 操作
+// UPDATE operation
 await builder
   .update("users")
   .set({ age: 26 })
   .where("id = ?", [1])
   .executeUpdate();
 
-// DELETE 操作
+// DELETE operation
 await builder
   .delete("users")
   .where("id = ?", [1])
   .executeUpdate();
 ```
 
-#### JOIN 查询
+#### JOIN Query
 
 ```typescript
 // INNER JOIN
@@ -1796,10 +1780,10 @@ const results = await builder
   .execute();
 ```
 
-#### 复杂条件查询
+#### Complex Condition Query
 
 ```typescript
-// 多个 WHERE 条件（AND）
+// Multiple WHERE conditions (AND)
 const users = await builder
   .select("*")
   .from("users")
@@ -1807,7 +1791,7 @@ const users = await builder
   .where("status = ?", ["active"])
   .execute();
 
-// OR 条件
+// OR condition
 const users = await builder
   .select("*")
   .from("users")
@@ -1818,9 +1802,9 @@ const users = await builder
 
 ### MongoQueryBuilder
 
-MongoDB 查询构建器，用于构建复杂的 MongoDB 查询。
+MongoDB query builder for complex MongoDB queries.
 
-#### 基本用法
+#### Basic Usage
 
 ```typescript
 import { getDatabase, MongoQueryBuilder } from "jsr:@dreamer/database";
@@ -1828,7 +1812,7 @@ import { getDatabase, MongoQueryBuilder } from "jsr:@dreamer/database";
 const db = getDatabase();
 const builder = new MongoQueryBuilder(db);
 
-// 查询文档
+// Query documents
 const articles = await builder
   .collection("articles")
   .find({ status: "published" })
@@ -1836,20 +1820,20 @@ const articles = await builder
   .limit(10)
   .query();
 
-// 插入文档
+// Insert documents
 await builder
   .collection("articles")
   .execute()
   .insert({ title: "Hello", content: "World", status: "published" });
 
-// 更新文档
+// Update documents
 await builder
   .collection("articles")
   .find({ status: "draft" })
   .execute()
   .updateMany({ $set: { status: "published" } });
 
-// 删除文档
+// Delete documents
 await builder
   .collection("articles")
   .find({ status: "archived" })
@@ -1857,22 +1841,22 @@ await builder
   .deleteMany();
 ```
 
-#### 条件查询
+#### Condition Query
 
 ```typescript
-// 等于
+// Equal
 const articles = await builder
   .collection("articles")
   .eq("status", "published")
   .query();
 
-// 不等于
+// Not equal
 const articles = await builder
   .collection("articles")
   .ne("status", "draft")
   .query();
 
-// 大于/小于
+// Greater/less than
 const articles = await builder
   .collection("articles")
   .gt("views", 100)
@@ -1885,14 +1869,14 @@ const articles = await builder
   .in("status", ["published", "archived"])
   .query();
 
-// 正则表达式
+// Regex
 const articles = await builder
   .collection("articles")
   .regex("title", /hello/i)
   .query();
 ```
 
-#### 聚合查询
+#### Aggregate Query
 
 ```typescript
 const result = await builder
@@ -1906,9 +1890,9 @@ const result = await builder
 
 ---
 
-## 🔄 事务处理
+## 🔄 Transaction Handling
 
-### 基本事务
+### Basic Transaction
 
 ```typescript
 import { getDatabase } from "jsr:@dreamer/database";
@@ -1924,13 +1908,13 @@ await db.transaction(async (trx) => {
     1,
     100,
   ]);
-  // 如果任何操作失败，事务会自动回滚
+  // Transaction auto-rolls back if any operation fails
 });
 ```
 
-### 嵌套事务（保存点）
+### Nested Transactions (Savepoints)
 
-SQLite、PostgreSQL、MySQL 支持嵌套事务（通过保存点实现）。
+SQLite, PostgreSQL, MySQL support nested transactions via savepoints.
 
 ```typescript
 await db.transaction(async (trx) => {
@@ -1939,24 +1923,24 @@ await db.transaction(async (trx) => {
     "bob@example.com",
   ]);
 
-  // 创建保存点
+  // Create savepoint
   const savepointId = await trx.createSavepoint("sp1");
   try {
     await trx.execute("INSERT INTO orders (user_id, amount) VALUES (?, ?)", [
       2,
       200,
     ]);
-    // 释放保存点
+    // Release savepoint
     await trx.releaseSavepoint(savepointId);
   } catch (error) {
-    // 回滚到保存点
+    // Rollback to savepoint
     await trx.rollbackToSavepoint(savepointId);
     throw error;
   }
 });
 ```
 
-### MongoDB 事务
+### MongoDB Transaction
 
 ```typescript
 import { MongoModel } from "jsr:@dreamer/database";
@@ -1964,17 +1948,17 @@ import { MongoModel } from "jsr:@dreamer/database";
 await Article.transaction(async (session) => {
   const article1 = await Article.create({ title: "Article 1" }, { session });
   const article2 = await Article.create({ title: "Article 2" }, { session });
-  // 如果任何操作失败，事务会自动回滚
+  // Transaction auto-rolls back if any operation fails
 });
 ```
 
 ---
 
-## 🔗 关联查询详细说明
+## 🔗 Association Query Details
 
-### belongsTo（多对一关系）
+### belongsTo (Many-to-One)
 
-当前模型属于另一个模型。例如：Post belongsTo User（一个帖子属于一个用户）。
+Current model belongs to another. E.g.: Post belongsTo User (a post belongs to a user).
 
 ```typescript
 class Post extends SQLModel {
@@ -1985,61 +1969,61 @@ class User extends SQLModel {
   static override tableName = "users";
 }
 
-// 获取帖子的作者
+// Get post author
 const post = await Post.findById(1);
 const author = await post.belongsTo(User, "user_id", "id");
 
-// 指定字段
+// Specify fields
 const author = await post.belongsTo(User, "user_id", "id", ["name", "email"]);
 
-// 包含软删除记录
+// Include soft-deleted records
 const author = await post.belongsTo(User, "user_id", "id", undefined, {
   includeTrashed: true,
 });
 ```
 
-### hasOne（一对一关系）
+### hasOne (One-to-One)
 
-当前模型拥有一个关联模型。例如：User hasOne Profile（一个用户拥有一个资料）。
+Current model has one associated model. E.g.: User hasOne Profile (a user has one profile).
 
 ```typescript
 class Profile extends SQLModel {
   static override tableName = "profiles";
 }
 
-// 获取用户的资料
+// Get user profile
 const user = await User.findById(1);
 const profile = await user.hasOne(Profile, "user_id", "id");
 
-// 指定字段
+// Specify fields
 const profile = await user.hasOne(Profile, "user_id", "id", ["bio", "avatar"]);
 
-// 包含软删除记录
+// Include soft-deleted records
 const profile = await user.hasOne(Profile, "user_id", "id", undefined, {
   includeTrashed: true,
 });
 ```
 
-### hasMany（一对多关系）
+### hasMany (One-to-Many)
 
-当前模型拥有多个关联模型。例如：User hasMany Post（一个用户拥有多个帖子）。
+Current model has many associated models. E.g.: User hasMany Post (a user has many posts).
 
 ```typescript
-// 获取用户的所有帖子
+// Get all user posts
 const user = await User.findById(1);
 const posts = await user.hasMany(Post, "user_id", "id");
 
-// 指定字段
+// Specify fields
 const posts = await user.hasMany(Post, "user_id", "id", ["title", "content"]);
 
-// 支持 options 参数（排序、分页等）
+// options param (sort, pagination, etc.) supported
 const posts = await user.hasMany(Post, "user_id", "id", undefined, {
   sort: { created_at: "desc" },
   limit: 10,
   skip: 0,
 });
 
-// 包含软删除记录
+// Include soft-deleted records
 const posts = await user.hasMany(
   Post,
   "user_id",
@@ -2049,7 +2033,7 @@ const posts = await user.hasMany(
   true,
 );
 
-// 仅查询已删除记录
+// Query only deleted records
 const deletedPosts = await user.hasMany(
   Post,
   "user_id",
@@ -2063,9 +2047,9 @@ const deletedPosts = await user.hasMany(
 
 ---
 
-## 📦 迁移管理
+## 📦 Migration Management
 
-### 创建迁移
+### Create Migration
 
 ```typescript
 import { getDatabase, MigrationManager } from "jsr:@dreamer/database";
@@ -2076,245 +2060,244 @@ const manager = new MigrationManager({
   adapter: db,
 });
 
-// 创建新的迁移文件
+// Create new migration file
 await manager.create("create_users_table");
 ```
 
-### 执行迁移
+### Run Migration
 
 ```typescript
-// 执行所有待执行的迁移
+// Run all pending migrations
 await manager.up();
 
-// 执行指定数量的迁移
+// Run specified number of migrations
 await manager.up(2);
 ```
 
-### 回滚迁移
+### Rollback Migration
 
 ```typescript
-// 回滚最近的迁移
+// Rollback most recent migration
 await manager.down();
 
-// 回滚指定数量的迁移
+// Rollback specified number of migrations
 await manager.down(2);
 ```
 
-### 查看迁移状态
+### Check Migration Status
 
 ```typescript
 const status = await manager.status();
 console.log(status);
-// 返回: [{ name: "migration_name", executed: true, executedAt: Date }]
+// Returns: [{ name: "migration_name", executed: true, executedAt: Date }]
 ```
 
 ---
 
-## 🔄 SQLModel 与 MongoModel 统一接口
+## 🔄 SQLModel and MongoModel Unified Interface
 
-`SQLModel` 和 `MongoModel` 提供统一的接口，便于在不同数据库之间切换使用。
+`SQLModel` and `MongoModel` provide a unified interface for switching between databases.
 
-### 统一接口对比
+### Unified Interface Comparison
 
-> 📋 **完整对比表格请查看：**
+> 📋 **See full comparison table:**
 > [model-api-comparison.md](./docs/model-api-comparison.md)
 
-#### 静态查询方法
+#### Static Query Methods
 
-| 方法名              | SQLModel | MongoModel | 统一状态                          |
-| ------------------- | -------- | ---------- | --------------------------------- |
-| `find`              | ✅       | ✅         | ✅ 已统一                         |
-| `findAll`           | ✅       | ✅         | ✅ 已统一                         |
-| `findOne`           | ✅       | ✅         | ✅ 已统一                         |
-| `findById`          | ✅       | ✅         | ✅ 已统一                         |
-| `count`             | ✅       | ✅         | ✅ 已统一                         |
-| `exists`            | ✅       | ✅         | ✅ 已统一                         |
-| `paginate`          | ✅       | ✅         | ✅ 已统一                         |
-| `distinct`          | ✅       | ✅         | ✅ 已统一                         |
-| `findOrCreate`      | ✅       | ✅         | ✅ 已统一                         |
-| `findOneAndUpdate`  | ✅       | ✅         | ✅ 已统一                         |
-| `findOneAndDelete`  | ✅       | ✅         | ✅ 已统一                         |
-| `findOneAndReplace` | ✅       | ✅         | ✅ 已统一                         |
-| `truncate`          | ✅       | ✅         | ✅ 已统一                         |
-| `aggregate`         | ❌       | ✅         | ⚠️ 无法统一（SQL 不支持聚合管道） |
+| Method | SQLModel | MongoModel | Status |
+|--------|----------|------------|--------|
+| `find` | ✅ | ✅ | ✅ Unified |
+| `findAll` | ✅ | ✅ | ✅ Unified |
+| `findOne` | ✅ | ✅ | ✅ Unified |
+| `findById` | ✅ | ✅ | ✅ Unified |
+| `count` | ✅ | ✅ | ✅ Unified |
+| `exists` | ✅ | ✅ | ✅ Unified |
+| `paginate` | ✅ | ✅ | ✅ Unified |
+| `distinct` | ✅ | ✅ | ✅ Unified |
+| `findOrCreate` | ✅ | ✅ | ✅ Unified |
+| `findOneAndUpdate` | ✅ | ✅ | ✅ Unified |
+| `findOneAndDelete` | ✅ | ✅ | ✅ Unified |
+| `findOneAndReplace` | ✅ | ✅ | ✅ Unified |
+| `truncate` | ✅ | ✅ | ✅ Unified |
+| `aggregate` | ❌ | ✅ | ⚠️ Not unified (SQL has no aggregation pipeline) |
 
-#### 静态操作方法
+#### Static Operation Methods
 
-| 方法名            | SQLModel | MongoModel | 统一状态  |
+| Method | SQLModel | MongoModel | Status |
 | ----------------- | -------- | ---------- | --------- |
-| `create`          | ✅       | ✅         | ✅ 已统一 |
-| `createMany`      | ✅       | ✅         | ✅ 已统一 |
-| `update`          | ✅       | ✅         | ✅ 已统一 |
-| `updateById`      | ✅       | ✅         | ✅ 已统一 |
-| `updateMany`      | ✅       | ✅         | ✅ 已统一 |
-| `delete`          | ✅       | ✅         | ✅ 已统一 |
-| `deleteById`      | ✅       | ✅         | ✅ 已统一 |
-| `deleteMany`      | ✅       | ✅         | ✅ 已统一 |
-| `increment`       | ✅       | ✅         | ✅ 已统一 |
-| `decrement`       | ✅       | ✅         | ✅ 已统一 |
-| `incrementMany`   | ✅       | ✅         | ✅ 已统一 |
-| `decrementMany`   | ✅       | ✅         | ✅ 已统一 |
-| `upsert`          | ✅       | ✅         | ✅ 已统一 |
-| `restore`         | ✅       | ✅         | ✅ 已统一 |
-| `restoreById`     | ✅       | ✅         | ✅ 已统一 |
-| `forceDelete`     | ✅       | ✅         | ✅ 已统一 |
-| `forceDeleteById` | ✅       | ✅         | ✅ 已统一 |
+| `create` | ✅ | ✅ | ✅ Unified |
+| `createMany` | ✅ | ✅ | ✅ Unified |
+| `update` | ✅ | ✅ | ✅ Unified |
+| `updateById` | ✅ | ✅ | ✅ Unified |
+| `updateMany` | ✅ | ✅ | ✅ Unified |
+| `delete` | ✅ | ✅ | ✅ Unified |
+| `deleteById` | ✅ | ✅ | ✅ Unified |
+| `deleteMany` | ✅ | ✅ | ✅ Unified |
+| `increment` | ✅ | ✅ | ✅ Unified |
+| `decrement` | ✅ | ✅ | ✅ Unified |
+| `incrementMany` | ✅ | ✅ | ✅ Unified |
+| `decrementMany` | ✅ | ✅ | ✅ Unified |
+| `upsert` | ✅ | ✅ | ✅ Unified |
+| `restore` | ✅ | ✅ | ✅ Unified |
+| `restoreById` | ✅ | ✅ | ✅ Unified |
+| `forceDelete` | ✅ | ✅ | ✅ Unified |
+| `forceDeleteById` | ✅ | ✅ | ✅ Unified |
 
-#### 查询构建器方法（`query()`）
+#### Query Builder Methods (`query()`)
 
-**查询方法：**
+**Query Methods:**
 
-| 方法名                     | SQLModel | MongoModel | 统一状态    |
+| Method | SQLModel | MongoModel | Status |
 | -------------------------- | -------- | ---------- | ----------- |
-| `findAll()`                | ✅       | ✅         | ✅ 已统一   |
-| `findOne()`                | ✅       | ✅         | ✅ 已统一   |
-| `one()`                    | ✅       | ✅         | ✅ 已统一   |
-| `all()`                    | ✅       | ✅         | ✅ 已统一   |
-| `findById(id, fields?)`    | ✅       | ✅         | ✅ 已统一   |
-| `count()`                  | ✅       | ✅         | ✅ 已统一   |
-| `exists()`                 | ✅       | ✅         | ✅ 已统一   |
-| `distinct(field)`          | ✅       | ✅         | ✅ 已统一   |
-| `paginate(page, pageSize)` | ✅       | ✅         | ✅ 已统一   |
-| `aggregate(pipeline)`      | ❌       | ✅         | ⚠️ 无法统一 |
+| `findAll()` | ✅ | ✅ | ✅ Unified |
+| `findOne()` | ✅ | ✅ | ✅ Unified |
+| `one()` | ✅ | ✅ | ✅ Unified |
+| `all()` | ✅ | ✅ | ✅ Unified |
+| `findById(id, fields?)` | ✅ | ✅ | ✅ Unified |
+| `count()` | ✅ | ✅ | ✅ Unified |
+| `exists()` | ✅ | ✅ | ✅ Unified |
+| `distinct(field)` | ✅ | ✅ | ✅ Unified |
+| `paginate(page, pageSize)` | ✅ | ✅ | ✅ Unified |
+| `aggregate(pipeline)` | ❌ | ✅ | ⚠️ Not unified |
 
-**操作方法：**
+**Operation Methods:**
 
-| 方法名                                          | SQLModel | MongoModel | 统一状态  |
+| Method | SQLModel | MongoModel | Status |
 | ----------------------------------------------- | -------- | ---------- | --------- |
-| `update(data, returnLatest?)`                   | ✅       | ✅         | ✅ 已统一 |
-| `updateById(id, data)`                          | ✅       | ✅         | ✅ 已统一 |
-| `updateMany(data)`                              | ✅       | ✅         | ✅ 已统一 |
-| `increment(field, amount?, returnLatest?)`      | ✅       | ✅         | ✅ 已统一 |
-| `decrement(field, amount?, returnLatest?)`      | ✅       | ✅         | ✅ 已统一 |
-| `deleteById(id)`                                | ✅       | ✅         | ✅ 已统一 |
-| `deleteMany(options?)`                          | ✅       | ✅         | ✅ 已统一 |
-| `restore(options?)`                             | ✅       | ✅         | ✅ 已统一 |
-| `restoreById(id)`                               | ✅       | ✅         | ✅ 已统一 |
-| `forceDelete(options?)`                         | ✅       | ✅         | ✅ 已统一 |
-| `forceDeleteById(id)`                           | ✅       | ✅         | ✅ 已统一 |
-| `upsert(data, returnLatest?, resurrect?)`       | ✅       | ✅         | ✅ 已统一 |
-| `findOrCreate(data, resurrect?)`                | ✅       | ✅         | ✅ 已统一 |
-| `findOneAndUpdate(data, options?)`              | ✅       | ✅         | ✅ 已统一 |
-| `findOneAndDelete()`                            | ✅       | ✅         | ✅ 已统一 |
-| `findOneAndReplace(replacement, returnLatest?)` | ✅       | ✅         | ✅ 已统一 |
-| `incrementMany(fieldOrMap, amount?)`            | ✅       | ✅         | ✅ 已统一 |
-| `decrementMany(fieldOrMap, amount?)`            | ✅       | ✅         | ✅ 已统一 |
+| `update(data, returnLatest?)` | ✅ | ✅ | ✅ Unified |
+| `updateById(id, data)` | ✅ | ✅ | ✅ Unified |
+| `updateMany(data)` | ✅ | ✅ | ✅ Unified |
+| `increment(field, amount?, returnLatest?)` | ✅ | ✅ | ✅ Unified |
+| `decrement(field, amount?, returnLatest?)` | ✅ | ✅ | ✅ Unified |
+| `deleteById(id)` | ✅ | ✅ | ✅ Unified |
+| `deleteMany(options?)` | ✅ | ✅ | ✅ Unified |
+| `restore(options?)` | ✅ | ✅ | ✅ Unified |
+| `restoreById(id)` | ✅ | ✅ | ✅ Unified |
+| `forceDelete(options?)` | ✅ | ✅ | ✅ Unified |
+| `forceDeleteById(id)` | ✅ | ✅ | ✅ Unified |
+| `upsert(data, returnLatest?, resurrect?)` | ✅ | ✅ | ✅ Unified |
+| `findOrCreate(data, resurrect?)` | ✅ | ✅ | ✅ Unified |
+| `findOneAndUpdate(data, options?)` | ✅ | ✅ | ✅ Unified |
+| `findOneAndDelete()` | ✅ | ✅ | ✅ Unified |
+| `findOneAndReplace(replacement, returnLatest?)` | ✅ | ✅ | ✅ Unified |
+| `incrementMany(fieldOrMap, amount?)` | ✅ | ✅ | ✅ Unified |
+| `decrementMany(fieldOrMap, amount?)` | ✅ | ✅ | ✅ Unified |
 
-#### 软删除相关方法
+#### Soft Delete Methods
 
-| 方法名             | SQLModel | MongoModel | 统一状态  |
+| Method | SQLModel | MongoModel | Status |
 | ------------------ | -------- | ---------- | --------- |
-| `withTrashed()`    | ✅       | ✅         | ✅ 已统一 |
-| `onlyTrashed()`    | ✅       | ✅         | ✅ 已统一 |
-| `scope(scopeName)` | ✅       | ✅         | ✅ 已统一 |
+| `withTrashed()` | ✅ | ✅ | ✅ Unified |
+| `onlyTrashed()` | ✅ | ✅ | ✅ Unified |
+| `scope(scopeName)` | ✅ | ✅ | ✅ Unified |
 
-#### 实例方法
+#### Instance Methods
 
-| 方法名           | SQLModel | MongoModel | 统一状态  |
+| Method | SQLModel | MongoModel | Status |
 | ---------------- | -------- | ---------- | --------- |
-| `save()`         | ✅       | ✅         | ✅ 已统一 |
-| `update(data)`   | ✅       | ✅         | ✅ 已统一 |
-| `delete()`       | ✅       | ✅         | ✅ 已统一 |
-| `belongsTo(...)` | ✅       | ✅         | ✅ 已统一 |
-| `hasOne(...)`    | ✅       | ✅         | ✅ 已统一 |
-| `hasMany(...)`   | ✅       | ✅         | ✅ 已统一 |
+| `save()` | ✅ | ✅ | ✅ Unified |
+| `update(data)` | ✅ | ✅ | ✅ Unified |
+| `delete()` | ✅ | ✅ | ✅ Unified |
+| `belongsTo(...)` | ✅ | ✅ | ✅ Unified |
+| `hasOne(...)` | ✅ | ✅ | ✅ Unified |
+| `hasMany(...)` | ✅ | ✅ | ✅ Unified |
 
-#### MongoModel 独有方法
+#### MongoModel-Specific Methods
 
-| 方法名                  | SQLModel | MongoModel | 统一状态    | 备注             |
+| Method | SQLModel | MongoModel | Status | Note |
 | ----------------------- | -------- | ---------- | ----------- | ---------------- |
-| `createIndexes(force?)` | ❌       | ✅         | ⚠️ 无法统一 | MongoDB 索引管理 |
-| `dropIndexes()`         | ❌       | ✅         | ⚠️ 无法统一 | MongoDB 索引管理 |
-| `getIndexes()`          | ❌       | ✅         | ⚠️ 无法统一 | MongoDB 索引管理 |
-| `transaction(callback)` | ❌       | ✅         | ⚠️ 无法统一 | MongoDB 事务     |
+| `createIndexes(force?)` | ❌ | ✅ | ⚠️ Not unified | MongoDB index management |
+| `dropIndexes()` | ❌ | ✅ | ⚠️ Not unified | MongoDB index management |
+| `getIndexes()` | ❌ | ✅ | ⚠️ Not unified | MongoDB index management |
+| `transaction(callback)` | ❌ | ✅ | ⚠️ Not unified | MongoDB transaction |
 
-#### 统一率统计
+#### Unification Rate
 
-| 类别                | 总数   | 已统一 | 无法统一 | 统一率    |
+| Category | Total | Unified | Not Unified | Rate |
 | ------------------- | ------ | ------ | -------- | --------- |
-| 静态查询方法        | 14     | 13     | 1        | 92.9%     |
-| 静态操作方法        | 17     | 17     | 0        | 100%      |
-| 查询构建器查询方法  | 10     | 9      | 1        | 90%       |
-| 查询构建器操作方法  | 18     | 18     | 0        | 100%      |
-| 软删除相关方法      | 3      | 3      | 0        | 100%      |
-| 实例方法            | 6      | 6      | 0        | 100%      |
-| MongoModel 独有方法 | 4      | 0      | 4        | -         |
-| **总计**            | **72** | **66** | **6**    | **91.7%** |
+| Static query methods | 14 | 13 | 1 | 92.9% |
+| Static operation methods | 17 | 17 | 0 | 100% |
+| Query builder query methods | 10 | 9 | 1 | 90% |
+| Query builder operation methods | 18 | 18 | 0 | 100% |
+| Soft delete methods | 3 | 3 | 0 | 100% |
+| Instance methods | 6 | 6 | 0 | 100% |
+| MongoModel-specific methods | 4 | 0 | 4 | - |
+| **Total** | **72** | **66** | **6** | **91.7%** |
 
 ---
 
-## 📊 测试报告
+## 📊 Test Report
 
-本库经过全面测试，所有 1,954 个测试用例均已通过，测试覆盖率达到
-100%。详细测试报告请查看 [TEST_REPORT.md](./TEST_REPORT.md)。
+This library is fully tested. All 1,954 test cases pass with 100% coverage. See [TEST_REPORT.md](./TEST_REPORT.md) for details.
 
-**测试统计**：
+**Test Statistics:**
 
-- **总测试数**: 1,954（integration 4 + mongo 497 + mysql 481 + postgresql 488 + sqlite 484）
-- **通过**: 1,954 ✅
-- **失败**: 0
-- **通过率**: 100% ✅
-- **测试执行时间**: ~129秒（Deno 环境，分库执行）
-- **测试文件数**: 81 个
-- **测试环境**: Deno 2.5.0+, Bun 1.3.0+
+- **Total tests**: 1,954 (integration 4 + mongo 497 + mysql 481 + postgresql 488 + sqlite 484)
+- **Passed**: 1,954 ✅
+- **Failed**: 0
+- **Pass rate**: 100% ✅
+- **Execution time**: ~129s (Deno, per-adapter)
+- **Test files**: 81
+- **Environments**: Deno 2.5.0+, Bun 1.3.0+
 
-**各适配器测试数**：
+**Tests per adapter:**
 
-| 适配器 | 测试数 | 执行时间 |
-|--------|--------|----------|
-| integration（多适配器） | 4 | 87ms |
+| Adapter | Tests | Time |
+|---------|-------|------|
+| integration (multi-adapter) | 4 | 87ms |
 | MongoDB | 497 | ~35s |
 | MySQL | 481 | ~46s |
 | PostgreSQL | 488 | ~40s |
 | SQLite | 484 | ~8s |
 
-**测试亮点**：
+**Highlights:**
 
-- ✅ 4 个数据库适配器（MySQL、PostgreSQL、SQLite、MongoDB）全部通过测试
-- ✅ 多适配器集成测试（MySQL、SQLite、MongoDB 同时操作）
-- ✅ QueryLogger 含 t、logger、debug 参数测试
-- ✅ `query()` 和 `find()` 方法支持完整查询条件 API
-- ✅ 30+ 种数据验证规则全部测试通过
-- ✅ 完整的软删除、关联查询、事务处理等功能全部测试通过
-- ✅ 无资源泄漏，长时间运行稳定
+- ✅ All 4 adapters (MySQL, PostgreSQL, SQLite, MongoDB) pass
+- ✅ Multi-adapter integration (MySQL, SQLite, MongoDB)
+- ✅ QueryLogger with t, logger, debug params
+- ✅ `query()` and `find()` support full query condition API
+- ✅ 30+ validation rules all pass
+- ✅ Soft delete, associations, transactions all pass
+- ✅ No resource leaks, stable under load
 
-查看完整测试报告：[TEST_REPORT.md](./TEST_REPORT.md)
-
----
-
-## ⚡ 性能优化
-
-- **连接池**：自动管理数据库连接池，提高并发性能
-- **查询缓存**：ORM 模型支持查询结果缓存，减少数据库查询
-- **预处理语句**：所有 SQL 查询使用预处理语句，防止 SQL 注入并提高性能
-- **批量操作**：支持批量创建、更新、删除操作
-- **索引管理**：支持数据库索引创建和管理（MongoDB）
-- **异步操作**：所有操作都是异步的，不阻塞主线程
+Full report: [TEST_REPORT.md](./TEST_REPORT.md)
 
 ---
 
-## 📝 注意事项
+## ⚡ Performance
 
-- **服务端专用**：数据库连接是服务端功能，客户端不支持
-- **统一接口**：使用适配器模式，提供统一的数据库接口，支持多种数据库后端
-- **类型安全**：完整的 TypeScript 类型支持
-- **依赖**：需要相应的数据库驱动（PostgreSQL、MySQL、SQLite、MongoDB）
-- **跨运行时**：支持 Deno 2.5.0+ 和 Bun 1.3.0+，代码在两个环境中都经过测试
-- **Bun 原生支持**：SQLiteAdapter 优先使用 Bun 原生 SQLite API，提供更好的性能
-- **测试覆盖**：1,954 个测试用例，核心功能覆盖率 100%
-- **真实数据库测试**：所有测试使用真实数据库实例，确保测试的真实性和可靠性
+- **Connection pool**: Auto-managed, improves concurrency
+- **Query cache**: ORM supports result caching
+- **Prepared statements**: All SQL uses prepared statements (SQL injection safe, faster)
+- **Batch ops**: Batch create, update, delete
+- **Index management**: Index create/manage (MongoDB)
+- **Async**: All operations async, non-blocking
 
 ---
 
-## 🤝 贡献
+## 📝 Notes
 
-欢迎提交 Issue 和 Pull Request！
+- **Server-only**: Database connections are server-side; client not supported
+- **Unified interface**: Adapter pattern, multiple backends
+- **Type-safe**: Full TypeScript support
+- **Dependencies**: Requires DB drivers (PostgreSQL, MySQL, SQLite, MongoDB)
+- **Cross-runtime**: Deno 2.5.0+ and Bun 1.3.0+, tested in both
+- **Bun native**: SQLiteAdapter prefers Bun native SQLite API for better performance
+- **Test coverage**: 1,954 tests, 100% core coverage
+- **Real DB tests**: All tests use real DB instances
 
 ---
 
-## 📄 许可证
+## 🤝 Contributing
 
-MIT License - 详见 [LICENSE.md](./LICENSE.md)
+Issues and Pull Requests welcome!
+
+---
+
+## 📄 License
+
+MIT License - see [LICENSE.md](./LICENSE.md)
 
 ---
 
