@@ -7,6 +7,7 @@ import { ObjectId } from "mongodb";
 import type { MongoDBAdapter } from "../adapters/mongodb.ts";
 import type { CacheAdapter } from "../cache/cache-adapter.ts";
 import type { DatabaseAdapter } from "../types.ts";
+import type { ModelTranslateFn } from "./i18n.ts";
 import type {
   CompoundIndex,
   GeospatialIndex,
@@ -477,6 +478,12 @@ export type MongoQueryBuilder<T extends typeof MongoModel> = {
  */
 export abstract class MongoModel {
   /**
+   * 翻译函数（可选，由框架传入 t 实现 i18n）
+   * 设置后，验证错误等用户-facing 文案将使用此函数翻译
+   */
+  static translate?: ModelTranslateFn;
+
+  /**
    * 集合名称（子类必须定义）
    */
   static collectionName: string;
@@ -508,6 +515,18 @@ export abstract class MongoModel {
 
   static set adapter(value: DatabaseAdapter | null) {
     this._adapter = value;
+  }
+
+  /**
+   * 获取翻译文本，无 translate 或翻译缺失时返回 fallback
+   */
+  private static tr(
+    key: string,
+    fallback: string,
+    params?: Record<string, string | number | boolean>,
+  ): string {
+    const r = this.translate?.(key, params);
+    return (r != null && r !== key) ? r : fallback;
   }
 
   /**
@@ -1087,7 +1106,10 @@ export abstract class MongoModel {
     if (isRequired && (value === null || value === undefined || value === "")) {
       throw new ValidationError(
         fieldName,
-        rule?.message || `${fieldName} is required`,
+        rule?.message ||
+          this.tr("log.validation.required", `${fieldName} 是必填字段`, {
+            field: fieldName,
+          }),
       );
     }
 
@@ -1107,7 +1129,11 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule?.message ||
-            `${fieldName} must be one of: ${fieldDef.enum.join(", ")}`,
+            this.tr(
+              "log.validation.enum",
+              `${fieldName} 必须是以下之一: ${fieldDef.enum.join(", ")}`,
+              { field: fieldName, values: fieldDef.enum.join(", ") },
+            ),
         );
       }
     }
@@ -1118,7 +1144,12 @@ export abstract class MongoModel {
       if (!typeCheck) {
         throw new ValidationError(
           fieldName,
-          rule?.message || `${fieldName} must be of type ${fieldDef.type}`,
+          rule?.message ||
+            this.tr(
+              "log.validation.typeExpected",
+              `${fieldName} 必须是 ${fieldDef.type} 类型`,
+              { field: fieldName, type: fieldDef.type },
+            ),
         );
       }
     }
@@ -1129,7 +1160,12 @@ export abstract class MongoModel {
       if (!typeCheck) {
         throw new ValidationError(
           fieldName,
-          rule.message || `${fieldName} must be of type ${rule.type}`,
+          rule.message ||
+            this.tr(
+              "log.validation.typeExpected",
+              `${fieldName} 必须是 ${rule.type} 类型`,
+              { field: fieldName, type: rule.type },
+            ),
         );
       }
     }
@@ -1138,7 +1174,12 @@ export abstract class MongoModel {
     if (rule?.enum && fieldDef.type !== "enum" && !rule.enum.includes(value)) {
       throw new ValidationError(
         fieldName,
-        rule.message || `${fieldName} must be one of: ${rule.enum.join(", ")}`,
+        rule.message ||
+          this.tr(
+            "log.validation.enum",
+            `${fieldName} 必须是以下之一: ${rule.enum.join(", ")}`,
+            { field: fieldName, values: rule.enum.join(", ") },
+          ),
       );
     }
 
@@ -1148,20 +1189,33 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            `${fieldName} must be exactly ${rule.length} characters`,
+            this.tr(
+              "log.validation.lengthRequired",
+              `${fieldName} 长度必须是 ${rule.length}`,
+              { field: fieldName, length: String(rule.length) },
+            ),
         );
       }
       if (rule.min !== undefined && value.length < rule.min) {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            `${fieldName} must be at least ${rule.min} characters`,
+            this.tr(
+              "log.validation.minLength",
+              `${fieldName} 长度必须大于等于 ${rule.min}`,
+              { field: fieldName, min: rule.min },
+            ),
         );
       }
       if (rule.max !== undefined && value.length > rule.max) {
         throw new ValidationError(
           fieldName,
-          rule.message || `${fieldName} must be at most ${rule.max} characters`,
+          rule.message ||
+            this.tr(
+              "log.validation.maxLength",
+              `${fieldName} 长度必须小于等于 ${rule.max}`,
+              { field: fieldName, max: rule.max },
+            ),
         );
       }
     }
@@ -1171,13 +1225,21 @@ export abstract class MongoModel {
       if (rule.min !== undefined && value < rule.min) {
         throw new ValidationError(
           fieldName,
-          rule.message || `${fieldName} must be at least ${rule.min}`,
+          rule.message ||
+            this.tr("log.validation.minNumber", `${fieldName} 必须大于等于 ${rule.min}`, {
+              field: fieldName,
+              min: rule.min,
+            }),
         );
       }
       if (rule.max !== undefined && value > rule.max) {
         throw new ValidationError(
           fieldName,
-          rule.message || `${fieldName} must be at most ${rule.max}`,
+          rule.message ||
+            this.tr("log.validation.maxNumber", `${fieldName} 必须小于等于 ${rule.max}`, {
+              field: fieldName,
+              max: rule.max,
+            }),
         );
       }
     }
@@ -1190,7 +1252,10 @@ export abstract class MongoModel {
       if (typeof value === "string" && !regex.test(value)) {
         throw new ValidationError(
           fieldName,
-          rule.message || `${fieldName} format is invalid`,
+          rule.message ||
+            this.tr("log.validation.pattern", `${fieldName} 格式不正确`, {
+              field: fieldName,
+            }),
         );
       }
     }
@@ -1201,7 +1266,10 @@ export abstract class MongoModel {
       if (rule?.integer && !Number.isInteger(value)) {
         throw new ValidationError(
           fieldName,
-          rule.message || `${fieldName} must be an integer`,
+          rule.message ||
+            this.tr("log.validation.integer", `${fieldName} 必须是整数`, {
+              field: fieldName,
+            }),
         );
       }
 
@@ -1209,7 +1277,10 @@ export abstract class MongoModel {
       if (rule?.positive && value <= 0) {
         throw new ValidationError(
           fieldName,
-          rule.message || `${fieldName} must be positive`,
+          rule.message ||
+            this.tr("log.validation.positive", `${fieldName} 必须是正数`, {
+              field: fieldName,
+            }),
         );
       }
 
@@ -1217,7 +1288,10 @@ export abstract class MongoModel {
       if (rule?.negative && value >= 0) {
         throw new ValidationError(
           fieldName,
-          rule.message || `${fieldName} must be negative`,
+          rule.message ||
+            this.tr("log.validation.negative", `${fieldName} 必须是负数`, {
+              field: fieldName,
+            }),
         );
       }
 
@@ -1227,7 +1301,11 @@ export abstract class MongoModel {
           throw new ValidationError(
             fieldName,
             rule.message ||
-              `${fieldName} must be a multiple of ${rule.multipleOf}`,
+              this.tr(
+                "log.validation.multipleOf",
+                `${fieldName} 必须是 ${rule.multipleOf} 的倍数`,
+                { field: fieldName, multipleOf: rule.multipleOf },
+              ),
           );
         }
       }
@@ -1238,7 +1316,12 @@ export abstract class MongoModel {
         if (value < min || value > max) {
           throw new ValidationError(
             fieldName,
-            rule.message || `${fieldName} must be between ${min} and ${max}`,
+            rule.message ||
+              this.tr(
+                "log.validation.range",
+                `${fieldName} 必须在 ${min} 到 ${max} 之间`,
+                { field: fieldName, min, max },
+              ),
           );
         }
       }
@@ -1251,21 +1334,29 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            `${fieldName} must contain only alphanumeric characters`,
+            this.tr("log.validation.alphaNum", `${fieldName} 只能包含字母和数字`, {
+              field: fieldName,
+            }),
         );
       }
 
       if (rule?.numeric && !/^[0-9]+$/.test(value)) {
         throw new ValidationError(
           fieldName,
-          rule.message || `${fieldName} must contain only numbers`,
+          rule.message ||
+            this.tr("log.validation.numeric", `${fieldName} 只能包含数字`, {
+              field: fieldName,
+            }),
         );
       }
 
       if (rule?.alpha && !/^[a-zA-Z]+$/.test(value)) {
         throw new ValidationError(
           fieldName,
-          rule.message || `${fieldName} must contain only letters`,
+          rule.message ||
+            this.tr("log.validation.alpha", `${fieldName} 只能包含字母`, {
+              field: fieldName,
+            }),
         );
       }
 
@@ -1273,14 +1364,20 @@ export abstract class MongoModel {
       if (rule?.lowercase && value !== value.toLowerCase()) {
         throw new ValidationError(
           fieldName,
-          rule.message || `${fieldName} must be lowercase`,
+          rule.message ||
+            this.tr("log.validation.lowercase", `${fieldName} 必须是小写`, {
+              field: fieldName,
+            }),
         );
       }
 
       if (rule?.uppercase && value !== value.toUpperCase()) {
         throw new ValidationError(
           fieldName,
-          rule.message || `${fieldName} must be uppercase`,
+          rule.message ||
+            this.tr("log.validation.uppercase", `${fieldName} 必须是大写`, {
+              field: fieldName,
+            }),
         );
       }
 
@@ -1290,21 +1387,36 @@ export abstract class MongoModel {
       ) {
         throw new ValidationError(
           fieldName,
-          rule.message || `${fieldName} must start with "${rule.startsWith}"`,
+          rule.message ||
+            this.tr(
+              "log.validation.startsWith",
+              `${fieldName} 必须以 "${rule.startsWith}" 开头`,
+              { field: fieldName, value: rule.startsWith },
+            ),
         );
       }
 
       if (rule?.endsWith !== undefined && !value.endsWith(rule.endsWith)) {
         throw new ValidationError(
           fieldName,
-          rule.message || `${fieldName} must end with "${rule.endsWith}"`,
+          rule.message ||
+            this.tr(
+              "log.validation.endsWith",
+              `${fieldName} 必须以 "${rule.endsWith}" 结尾`,
+              { field: fieldName, value: rule.endsWith },
+            ),
         );
       }
 
       if (rule?.contains !== undefined && !value.includes(rule.contains)) {
         throw new ValidationError(
           fieldName,
-          rule.message || `${fieldName} must contain "${rule.contains}"`,
+          rule.message ||
+            this.tr(
+              "log.validation.contains",
+              `${fieldName} 必须包含 "${rule.contains}"`,
+              { field: fieldName, value: rule.contains },
+            ),
         );
       }
 
@@ -1342,7 +1454,11 @@ export abstract class MongoModel {
           if (dateValue >= beforeDate) {
             throw new ValidationError(
               fieldName,
-              rule.message || `${fieldName} must be before ${rule.before}`,
+              rule.message ||
+                this.tr("log.validation.before", `${fieldName} 必须早于 ${rule.before}`, {
+                  field: fieldName,
+                  value: String(rule.before),
+                }),
             );
           }
         }
@@ -1354,7 +1470,11 @@ export abstract class MongoModel {
           if (dateValue <= afterDate) {
             throw new ValidationError(
               fieldName,
-              rule.message || `${fieldName} must be after ${rule.after}`,
+              rule.message ||
+                this.tr("log.validation.after", `${fieldName} 必须晚于 ${rule.after}`, {
+                  field: fieldName,
+                  value: String(rule.after),
+                }),
             );
           }
         }
@@ -1372,7 +1492,12 @@ export abstract class MongoModel {
           if (timeValue >= beforeTimeValue) {
             throw new ValidationError(
               fieldName,
-              rule.message || `${fieldName} must be before ${rule.beforeTime}`,
+              rule.message ||
+                this.tr(
+                  "log.validation.beforeTime",
+                  `${fieldName} 必须早于 ${rule.beforeTime}`,
+                  { field: fieldName, value: rule.beforeTime },
+                ),
             );
           }
         }
@@ -1389,7 +1514,12 @@ export abstract class MongoModel {
           if (timeValue <= afterTimeValue) {
             throw new ValidationError(
               fieldName,
-              rule.message || `${fieldName} must be after ${rule.afterTime}`,
+              rule.message ||
+                this.tr(
+                  "log.validation.afterTime",
+                  `${fieldName} 必须晚于 ${rule.afterTime}`,
+                  { field: fieldName, value: rule.afterTime },
+                ),
             );
           }
         }
@@ -1403,33 +1533,55 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            `${fieldName} must be at least ${options.minLength} characters`,
+            this.tr(
+              "log.validation.passwordMinLength",
+              `${fieldName} 长度必须至少 ${options.minLength} 个字符`,
+              { field: fieldName, min: options.minLength },
+            ),
         );
       }
       if (options.requireUppercase && !/[A-Z]/.test(value)) {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            `${fieldName} must contain at least one uppercase letter`,
+            this.tr(
+              "log.validation.passwordUppercase",
+              `${fieldName} 必须包含至少一个大写字母`,
+              { field: fieldName },
+            ),
         );
       }
       if (options.requireLowercase && !/[a-z]/.test(value)) {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            `${fieldName} must contain at least one lowercase letter`,
+            this.tr(
+              "log.validation.passwordLowercase",
+              `${fieldName} 必须包含至少一个小写字母`,
+              { field: fieldName },
+            ),
         );
       }
       if (options.requireNumbers && !/[0-9]/.test(value)) {
         throw new ValidationError(
           fieldName,
-          rule.message || `${fieldName} must contain at least one number`,
+          rule.message ||
+            this.tr(
+              "log.validation.passwordNumber",
+              `${fieldName} 必须包含至少一个数字`,
+              { field: fieldName },
+            ),
         );
       }
       if (options.requireSymbols && !/[^a-zA-Z0-9]/.test(value)) {
         throw new ValidationError(
           fieldName,
-          rule.message || `${fieldName} must contain at least one symbol`,
+          rule.message ||
+            this.tr(
+              "log.validation.passwordSpecial",
+              `${fieldName} 必须包含至少一个特殊字符`,
+              { field: fieldName },
+            ),
         );
       }
     }
@@ -1441,7 +1593,10 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            `${fieldName} must equal ${rule.equals}`,
+            this.tr("log.validation.equals", `${fieldName} 必须与 ${rule.equals} 相等`, {
+              field: fieldName,
+              other: rule.equals,
+            }),
         );
       }
     }
@@ -1453,7 +1608,11 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            `${fieldName} must not equal ${rule.notEquals}`,
+            this.tr(
+              "log.validation.notEquals",
+              `${fieldName} 不能与 ${rule.notEquals} 相等`,
+              { field: fieldName, other: rule.notEquals },
+            ),
         );
       }
     }
@@ -1467,7 +1626,9 @@ export abstract class MongoModel {
           rule.message ||
             (typeof result === "string"
               ? result
-              : `${fieldName} validation failed`),
+              : this.tr("log.validation.customFailed", `${fieldName} 验证失败`, {
+                field: fieldName,
+              })),
         );
       }
     }
@@ -1486,7 +1647,9 @@ export abstract class MongoModel {
           rule.message ||
             (typeof result === "string"
               ? result
-              : `${fieldName} validation failed`),
+              : this.tr("log.validation.customFailed", `${fieldName} 验证失败`, {
+                field: fieldName,
+              })),
         );
       }
     }
@@ -1664,7 +1827,11 @@ export abstract class MongoModel {
     if (!isValid) {
       throw new ValidationError(
         fieldName,
-        message || `${fieldName} format is invalid (expected: ${format})`,
+        message ||
+          this.tr("log.validation.formatExpected", `${fieldName} 格式不正确（期望格式: ${format}）`, {
+            field: fieldName,
+            format,
+          }),
       );
     }
   }
@@ -1688,7 +1855,9 @@ export abstract class MongoModel {
     if (!Array.isArray(value)) {
       throw new ValidationError(
         fieldName,
-        `${fieldName} must be an array`,
+        this.tr("log.validation.typeArray", `${fieldName} 必须是数组类型`, {
+          field: fieldName,
+        }),
       );
     }
 
@@ -1696,21 +1865,30 @@ export abstract class MongoModel {
     if (arrayRule.length !== undefined && value.length !== arrayRule.length) {
       throw new ValidationError(
         fieldName,
-        `${fieldName} array length must be ${arrayRule.length}`,
+        this.tr("log.validation.arrayLength", `${fieldName} 数组长度必须是 ${arrayRule.length}`, {
+          field: fieldName,
+          length: String(arrayRule.length),
+        }),
       );
     }
 
     if (arrayRule.min !== undefined && value.length < arrayRule.min) {
       throw new ValidationError(
         fieldName,
-        `${fieldName} array length must be at least ${arrayRule.min}`,
+        this.tr("log.validation.arrayMinLength", `${fieldName} 数组长度必须大于等于 ${arrayRule.min}`, {
+          field: fieldName,
+          min: arrayRule.min,
+        }),
       );
     }
 
     if (arrayRule.max !== undefined && value.length > arrayRule.max) {
       throw new ValidationError(
         fieldName,
-        `${fieldName} array length must be at most ${arrayRule.max}`,
+        this.tr("log.validation.arrayMaxLength", `${fieldName} 数组长度必须小于等于 ${arrayRule.max}`, {
+          field: fieldName,
+          max: arrayRule.max,
+        }),
       );
     }
 
@@ -1726,7 +1904,9 @@ export abstract class MongoModel {
         if (seen.has(key)) {
           throw new ValidationError(
             fieldName,
-            `${fieldName} array items must be unique, duplicate found`,
+            this.tr("log.validation.arrayUniqueItems", `${fieldName} 数组元素必须唯一，发现重复元素`, {
+              field: fieldName,
+            }),
           );
         }
         seen.add(key);
@@ -1743,18 +1923,25 @@ export abstract class MongoModel {
           const expectedType = arrayRule.type;
           const actualType = typeof item;
           if (expectedType === "array" && !Array.isArray(item)) {
+            const elemField = `${fieldName}[${i}]`;
             throw new ValidationError(
-              `${fieldName}[${i}]`,
-              `${fieldName}[${i}] must be an array`,
+              elemField,
+              this.tr("log.validation.typeArray", `${elemField} 必须是数组类型`, {
+                field: elemField,
+              }),
             );
           }
           if (
             expectedType !== "array" && expectedType !== "object" &&
             actualType !== expectedType
           ) {
+            const elemField = `${fieldName}[${i}]`;
             throw new ValidationError(
-              `${fieldName}[${i}]`,
-              `${fieldName}[${i}] must be of type ${expectedType}`,
+              elemField,
+              this.tr("log.validation.arrayElementType", `${elemField} 元素必须是 ${expectedType} 类型`, {
+                field: elemField,
+                type: expectedType,
+              }),
             );
           }
         }
@@ -1815,7 +2002,9 @@ export abstract class MongoModel {
     if (exists) {
       throw new ValidationError(
         fieldName,
-        `${fieldName} already exists, must be unique`,
+        this.tr("log.validation.unique", `${fieldName} 已存在，必须是唯一的`, {
+          field: fieldName,
+        }),
       );
     }
   }
@@ -1861,7 +2050,9 @@ export abstract class MongoModel {
       if (!exists) {
         throw new ValidationError(
           fieldName,
-          `${fieldName} does not exist in collection`,
+          this.tr("log.validation.exists", `${fieldName} 在数据表中不存在`, {
+            field: fieldName,
+          }),
         );
       }
     } finally {
@@ -1899,7 +2090,9 @@ export abstract class MongoModel {
     if (exists) {
       throw new ValidationError(
         fieldName,
-        `${fieldName} already exists in collection`,
+        this.tr("log.validation.notExists", `${fieldName} 在数据表中已存在`, {
+          field: fieldName,
+        }),
       );
     }
   }
@@ -1933,7 +2126,10 @@ export abstract class MongoModel {
       if (targetValue === undefined) {
         throw new ValidationError(
           fieldName,
-          `${fieldName} 验证失败：未找到目标字段 ${options.targetField}`,
+          this.tr("log.validation.compareValueNotFound", `${fieldName} 验证失败：未找到目标字段 ${options.targetField}`, {
+            field: fieldName,
+            targetField: options.targetField,
+          }),
         );
       }
     } else {
@@ -1956,7 +2152,9 @@ export abstract class MongoModel {
       if (!targetRecord) {
         throw new ValidationError(
           fieldName,
-          `${fieldName} 验证失败：未找到目标记录`,
+          this.tr("log.validation.compareValueNoRecord", `${fieldName} 验证失败：未找到目标记录`, {
+            field: fieldName,
+          }),
         );
       }
 
@@ -1992,6 +2190,13 @@ export abstract class MongoModel {
     }
 
     if (!isValid) {
+      const operatorKey = {
+        "=": "compareValueEqual",
+        ">": "compareValueGreater",
+        "<": "compareValueLess",
+        ">=": "compareValueGreaterOrEqual",
+        "<=": "compareValueLessOrEqual",
+      }[compare];
       const operatorText = {
         "=": "等于",
         ">": "大于",
@@ -2001,7 +2206,15 @@ export abstract class MongoModel {
       }[compare];
       throw new ValidationError(
         fieldName,
-        `${fieldName} 必须${operatorText} ${options.targetField} (${targetValue})`,
+        this.tr(
+          `log.validation.${operatorKey}`,
+          `${fieldName} 必须${operatorText} ${options.targetField} (${targetValue})`,
+          {
+            field: fieldName,
+            targetField: options.targetField,
+            targetValue: String(targetValue),
+          },
+        ),
       );
     }
   }
@@ -4418,14 +4631,20 @@ export abstract class MongoModel {
       const affectedRows = await Model.update(String(id), data);
       if (affectedRows === 0) {
         throw new Error(
-          `更新失败：未找到 ID 为 ${id} 的记录或记录已被删除`,
+          Model.tr("log.model.updateNotFound", `更新失败：未找到 ID 为 ${id} 的记录或记录已被删除`, {
+            id: String(id),
+          }),
         );
       }
       // 重新查询更新后的数据，确保获取最新状态
       // 确保 id 是字符串格式
       const updated = await Model.find(String(id));
       if (!updated) {
-        throw new Error(`更新后无法找到 ID 为 ${id} 的记录`);
+        throw new Error(
+          Model.tr("log.model.updateNotFoundAfter", `更新后无法找到 ID 为 ${id} 的记录`, {
+            id: String(id),
+          }),
+        );
       }
       Object.assign(this, updated);
       return this;
@@ -4476,7 +4695,9 @@ export abstract class MongoModel {
     if (!updated) {
       // 如果返回 null 或 0，表示更新失败
       throw new Error(
-        `更新失败：未找到 ID 为 ${id} 的记录或记录已被删除`,
+        Model.tr("log.model.updateNotFound", `更新失败：未找到 ID 为 ${id} 的记录或记录已被删除`, {
+          id: String(id),
+        }),
       );
     }
     // 更新成功，同步实例数据

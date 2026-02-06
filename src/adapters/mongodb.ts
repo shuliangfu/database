@@ -27,6 +27,15 @@ import {
 export class MongoDBAdapter extends BaseAdapter {
   protected client: MongoClient | null = null;
   protected db: Db | null = null;
+  private tr(
+    key: string,
+    fallback: string,
+    params?: Record<string, string | number | boolean>,
+  ): string {
+    const t = (this.config as MongoConfig).t;
+    const r = t?.(key, params);
+    return (r != null && r !== key) ? r : fallback;
+  }
   private logger = createLogger({
     level: "warn",
     format: "text",
@@ -615,9 +624,12 @@ export class MongoDBAdapter extends BaseAdapter {
       } catch (error) {
         // 关闭失败或超时，忽略错误（状态已清理）
         const message = error instanceof Error ? error.message : String(error);
-        this.logger.warn(`MongoDB 关闭连接时出错（已忽略）: ${message}`, {
-          error: message,
-        });
+        const msg = this.tr(
+          "log.adapterMongo.closeError",
+          `MongoDB 关闭连接时出错（已忽略）: ${message}`,
+          { error: message },
+        );
+        this.logger.warn(msg, { error: message });
       }
     }
   }

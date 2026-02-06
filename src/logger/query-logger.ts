@@ -25,13 +25,23 @@ export interface QueryLoggerConfig {
   enabled?: boolean;
   logLevel?: "all" | "error" | "slow"; // all: 所有查询, error: 仅错误, slow: 仅慢查询
   slowQueryThreshold?: number; // 慢查询阈值（毫秒）
-  /** 自定义 logger 实例（可选，如果不提供则使用默认 logger） */
+  /** 自定义 logger 实例（可选，传入时使用该 logger，不传则使用自带的 createLogger） */
   logger?: Logger;
+  /** 是否启用调试模式（默认 false）。为 true 时，正常查询日志使用 info 级别输出，便于在 info 级别下查看 */
+  debug?: boolean;
   /**
    * 内存中保留的日志条数上限（防止内存泄漏，默认 1000）
    * 超过时自动移除最旧的条目，设为 0 表示不限制（不推荐长期运行场景）
    */
   maxLogs?: number;
+  /**
+   * 翻译函数（可选，用于 i18n）
+   * 传入时，日志消息将使用 t(key, params) 获取翻译；未传入时使用默认中文
+   */
+  t?: (
+    key: string,
+    params?: Record<string, string | number | boolean>,
+  ) => string | undefined;
 }
 
 /**
@@ -48,14 +58,28 @@ export class QueryLogger {
       logLevel: config.logLevel ?? "all",
       slowQueryThreshold: config.slowQueryThreshold ?? 1000,
       maxLogs: config.maxLogs ?? 1000,
+      debug: config.debug ?? false,
+      t: config.t,
     };
 
-    // 使用提供的 logger 或创建新的 logger
-    this.logger = config.logger || createLogger({
+    // 传入 logger 时使用该 logger，不传则使用自带的 createLogger
+    this.logger = config.logger ?? createLogger({
       level: "info",
       format: "text",
       tags: ["database", "query"],
     });
+  }
+
+  /**
+   * 获取翻译文本，无 t 或翻译缺失时返回 fallback
+   */
+  private tr(
+    key: string,
+    fallback: string,
+    params?: Record<string, string | number | boolean>,
+  ): string {
+    const r = this.config.t?.(key, params);
+    return (r != null && r !== key) ? r : fallback;
   }
 
   /**
@@ -110,23 +134,40 @@ export class QueryLogger {
 
     if (error) {
       // 记录错误日志
-      this.logger.error(
+      const errorKey =
+        type === "query"
+          ? "log.database.queryError"
+          : "log.database.executeError";
+      const msg = this.tr(
+        errorKey,
         `数据库${type === "query" ? "查询" : "执行"}错误: ${sql}`,
-        logData,
-        error,
+        { sql },
       );
+      this.logger.error(msg, logData, error);
     } else if (duration >= (this.config.slowQueryThreshold || 1000)) {
       // 慢查询警告
-      this.logger.warn(
+      const msg = this.tr(
+        "log.database.slowQuery",
         `慢查询检测: ${sql} (耗时 ${duration}ms)`,
-        logData,
+        { sql, duration: String(duration) },
       );
+      this.logger.warn(msg, logData);
     } else {
-      // 正常查询信息
-      this.logger.debug(
+      // 正常查询信息：debug 为 true 时用 info 级别（便于在 info 级别下查看），否则用 debug
+      const infoKey =
+        type === "query"
+          ? "log.database.queryInfo"
+          : "log.database.executeInfo";
+      const msg = this.tr(
+        infoKey,
         `数据库${type === "query" ? "查询" : "执行"}: ${sql}`,
-        logData,
+        { sql },
       );
+      if (this.config.debug) {
+        this.logger.info(msg, logData);
+      } else {
+        this.logger.debug(msg, logData);
+      }
     }
   }
 

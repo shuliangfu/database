@@ -25,6 +25,18 @@ import {
  */
 export class MySQLAdapter extends BaseAdapter {
   private pool: Pool | null = null;
+
+  /** 获取翻译文本，无 t 或翻译缺失时返回 fallback */
+  private tr(
+    key: string,
+    fallback: string,
+    params?: Record<string, string | number | boolean>,
+  ): string {
+    const t = (this.config as MySQLConfig).t;
+    const r = t?.(key, params);
+    return (r != null && r !== key) ? r : fallback;
+  }
+
   private logger = createLogger({
     level: "warn",
     format: "text",
@@ -275,13 +287,10 @@ export class MySQLAdapter extends BaseAdapter {
       try {
         await connection.rollback();
       } catch (rollbackError) {
-        console.warn(
-          `MySQL transaction rollback failed: ${
-            rollbackError instanceof Error
-              ? rollbackError.message
-              : String(rollbackError)
-          }`,
-        );
+        const msg = rollbackError instanceof Error
+          ? rollbackError.message
+          : String(rollbackError);
+        this.logger.warn(`MySQL transaction rollback failed: ${msg}`);
       }
       const originalError = error instanceof Error
         ? error
@@ -395,9 +404,12 @@ export class MySQLAdapter extends BaseAdapter {
       } catch (error) {
         // 关闭失败或超时，忽略错误（状态已清理）
         const message = error instanceof Error ? error.message : String(error);
-        this.logger.warn(`MySQL 关闭连接时出错（已忽略）: ${message}`, {
-          error: message,
-        });
+        const msg = this.tr(
+          "log.adapterMysql.closeError",
+          `MySQL 关闭连接时出错（已忽略）: ${message}`,
+          { error: message },
+        );
+        this.logger.warn(msg, { error: message });
       }
     }
   }

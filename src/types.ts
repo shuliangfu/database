@@ -85,6 +85,14 @@ export interface PostgreSQLConfig {
   };
 
   /**
+   * 翻译函数（可选，用于 i18n，由框架传入）
+   */
+  t?: (
+    key: string,
+    params?: Record<string, string | number | boolean>,
+  ) => string | undefined;
+
+  /**
    * PostgreSQL 特定配置
    */
   postgresqlOptions?: {
@@ -174,6 +182,14 @@ export interface MySQLConfig {
   };
 
   /**
+   * 翻译函数（可选，用于 i18n，由框架传入）
+   */
+  t?: (
+    key: string,
+    params?: Record<string, string | number | boolean>,
+  ) => string | undefined;
+
+  /**
    * MySQL/MariaDB 特定配置
    */
   mysqlOptions?: {
@@ -231,6 +247,14 @@ export interface MongoConfig {
      */
     authSource?: string;
   };
+
+  /**
+   * 翻译函数（可选，用于 i18n，由框架传入）
+   */
+  t?: (
+    key: string,
+    params?: Record<string, string | number | boolean>,
+  ) => string | undefined;
 
   /**
    * MongoDB 特定配置
@@ -379,6 +403,14 @@ export interface SQLiteConfig {
      */
     filename?: string;
   };
+
+  /**
+   * 翻译函数（可选，用于 i18n，由框架传入）
+   */
+  t?: (
+    key: string,
+    params?: Record<string, string | number | boolean>,
+  ) => string | undefined;
 
   /**
    * SQLite 特定配置

@@ -2,45 +2,18 @@
  * @fileoverview PostgreSQL 事务和嵌套事务测试
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import { afterEach, beforeEach, describe, expect, it } from "@dreamer/test";
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
-
-/**
- * 获取环境变量（跨运行时，带默认值）
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createPostgresConfig } from "./postgres-test-utils.ts";
 
 describe("事务测试", () => {
   let adapter: DatabaseAdapter;
 
   beforeEach(async () => {
-    // 注意：需要实际的 PostgreSQL 数据库连接
-    // 如果环境变量未设置，跳过测试
-    const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
-    const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
-    const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-    // 默认使用当前系统用户名，因为本地 PostgreSQL 可能使用系统用户名而不是 postgres
-    // 优先使用环境变量，否则尝试获取系统用户名（USER 或 USERNAME），最后回退到 postgres
-    const defaultUser = "testuser";
-    const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-    const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
-
     try {
       // 使用 initDatabase 初始化全局 dbManager
-      await initDatabase({
-        type: "postgresql",
-        connection: {
-          host: pgHost,
-          port: pgPort,
-          database: pgDatabase,
-          username: pgUser,
-          password: pgPassword,
-        },
-      });
+      await initDatabase(createPostgresConfig());
 
       // 从全局 dbManager 获取适配器
       adapter = getDatabase();
