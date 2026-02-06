@@ -2,7 +2,6 @@
  * @fileoverview 数据库访问辅助函数测试
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import {
   afterAll,
   assertRejects,
@@ -19,14 +18,7 @@ import {
   isDatabaseInitialized,
 } from "../../src/access.ts";
 import { closeDatabase } from "../../src/init-database.ts";
-import type { DatabaseConfig } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createMysqlConfig } from "./mysql-test-utils.ts";
 
 describe("access", () => {
   // 每个测试前清理状态
@@ -40,24 +32,7 @@ describe("access", () => {
 
   describe("getDatabase", () => {
     it("应该获取数据库连接（同步版本）", async () => {
-      const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
-      const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
-      const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
-      const mysqlUser = getEnvWithDefault("MYSQL_USER", "root");
-      const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
-
-      const config: DatabaseConfig = {
-        type: "mysql",
-        connection: {
-          host: mysqlHost,
-          port: mysqlPort,
-          database: mysqlDatabase,
-          username: mysqlUser,
-          password: mysqlPassword,
-        },
-      };
-
-      await initDatabase(config);
+      await initDatabase(createMysqlConfig());
       const adapter = getDatabase();
 
       expect(adapter).toBeTruthy();
@@ -65,24 +40,7 @@ describe("access", () => {
     });
 
     it("应该支持自定义连接名称", async () => {
-      const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
-      const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
-      const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
-      const mysqlUser = getEnvWithDefault("MYSQL_USER", "root");
-      const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
-
-      const config: DatabaseConfig = {
-        type: "mysql",
-        connection: {
-          host: mysqlHost,
-          port: mysqlPort,
-          database: mysqlDatabase,
-          username: mysqlUser,
-          password: mysqlPassword,
-        },
-      };
-
-      await initDatabase(config, "custom_conn");
+      await initDatabase(createMysqlConfig(), "custom_conn");
       const adapter = getDatabase("custom_conn");
 
       expect(adapter).toBeTruthy();
@@ -106,24 +64,7 @@ describe("access", () => {
 
   describe("getDatabaseAsync", () => {
     it("应该获取数据库连接（异步版本）", async () => {
-      const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
-      const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
-      const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
-      const mysqlUser = getEnvWithDefault("MYSQL_USER", "root");
-      const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
-
-      const config: DatabaseConfig = {
-        type: "mysql",
-        connection: {
-          host: mysqlHost,
-          port: mysqlPort,
-          database: mysqlDatabase,
-          username: mysqlUser,
-          password: mysqlPassword,
-        },
-      };
-
-      await initDatabase(config);
+      await initDatabase(createMysqlConfig());
       const adapter = await getDatabaseAsync();
 
       expect(adapter).toBeTruthy();
@@ -131,24 +72,7 @@ describe("access", () => {
     });
 
     it("应该支持自定义连接名称", async () => {
-      const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
-      const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
-      const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
-      const mysqlUser = getEnvWithDefault("MYSQL_USER", "root");
-      const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
-
-      const config: DatabaseConfig = {
-        type: "mysql",
-        connection: {
-          host: mysqlHost,
-          port: mysqlPort,
-          database: mysqlDatabase,
-          username: mysqlUser,
-          password: mysqlPassword,
-        },
-      };
-
-      await initDatabase(config, "async_conn");
+      await initDatabase(createMysqlConfig(), "async_conn");
       const adapter = await getDatabaseAsync("async_conn");
 
       expect(adapter).toBeTruthy();
@@ -170,24 +94,7 @@ describe("access", () => {
 
   describe("getDatabaseManager", () => {
     it("应该获取数据库管理器实例", async () => {
-      const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
-      const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
-      const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
-      const mysqlUser = getEnvWithDefault("MYSQL_USER", "root");
-      const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
-
-      const config: DatabaseConfig = {
-        type: "mysql",
-        connection: {
-          host: mysqlHost,
-          port: mysqlPort,
-          database: mysqlDatabase,
-          username: mysqlUser,
-          password: mysqlPassword,
-        },
-      };
-
-      await initDatabase(config);
+      await initDatabase(createMysqlConfig());
       const manager = getDatabaseManager();
 
       expect(manager).toBeTruthy();
@@ -211,24 +118,7 @@ describe("access", () => {
     });
 
     it("应该在数据库初始化后返回 true", async () => {
-      const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
-      const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
-      const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
-      const mysqlUser = getEnvWithDefault("MYSQL_USER", "root");
-      const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
-
-      const config: DatabaseConfig = {
-        type: "mysql",
-        connection: {
-          host: mysqlHost,
-          port: mysqlPort,
-          database: mysqlDatabase,
-          username: mysqlUser,
-          password: mysqlPassword,
-        },
-      };
-
-      await initDatabase(config);
+      await initDatabase(createMysqlConfig());
 
       expect(isDatabaseInitialized()).toBe(true);
     });

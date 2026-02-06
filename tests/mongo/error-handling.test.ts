@@ -27,7 +27,9 @@ describe("MongoDB 错误处理", () => {
   beforeAll(async () => {
     try {
       // 使用 initDatabase 初始化全局 dbManager（含认证：默认 root/8866231）
-      await initDatabase(createMongoConfig({ database: "test_mongodb_errors" }));
+      await initDatabase(
+        createMongoConfig({ database: "test_mongodb_errors" }),
+      );
 
       // 从全局 dbManager 获取适配器
       adapter = getDatabase();

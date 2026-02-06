@@ -1,16 +1,9 @@
 import { MemoryAdapter } from "@dreamer/cache";
-import { getEnv } from "@dreamer/runtime-adapter";
 import { afterEach, beforeAll, describe, expect, it } from "@dreamer/test";
 import { getDatabaseAsync } from "../../src/access.ts";
 import { initDatabase } from "../../src/init-database.ts";
 import { SQLModel } from "../../src/orm/sql-model.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createMysqlConfig } from "./mysql-test-utils.ts";
 
 // 定义表名常量（使用目录名_文件名_作为前缀）
 const TABLE_NAME = "mysql_cache_test_users";
@@ -32,24 +25,8 @@ describe("缓存机制测试", () => {
   let adapter: any;
 
   beforeAll(async () => {
-    // 获取 MariaDB 连接配置
-    const mariadbHost = getEnvWithDefault("MYSQL_HOST", "localhost");
-    const mariadbPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
-    const mariadbDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
-    const mariadbUser = getEnvWithDefault("MYSQL_USER", "root");
-    const mariadbPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
-
     // 初始化数据库
-    await initDatabase({
-      type: "mysql",
-      connection: {
-        host: mariadbHost,
-        port: mariadbPort,
-        database: mariadbDatabase,
-        username: mariadbUser,
-        password: mariadbPassword,
-      },
-    });
+    await initDatabase(createMysqlConfig());
     adapter = await getDatabaseAsync();
 
     // 创建测试表（使用 MySQL/MariaDB 语法）

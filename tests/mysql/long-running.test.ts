@@ -3,17 +3,10 @@
  * 测试数据库连接在长时间运行场景下的稳定性
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createMysqlConfig } from "./mysql-test-utils.ts";
 
 // 定义表名常量（使用目录名_文件名_作为前缀）
 const TABLE_NAME = "mysql_long_running_long_running_test";
@@ -22,27 +15,10 @@ describe("MySQL 长时间运行集成测试", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
-    const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
-    const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
-    const mysqlUser = getEnvWithDefault("MYSQL_USER", "root");
-    const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
-
     // 使用 initDatabase 初始化全局 dbManager
-    await initDatabase({
-      type: "mysql",
-      connection: {
-        host: mysqlHost,
-        port: mysqlPort,
-        database: mysqlDatabase,
-        username: mysqlUser,
-        password: mysqlPassword,
-      },
-      pool: {
-        min: 2,
-        max: 5,
-      },
-    });
+    await initDatabase(
+      createMysqlConfig({ pool: { min: 2, max: 5 } }),
+    );
 
     // 从全局 dbManager 获取适配器
     adapter = getDatabase();

@@ -1226,20 +1226,28 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr("log.validation.minNumber", `${fieldName} 必须大于等于 ${rule.min}`, {
-              field: fieldName,
-              min: rule.min,
-            }),
+            this.tr(
+              "log.validation.minNumber",
+              `${fieldName} 必须大于等于 ${rule.min}`,
+              {
+                field: fieldName,
+                min: rule.min,
+              },
+            ),
         );
       }
       if (rule.max !== undefined && value > rule.max) {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr("log.validation.maxNumber", `${fieldName} 必须小于等于 ${rule.max}`, {
-              field: fieldName,
-              max: rule.max,
-            }),
+            this.tr(
+              "log.validation.maxNumber",
+              `${fieldName} 必须小于等于 ${rule.max}`,
+              {
+                field: fieldName,
+                max: rule.max,
+              },
+            ),
         );
       }
     }
@@ -1334,9 +1342,13 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr("log.validation.alphaNum", `${fieldName} 只能包含字母和数字`, {
-              field: fieldName,
-            }),
+            this.tr(
+              "log.validation.alphaNum",
+              `${fieldName} 只能包含字母和数字`,
+              {
+                field: fieldName,
+              },
+            ),
         );
       }
 
@@ -1455,10 +1467,14 @@ export abstract class MongoModel {
             throw new ValidationError(
               fieldName,
               rule.message ||
-                this.tr("log.validation.before", `${fieldName} 必须早于 ${rule.before}`, {
-                  field: fieldName,
-                  value: String(rule.before),
-                }),
+                this.tr(
+                  "log.validation.before",
+                  `${fieldName} 必须早于 ${rule.before}`,
+                  {
+                    field: fieldName,
+                    value: String(rule.before),
+                  },
+                ),
             );
           }
         }
@@ -1471,10 +1487,14 @@ export abstract class MongoModel {
             throw new ValidationError(
               fieldName,
               rule.message ||
-                this.tr("log.validation.after", `${fieldName} 必须晚于 ${rule.after}`, {
-                  field: fieldName,
-                  value: String(rule.after),
-                }),
+                this.tr(
+                  "log.validation.after",
+                  `${fieldName} 必须晚于 ${rule.after}`,
+                  {
+                    field: fieldName,
+                    value: String(rule.after),
+                  },
+                ),
             );
           }
         }
@@ -1593,10 +1613,14 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr("log.validation.equals", `${fieldName} 必须与 ${rule.equals} 相等`, {
-              field: fieldName,
-              other: rule.equals,
-            }),
+            this.tr(
+              "log.validation.equals",
+              `${fieldName} 必须与 ${rule.equals} 相等`,
+              {
+                field: fieldName,
+                other: rule.equals,
+              },
+            ),
         );
       }
     }
@@ -1624,11 +1648,13 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            (typeof result === "string"
-              ? result
-              : this.tr("log.validation.customFailed", `${fieldName} 验证失败`, {
+            (typeof result === "string" ? result : this.tr(
+              "log.validation.customFailed",
+              `${fieldName} 验证失败`,
+              {
                 field: fieldName,
-              })),
+              },
+            )),
         );
       }
     }
@@ -1645,11 +1671,13 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            (typeof result === "string"
-              ? result
-              : this.tr("log.validation.customFailed", `${fieldName} 验证失败`, {
+            (typeof result === "string" ? result : this.tr(
+              "log.validation.customFailed",
+              `${fieldName} 验证失败`,
+              {
                 field: fieldName,
-              })),
+              },
+            )),
         );
       }
     }
@@ -1828,10 +1856,14 @@ export abstract class MongoModel {
       throw new ValidationError(
         fieldName,
         message ||
-          this.tr("log.validation.formatExpected", `${fieldName} 格式不正确（期望格式: ${format}）`, {
-            field: fieldName,
-            format,
-          }),
+          this.tr(
+            "log.validation.formatExpected",
+            `${fieldName} 格式不正确（期望格式: ${format}）`,
+            {
+              field: fieldName,
+              format,
+            },
+          ),
       );
     }
   }
@@ -1865,30 +1897,42 @@ export abstract class MongoModel {
     if (arrayRule.length !== undefined && value.length !== arrayRule.length) {
       throw new ValidationError(
         fieldName,
-        this.tr("log.validation.arrayLength", `${fieldName} 数组长度必须是 ${arrayRule.length}`, {
-          field: fieldName,
-          length: String(arrayRule.length),
-        }),
+        this.tr(
+          "log.validation.arrayLength",
+          `${fieldName} 数组长度必须是 ${arrayRule.length}`,
+          {
+            field: fieldName,
+            length: String(arrayRule.length),
+          },
+        ),
       );
     }
 
     if (arrayRule.min !== undefined && value.length < arrayRule.min) {
       throw new ValidationError(
         fieldName,
-        this.tr("log.validation.arrayMinLength", `${fieldName} 数组长度必须大于等于 ${arrayRule.min}`, {
-          field: fieldName,
-          min: arrayRule.min,
-        }),
+        this.tr(
+          "log.validation.arrayMinLength",
+          `${fieldName} 数组长度必须大于等于 ${arrayRule.min}`,
+          {
+            field: fieldName,
+            min: arrayRule.min,
+          },
+        ),
       );
     }
 
     if (arrayRule.max !== undefined && value.length > arrayRule.max) {
       throw new ValidationError(
         fieldName,
-        this.tr("log.validation.arrayMaxLength", `${fieldName} 数组长度必须小于等于 ${arrayRule.max}`, {
-          field: fieldName,
-          max: arrayRule.max,
-        }),
+        this.tr(
+          "log.validation.arrayMaxLength",
+          `${fieldName} 数组长度必须小于等于 ${arrayRule.max}`,
+          {
+            field: fieldName,
+            max: arrayRule.max,
+          },
+        ),
       );
     }
 
@@ -1904,9 +1948,13 @@ export abstract class MongoModel {
         if (seen.has(key)) {
           throw new ValidationError(
             fieldName,
-            this.tr("log.validation.arrayUniqueItems", `${fieldName} 数组元素必须唯一，发现重复元素`, {
-              field: fieldName,
-            }),
+            this.tr(
+              "log.validation.arrayUniqueItems",
+              `${fieldName} 数组元素必须唯一，发现重复元素`,
+              {
+                field: fieldName,
+              },
+            ),
           );
         }
         seen.add(key);
@@ -1926,9 +1974,13 @@ export abstract class MongoModel {
             const elemField = `${fieldName}[${i}]`;
             throw new ValidationError(
               elemField,
-              this.tr("log.validation.typeArray", `${elemField} 必须是数组类型`, {
-                field: elemField,
-              }),
+              this.tr(
+                "log.validation.typeArray",
+                `${elemField} 必须是数组类型`,
+                {
+                  field: elemField,
+                },
+              ),
             );
           }
           if (
@@ -1938,10 +1990,14 @@ export abstract class MongoModel {
             const elemField = `${fieldName}[${i}]`;
             throw new ValidationError(
               elemField,
-              this.tr("log.validation.arrayElementType", `${elemField} 元素必须是 ${expectedType} 类型`, {
-                field: elemField,
-                type: expectedType,
-              }),
+              this.tr(
+                "log.validation.arrayElementType",
+                `${elemField} 元素必须是 ${expectedType} 类型`,
+                {
+                  field: elemField,
+                  type: expectedType,
+                },
+              ),
             );
           }
         }
@@ -2126,10 +2182,14 @@ export abstract class MongoModel {
       if (targetValue === undefined) {
         throw new ValidationError(
           fieldName,
-          this.tr("log.validation.compareValueNotFound", `${fieldName} 验证失败：未找到目标字段 ${options.targetField}`, {
-            field: fieldName,
-            targetField: options.targetField,
-          }),
+          this.tr(
+            "log.validation.compareValueNotFound",
+            `${fieldName} 验证失败：未找到目标字段 ${options.targetField}`,
+            {
+              field: fieldName,
+              targetField: options.targetField,
+            },
+          ),
         );
       }
     } else {
@@ -2152,9 +2212,13 @@ export abstract class MongoModel {
       if (!targetRecord) {
         throw new ValidationError(
           fieldName,
-          this.tr("log.validation.compareValueNoRecord", `${fieldName} 验证失败：未找到目标记录`, {
-            field: fieldName,
-          }),
+          this.tr(
+            "log.validation.compareValueNoRecord",
+            `${fieldName} 验证失败：未找到目标记录`,
+            {
+              field: fieldName,
+            },
+          ),
         );
       }
 
@@ -4631,9 +4695,13 @@ export abstract class MongoModel {
       const affectedRows = await Model.update(String(id), data);
       if (affectedRows === 0) {
         throw new Error(
-          Model.tr("log.model.updateNotFound", `更新失败：未找到 ID 为 ${id} 的记录或记录已被删除`, {
-            id: String(id),
-          }),
+          Model.tr(
+            "log.model.updateNotFound",
+            `更新失败：未找到 ID 为 ${id} 的记录或记录已被删除`,
+            {
+              id: String(id),
+            },
+          ),
         );
       }
       // 重新查询更新后的数据，确保获取最新状态
@@ -4641,9 +4709,13 @@ export abstract class MongoModel {
       const updated = await Model.find(String(id));
       if (!updated) {
         throw new Error(
-          Model.tr("log.model.updateNotFoundAfter", `更新后无法找到 ID 为 ${id} 的记录`, {
-            id: String(id),
-          }),
+          Model.tr(
+            "log.model.updateNotFoundAfter",
+            `更新后无法找到 ID 为 ${id} 的记录`,
+            {
+              id: String(id),
+            },
+          ),
         );
       }
       Object.assign(this, updated);
@@ -4695,9 +4767,13 @@ export abstract class MongoModel {
     if (!updated) {
       // 如果返回 null 或 0，表示更新失败
       throw new Error(
-        Model.tr("log.model.updateNotFound", `更新失败：未找到 ID 为 ${id} 的记录或记录已被删除`, {
-          id: String(id),
-        }),
+        Model.tr(
+          "log.model.updateNotFound",
+          `更新失败：未找到 ID 为 ${id} 的记录或记录已被删除`,
+          {
+            id: String(id),
+          },
+        ),
       );
     }
     // 更新成功，同步实例数据

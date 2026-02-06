@@ -60,7 +60,10 @@ describe("init-database", () => {
     });
 
     it("应该支持自定义连接名称", async () => {
-      const status = await initDatabase(createPostgresConfig(), "custom_connection");
+      const status = await initDatabase(
+        createPostgresConfig(),
+        "custom_connection",
+      );
 
       expect(status.name).toBe("custom_connection");
       expect(hasConnection("custom_connection")).toBe(true);

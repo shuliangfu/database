@@ -2,7 +2,6 @@
  * @fileoverview MySQLAdapter 基础功能测试
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import {
   afterAll,
   assertRejects,
@@ -14,14 +13,8 @@ import {
 } from "@dreamer/test";
 import { MySQLAdapter } from "../../src/adapters/mysql.ts";
 import { QueryLogger } from "../../src/logger/query-logger.ts";
-import type { DatabaseAdapter, DatabaseConfig } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import type { DatabaseAdapter } from "../../src/types.ts";
+import { createMysqlConfig } from "./mysql-test-utils.ts";
 
 // 定义表名常量（使用目录名_文件名_作为前缀）
 const TABLE_NAME = "mysql_adapter_test_users";
@@ -31,25 +24,10 @@ describe("MySQLAdapter", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
-    const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
-    const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
-    const mysqlUser = getEnvWithDefault("MYSQL_USER", "root");
-    const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
-
     try {
       // 直接创建适配器实例进行测试
       adapter = new MySQLAdapter();
-      await adapter.connect({
-        type: "mysql",
-        connection: {
-          host: mysqlHost,
-          port: mysqlPort,
-          database: mysqlDatabase,
-          username: mysqlUser,
-          password: mysqlPassword,
-        },
-      });
+      await adapter.connect(createMysqlConfig());
     } catch (error) {
       console.warn(
         `MySQL not available, skipping tests: ${
@@ -301,22 +279,7 @@ describe("MySQLAdapter", () => {
       }
 
       const testAdapter = new MySQLAdapter();
-      const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
-      const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
-      const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
-      const mysqlUser = getEnvWithDefault("MYSQL_USER", "root");
-      const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
-
-      await testAdapter.connect({
-        type: "mysql",
-        connection: {
-          host: mysqlHost,
-          port: mysqlPort,
-          database: mysqlDatabase,
-          username: mysqlUser,
-          password: mysqlPassword,
-        },
-      });
+      await testAdapter.connect(createMysqlConfig());
 
       expect(testAdapter.isConnected()).toBe(true);
 
@@ -378,22 +341,7 @@ describe("MySQLAdapter", () => {
       }
 
       const testAdapter = new MySQLAdapter();
-      const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
-      const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
-      const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
-      const mysqlUser = getEnvWithDefault("MYSQL_USER", "root");
-      const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
-
-      await testAdapter.connect({
-        type: "mysql",
-        connection: {
-          host: mysqlHost,
-          port: mysqlPort,
-          database: mysqlDatabase,
-          username: mysqlUser,
-          password: mysqlPassword,
-        },
-      });
+      await testAdapter.connect(createMysqlConfig());
 
       expect(testAdapter.isConnected()).toBe(true);
 
@@ -409,22 +357,7 @@ describe("MySQLAdapter", () => {
       }
 
       const testAdapter = new MySQLAdapter();
-      const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
-      const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
-      const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
-      const mysqlUser = getEnvWithDefault("MYSQL_USER", "root");
-      const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
-
-      await testAdapter.connect({
-        type: "mysql",
-        connection: {
-          host: mysqlHost,
-          port: mysqlPort,
-          database: mysqlDatabase,
-          username: mysqlUser,
-          password: mysqlPassword,
-        },
-      });
+      await testAdapter.connect(createMysqlConfig());
 
       await testAdapter.close();
       await testAdapter.close(); // 第二次调用不应该出错
@@ -595,23 +528,7 @@ describe("MySQLAdapter", () => {
 
       it("应该在健康检查后返回时间", async () => {
         const newAdapter = new MySQLAdapter();
-        const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
-        const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
-        const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
-        const mysqlUser = getEnvWithDefault("MYSQL_USER", "root");
-        const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
-
-        const config: DatabaseConfig = {
-          type: "mysql",
-          connection: {
-            host: mysqlHost,
-            port: mysqlPort,
-            database: mysqlDatabase,
-            username: mysqlUser,
-            password: mysqlPassword,
-          },
-        };
-        await newAdapter.connect(config);
+        await newAdapter.connect(createMysqlConfig());
 
         const before = new Date();
         await newAdapter.healthCheck();
@@ -680,23 +597,7 @@ describe("MySQLAdapter", () => {
     describe("getQueryLogger", () => {
       it("应该在未设置时返回 null", async () => {
         const newAdapter = new MySQLAdapter();
-        const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
-        const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
-        const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
-        const mysqlUser = getEnvWithDefault("MYSQL_USER", "root");
-        const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
-
-        const config: DatabaseConfig = {
-          type: "mysql",
-          connection: {
-            host: mysqlHost,
-            port: mysqlPort,
-            database: mysqlDatabase,
-            username: mysqlUser,
-            password: mysqlPassword,
-          },
-        };
-        await newAdapter.connect(config);
+        await newAdapter.connect(createMysqlConfig());
 
         expect(newAdapter.getQueryLogger()).toBeNull();
 
@@ -726,23 +627,7 @@ describe("MySQLAdapter", () => {
         const newAdapter = new MySQLAdapter();
         expect(newAdapter.isConnected()).toBe(false);
 
-        const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
-        const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
-        const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
-        const mysqlUser = getEnvWithDefault("MYSQL_USER", "root");
-        const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
-
-        const config: DatabaseConfig = {
-          type: "mysql",
-          connection: {
-            host: mysqlHost,
-            port: mysqlPort,
-            database: mysqlDatabase,
-            username: mysqlUser,
-            password: mysqlPassword,
-          },
-        };
-        await newAdapter.connect(config);
+        await newAdapter.connect(createMysqlConfig());
         expect(newAdapter.isConnected()).toBe(true);
 
         await newAdapter.close();
@@ -1408,25 +1293,13 @@ describe("MySQLAdapter", () => {
       }
 
       const testAdapter = new MySQLAdapter();
-      const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
-      const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
-      const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
-      const mysqlUser = getEnvWithDefault("MYSQL_USER", "root");
-      const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
-
-      await testAdapter.connect({
-        type: "mysql",
-        connection: {
-          host: mysqlHost,
-          port: mysqlPort,
-          database: mysqlDatabase,
-          username: mysqlUser,
-          password: mysqlPassword,
-        },
-        pool: {
-          max: 5,
-        },
-      });
+      await testAdapter.connect(
+        createMysqlConfig({
+          pool: {
+            max: 5,
+          },
+        }),
+      );
 
       const status = await testAdapter.getPoolStatus();
       expect(status.total).toBeGreaterThanOrEqual(0);

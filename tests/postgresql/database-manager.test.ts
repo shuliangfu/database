@@ -47,7 +47,10 @@ describe("DatabaseManager", () => {
 
   describe("connect", () => {
     it("应该连接到 PostgreSQL 数据库", async () => {
-      const status = await manager.connect("postgres_test", createPostgresConfig());
+      const status = await manager.connect(
+        "postgres_test",
+        createPostgresConfig(),
+      );
 
       expect(status.name).toBe("postgres_test");
       expect(status.type).toBe("postgresql");
@@ -170,7 +173,10 @@ describe("DatabaseManager", () => {
 
   describe("createAdapter", () => {
     it("应该为 PostgreSQL 创建适配器", async () => {
-      const status = await manager.connect("postgres_adapter", createPostgresConfig());
+      const status = await manager.connect(
+        "postgres_adapter",
+        createPostgresConfig(),
+      );
       expect(status.type).toBe("postgresql");
     }, { timeout: 10000 });
   });
@@ -189,7 +195,10 @@ describe("DatabaseManager", () => {
 
       manager.setAdapterFactory(factory as any);
 
-      const status = await manager.connect("factory_test", createPostgresConfig());
+      const status = await manager.connect(
+        "factory_test",
+        createPostgresConfig(),
+      );
 
       expect(status.type).toBe("postgresql");
       expect(status.connected).toBe(true);

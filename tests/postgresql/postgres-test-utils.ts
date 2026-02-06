@@ -45,7 +45,10 @@ export function createPostgresConfig(
   };
 
   if (overrides?.pool) {
-    config.pool = { ...config.pool, ...overrides.pool } as PostgreSQLConfig["pool"];
+    config.pool = {
+      ...config.pool,
+      ...overrides.pool,
+    } as PostgreSQLConfig["pool"];
   }
 
   return config;
