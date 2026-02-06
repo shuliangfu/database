@@ -3,19 +3,12 @@
  * 测试从数据库连接到 CRUD 操作的完整流程
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
 import { getDatabase, initDatabase } from "../../src/access.ts";
 import { closeDatabase } from "../../src/init-database.ts";
 import { SQLModel } from "../../src/orm/sql-model.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createMysqlConfig } from "./mysql-test-utils.ts";
 
 // 定义表名常量（使用目录名_文件名_作为前缀）
 const TABLE_NAME = "mysql_full_workflow_integration_users";
@@ -32,23 +25,8 @@ describe("MySQL 完整工作流程集成测试", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
-    const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
-    const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
-    const mysqlUser = getEnvWithDefault("MYSQL_USER", "root");
-    const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
-
     // 初始化数据库
-    await initDatabase({
-      type: "mysql",
-      connection: {
-        host: mysqlHost,
-        port: mysqlPort,
-        database: mysqlDatabase,
-        username: mysqlUser,
-        password: mysqlPassword,
-      },
-    });
+    await initDatabase(createMysqlConfig());
 
     adapter = getDatabase()!;
 

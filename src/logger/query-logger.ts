@@ -134,10 +134,9 @@ export class QueryLogger {
 
     if (error) {
       // 记录错误日志
-      const errorKey =
-        type === "query"
-          ? "log.database.queryError"
-          : "log.database.executeError";
+      const errorKey = type === "query"
+        ? "log.database.queryError"
+        : "log.database.executeError";
       const msg = this.tr(
         errorKey,
         `数据库${type === "query" ? "查询" : "执行"}错误: ${sql}`,
@@ -154,10 +153,9 @@ export class QueryLogger {
       this.logger.warn(msg, logData);
     } else {
       // 正常查询信息：debug 为 true 时用 info 级别（便于在 info 级别下查看），否则用 debug
-      const infoKey =
-        type === "query"
-          ? "log.database.queryInfo"
-          : "log.database.executeInfo";
+      const infoKey = type === "query"
+        ? "log.database.queryInfo"
+        : "log.database.executeInfo";
       const msg = this.tr(
         infoKey,
         `数据库${type === "query" ? "查询" : "执行"}: ${sql}`,

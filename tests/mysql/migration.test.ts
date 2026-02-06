@@ -4,7 +4,6 @@
 
 import {
   cwd,
-  getEnv,
   join,
   mkdir,
   readdir,
@@ -25,13 +24,7 @@ import {
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { MigrationManager } from "../../src/migration/manager.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createMysqlConfig } from "./mysql-test-utils.ts";
 
 // 定义表名常量（使用目录名_文件名_作为前缀）
 const TABLE_TEST = "mysql_migration_test_table";
@@ -51,24 +44,9 @@ describe("MigrationManager", () => {
     }
     await mkdir(testMigrationsDir, { recursive: true });
 
-    const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
-    const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
-    const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
-    const mysqlUser = getEnvWithDefault("MYSQL_USER", "root");
-    const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
-
     try {
       // 使用 initDatabase 初始化全局 dbManager
-      await initDatabase({
-        type: "mysql",
-        connection: {
-          host: mysqlHost,
-          port: mysqlPort,
-          database: mysqlDatabase,
-          username: mysqlUser,
-          password: mysqlPassword,
-        },
-      });
+      await initDatabase(createMysqlConfig());
 
       // 从全局 dbManager 获取适配器
       mysqlAdapter = getDatabase();

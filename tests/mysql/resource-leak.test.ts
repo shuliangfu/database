@@ -3,44 +3,20 @@
  * 测试数据库连接、连接池、事务等资源是否正确释放
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { MySQLAdapter } from "../../src/adapters/mysql.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createMysqlConfig } from "./mysql-test-utils.ts";
 
 describe("资源泄漏测试", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
-    const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
-    const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
-    const mysqlUser = getEnvWithDefault("MYSQL_USER", "root");
-    const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
-
     // 使用 initDatabase 初始化全局 dbManager
-    await initDatabase({
-      type: "mysql",
-      connection: {
-        host: mysqlHost,
-        port: mysqlPort,
-        database: mysqlDatabase,
-        username: mysqlUser,
-        password: mysqlPassword,
-      },
-      pool: {
-        min: 1,
-        max: 5,
-      },
-    });
+    await initDatabase(
+      createMysqlConfig({ pool: { min: 1, max: 5 } }),
+    );
 
     // 从全局 dbManager 获取适配器
     adapter = getDatabase();
@@ -59,22 +35,7 @@ describe("资源泄漏测试", () => {
 
     // 创建临时适配器
     const testAdapter = new MySQLAdapter();
-    const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
-    const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
-    const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
-    const mysqlUser = getEnvWithDefault("MYSQL_USER", "root");
-    const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
-
-    await testAdapter.connect({
-      type: "mysql",
-      connection: {
-        host: mysqlHost,
-        port: mysqlPort,
-        database: mysqlDatabase,
-        username: mysqlUser,
-        password: mysqlPassword,
-      },
-    });
+    await testAdapter.connect(createMysqlConfig());
 
     // 执行一些操作
     await testAdapter.query("SELECT 1", []);

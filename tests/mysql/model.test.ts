@@ -2,7 +2,6 @@
  * @fileoverview SQLModel MySQL 测试 - 基于最新统一接口
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import {
   afterAll,
   beforeAll,
@@ -14,13 +13,7 @@ import {
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { SQLModel } from "../../src/orm/sql-model.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createMysqlConfig } from "./mysql-test-utils.ts";
 
 // 定义表名常量
 const TABLE_NAME = "mysql_model_users";
@@ -39,24 +32,8 @@ describe("SQLModel MySQL", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    // 获取 MySQL 连接配置
-    const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
-    const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
-    const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
-    const mysqlUser = getEnvWithDefault("MYSQL_USER", "root");
-    const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
-
     // 初始化数据库
-    await initDatabase({
-      type: "mysql",
-      connection: {
-        host: mysqlHost,
-        port: mysqlPort,
-        database: mysqlDatabase,
-        username: mysqlUser,
-        password: mysqlPassword,
-      },
-    });
+    await initDatabase(createMysqlConfig());
 
     adapter = getDatabase();
 

@@ -2,18 +2,11 @@
  * @fileoverview SQLQueryBuilder 测试
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { SQLQueryBuilder } from "../../src/query/sql-builder.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createMysqlConfig } from "./mysql-test-utils.ts";
 
 // 定义表名常量（使用目录名_文件名_作为前缀）
 const TABLE_USERS = "mysql_query_builder_users";
@@ -23,24 +16,8 @@ describe("SQLQueryBuilder", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    // 获取 MariaDB 连接配置
-    const mariadbHost = getEnvWithDefault("MYSQL_HOST", "localhost");
-    const mariadbPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
-    const mariadbDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
-    const mariadbUser = getEnvWithDefault("MYSQL_USER", "root");
-    const mariadbPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
-
     // 使用 initDatabase 初始化全局 dbManager
-    await initDatabase({
-      type: "mysql",
-      connection: {
-        host: mariadbHost,
-        port: mariadbPort,
-        database: mariadbDatabase,
-        username: mariadbUser,
-        password: mariadbPassword,
-      },
-    });
+    await initDatabase(createMysqlConfig());
 
     // 从全局 dbManager 获取适配器
     adapter = getDatabase();

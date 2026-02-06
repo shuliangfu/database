@@ -2,17 +2,10 @@
  * @fileoverview MySQL 事务和嵌套事务测试
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import { afterEach, beforeEach, describe, expect, it } from "@dreamer/test";
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
-
-/**
- * 获取环境变量（跨运行时，带默认值）
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createMysqlConfig } from "./mysql-test-utils.ts";
 
 // 定义表名常量（使用目录名_文件名_作为前缀）
 const TABLE_ACCOUNTS = "mysql_transaction_accounts";
@@ -21,26 +14,9 @@ describe("事务测试", () => {
   let adapter: DatabaseAdapter;
 
   beforeEach(async () => {
-    // 注意：需要实际的 MySQL 数据库连接
-    const mysqlHost = getEnvWithDefault("MYSQL_HOST", "localhost");
-    const mysqlPort = parseInt(getEnvWithDefault("MYSQL_PORT", "3306"));
-    const mysqlDatabase = getEnvWithDefault("MYSQL_DATABASE", "test");
-    const mysqlUser = getEnvWithDefault("MYSQL_USER", "root");
-    // MariaDB/MySQL 从外部连接可能需要密码，默认尝试空密码，如果失败可以通过环境变量设置
-    const mysqlPassword = getEnvWithDefault("MYSQL_PASSWORD", "");
-
     try {
       // 使用 initDatabase 初始化全局 dbManager
-      await initDatabase({
-        type: "mysql",
-        connection: {
-          host: mysqlHost,
-          port: mysqlPort,
-          database: mysqlDatabase,
-          username: mysqlUser,
-          password: mysqlPassword,
-        },
-      });
+      await initDatabase(createMysqlConfig());
 
       // 从全局 dbManager 获取适配器
       adapter = getDatabase();

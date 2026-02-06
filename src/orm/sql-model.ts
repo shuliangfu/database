@@ -1758,9 +1758,13 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr("log.validation.typeObject", `${fieldName} 必须是对象类型`, {
-              field: fieldName,
-            }),
+            this.tr(
+              "log.validation.typeObject",
+              `${fieldName} 必须是对象类型`,
+              {
+                field: fieldName,
+              },
+            ),
         );
       }
       if (
@@ -1802,10 +1806,14 @@ export abstract class SQLModel {
           throw new ValidationError(
             fieldName,
             rule.message ||
-              this.tr("log.validation.minNumber", `${fieldName} 必须大于等于 ${rule.min}`, {
-                field: fieldName,
-                min: rule.min,
-              }),
+              this.tr(
+                "log.validation.minNumber",
+                `${fieldName} 必须大于等于 ${rule.min}`,
+                {
+                  field: fieldName,
+                  min: rule.min,
+                },
+              ),
           );
         }
       } else {
@@ -1831,10 +1839,14 @@ export abstract class SQLModel {
           throw new ValidationError(
             fieldName,
             rule.message ||
-              this.tr("log.validation.maxNumber", `${fieldName} 必须小于等于 ${rule.max}`, {
-                field: fieldName,
-                max: rule.max,
-              }),
+              this.tr(
+                "log.validation.maxNumber",
+                `${fieldName} 必须小于等于 ${rule.max}`,
+                {
+                  field: fieldName,
+                  max: rule.max,
+                },
+              ),
           );
         }
       } else {
@@ -1943,9 +1955,13 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr("log.validation.alphaNum", `${fieldName} 只能包含字母和数字`, {
-              field: fieldName,
-            }),
+            this.tr(
+              "log.validation.alphaNum",
+              `${fieldName} 只能包含字母和数字`,
+              {
+                field: fieldName,
+              },
+            ),
         );
       }
 
@@ -2062,10 +2078,14 @@ export abstract class SQLModel {
             throw new ValidationError(
               fieldName,
               rule.message ||
-                this.tr("log.validation.before", `${fieldName} 必须早于 ${rule.before}`, {
-                  field: fieldName,
-                  value: String(rule.before),
-                }),
+                this.tr(
+                  "log.validation.before",
+                  `${fieldName} 必须早于 ${rule.before}`,
+                  {
+                    field: fieldName,
+                    value: String(rule.before),
+                  },
+                ),
             );
           }
         }
@@ -2078,10 +2098,14 @@ export abstract class SQLModel {
             throw new ValidationError(
               fieldName,
               rule.message ||
-                this.tr("log.validation.after", `${fieldName} 必须晚于 ${rule.after}`, {
-                  field: fieldName,
-                  value: String(rule.after),
-                }),
+                this.tr(
+                  "log.validation.after",
+                  `${fieldName} 必须晚于 ${rule.after}`,
+                  {
+                    field: fieldName,
+                    value: String(rule.after),
+                  },
+                ),
             );
           }
         }
@@ -2218,10 +2242,14 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr("log.validation.equals", `${fieldName} 必须与 ${rule.equals} 相等`, {
-              field: fieldName,
-              other: rule.equals,
-            }),
+            this.tr(
+              "log.validation.equals",
+              `${fieldName} 必须与 ${rule.equals} 相等`,
+              {
+                field: fieldName,
+                other: rule.equals,
+              },
+            ),
         );
       }
     }
@@ -2542,9 +2570,13 @@ export abstract class SQLModel {
           if (expectedType === "array" && !Array.isArray(item)) {
             throw new ValidationError(
               elemField,
-              this.tr("log.validation.typeArray", `${elemField} 必须是数组类型`, {
-                field: elemField,
-              }),
+              this.tr(
+                "log.validation.typeArray",
+                `${elemField} 必须是数组类型`,
+                {
+                  field: elemField,
+                },
+              ),
             );
           }
           if (
@@ -4578,9 +4610,13 @@ export abstract class SQLModel {
       const updated = await Model.update(id, data, true);
       if (!updated) {
         throw new Error(
-          Model.tr("log.model.updateNotFound", `更新失败：未找到 ID 为 ${id} 的记录或记录已被删除`, {
-            id: String(id),
-          }),
+          Model.tr(
+            "log.model.updateNotFound",
+            `更新失败：未找到 ID 为 ${id} 的记录或记录已被删除`,
+            {
+              id: String(id),
+            },
+          ),
         );
       }
       Object.assign(this, updated);
@@ -4621,9 +4657,13 @@ export abstract class SQLModel {
     const updated = await Model.update(id, data, true);
     if (!updated) {
       throw new Error(
-        Model.tr("log.model.updateNotFound", `更新失败：未找到 ID 为 ${id} 的记录或记录已被删除`, {
-          id: String(id),
-        }),
+        Model.tr(
+          "log.model.updateNotFound",
+          `更新失败：未找到 ID 为 ${id} 的记录或记录已被删除`,
+          {
+            id: String(id),
+          },
+        ),
       );
     }
     Object.assign(this, updated);
