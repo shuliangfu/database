@@ -6,7 +6,7 @@
 
 [![JSR](https://jsr.io/badges/@dreamer/database)](https://jsr.io/@dreamer/database)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE.md)
-[![Tests](https://img.shields.io/badge/tests-1,788%20passed-brightgreen)](./TEST_REPORT.md)
+[![Tests](https://img.shields.io/badge/tests-1,954%20passed-brightgreen)](./TEST_REPORT.md)
 
 ---
 
@@ -90,7 +90,7 @@ bunx jsr add @dreamer/database
 - **其他功能**：
   - 事务支持 - 基本事务、嵌套事务、保存点
   - 连接池管理 - 自动管理数据库连接池
-  - 查询日志记录 - 支持日志级别过滤、慢查询检测
+  - 查询日志记录 - 支持日志级别过滤、慢查询检测、翻译函数 `t`、自定义 `logger`、`debug` 参数
   - 健康检查 - 数据库连接健康检查
   - 数据库初始化工具 - 支持自动初始化、配置加载
   - 预处理语句 - 防止 SQL 注入
@@ -407,6 +407,47 @@ await initDatabase({
   },
 });
 ```
+
+#### 数据库配置参数与环境变量
+
+各数据库支持通过环境变量覆盖连接配置，便于测试与部署：
+
+**MySQL/MariaDB**：
+
+| 环境变量 | 默认值 | 说明 |
+|----------|--------|------|
+| `MYSQL_HOST` | `127.0.0.1` | 主机地址 |
+| `MYSQL_PORT` | `3306` | 端口 |
+| `MYSQL_DATABASE` | `test` | 数据库名 |
+| `MYSQL_USER` | `root` | 用户名 |
+| `MYSQL_PASSWORD` | `8866231` | 密码 |
+
+**PostgreSQL**：
+
+| 环境变量 | 默认值 | 说明 |
+|----------|--------|------|
+| `POSTGRES_HOST` | `localhost` | 主机地址 |
+| `POSTGRES_PORT` | `5432` | 端口 |
+| `POSTGRES_DATABASE` | `postgres` | 数据库名 |
+| `POSTGRES_USER` | `root` | 用户名 |
+| `POSTGRES_PASSWORD` | `8866231` | 密码 |
+
+**MongoDB**：
+
+| 环境变量 | 默认值 | 说明 |
+|----------|--------|------|
+| `MONGODB_HOST` | `localhost` | 主机地址 |
+| `MONGODB_PORT` | `27017` | 端口 |
+| `MONGODB_DATABASE` | `test` | 数据库名 |
+| `MONGODB_USER` | `root` | 用户名（空则无认证） |
+| `MONGODB_PASSWORD` | `8866231` | 密码 |
+| `MONGODB_AUTH_SOURCE` | `admin` | 认证库 |
+| `MONGODB_REPLICA_SET` | `rs0` | 副本集名称 |
+| `MONGODB_DIRECT_CONNECTION` | `true` | 是否直接连接 |
+
+**配置覆盖**：`initDatabase` 传入的 `config` 优先于环境变量。可选覆盖项：
+- **MySQL/PostgreSQL**：`pool` 合并连接池配置，`database` 指定数据库名
+- **MongoDB**：`mongoOptions` 合并 MongoDB 选项（如 `maxPoolSize`），`database` 指定数据库名
 
 #### getDatabase
 
@@ -2204,33 +2245,35 @@ console.log(status);
 
 ## 📊 测试报告
 
-本库经过全面测试，所有 1,740 个测试用例均已通过，测试覆盖率达到
+本库经过全面测试，所有 1,954 个测试用例均已通过，测试覆盖率达到
 100%。详细测试报告请查看 [TEST_REPORT.md](./TEST_REPORT.md)。
 
-**测试统计**（从 TEST_REPORT.md 读取实际数据）：
+**测试统计**：
 
-- **总测试数**: 1,740（从测试报告统计中获取）
-- **通过**: 1,740 ✅（从测试报告统计中获取）
-- **失败**: 0（必须为 0，否则不能更新文档）
-- **通过率**: 100% ✅（计算得出）
-- **测试执行时间**: ~222秒（从测试报告中获取）
-- **测试覆盖**: 所有公共 API、边界情况、错误处理（固定描述）
-- **测试环境**: Deno 2.5.0+, Bun 1.3.0+（使用 `deno -v` 和 `bun -v`
-  获取实际版本号）
+- **总测试数**: 1,954（integration 4 + mongo 497 + mysql 481 + postgresql 488 + sqlite 484）
+- **通过**: 1,954 ✅
+- **失败**: 0
+- **通过率**: 100% ✅
+- **测试执行时间**: ~129秒（Deno 环境，分库执行）
+- **测试文件数**: 81 个
+- **测试环境**: Deno 2.5.0+, Bun 1.3.0+
 
-**测试类型**（从 TEST_REPORT.md 统计各类型测试数量）：
+**各适配器测试数**：
 
-- ✅ 单元测试（1,740 个）
-- ✅ 集成测试（包含在测试总数中）
-- ✅ 边界情况和错误处理测试（包含在测试总数中）
+| 适配器 | 测试数 | 执行时间 |
+|--------|--------|----------|
+| integration（多适配器） | 4 | 87ms |
+| MongoDB | 497 | ~35s |
+| MySQL | 481 | ~46s |
+| PostgreSQL | 488 | ~40s |
+| SQLite | 484 | ~8s |
 
-**测试亮点**（根据实际测试情况填写）：
+**测试亮点**：
 
-- ✅ 所有功能、边界情况、错误处理都有完整的测试覆盖
-- ✅ 集成测试验证了端到端的完整流程
 - ✅ 4 个数据库适配器（MySQL、PostgreSQL、SQLite、MongoDB）全部通过测试
-- ✅ `query()` 和 `find()` 方法都支持完整的查询条件
-  API（where、orWhere、andWhere、like、orLike、andLike）
+- ✅ 多适配器集成测试（MySQL、SQLite、MongoDB 同时操作）
+- ✅ QueryLogger 含 t、logger、debug 参数测试
+- ✅ `query()` 和 `find()` 方法支持完整查询条件 API
 - ✅ 30+ 种数据验证规则全部测试通过
 - ✅ 完整的软删除、关联查询、事务处理等功能全部测试通过
 - ✅ 无资源泄漏，长时间运行稳定
@@ -2258,7 +2301,7 @@ console.log(status);
 - **依赖**：需要相应的数据库驱动（PostgreSQL、MySQL、SQLite、MongoDB）
 - **跨运行时**：支持 Deno 2.5.0+ 和 Bun 1.3.0+，代码在两个环境中都经过测试
 - **Bun 原生支持**：SQLiteAdapter 优先使用 Bun 原生 SQLite API，提供更好的性能
-- **测试覆盖**：1,740 个测试用例，核心功能覆盖率 100%
+- **测试覆盖**：1,954 个测试用例，核心功能覆盖率 100%
 - **真实数据库测试**：所有测试使用真实数据库实例，确保测试的真实性和可靠性
 
 ---
