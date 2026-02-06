@@ -2,7 +2,6 @@
  * @fileoverview SQLModel PostgreSQL 测试 - 基于最新统一接口
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import {
   afterAll,
   beforeAll,
@@ -14,13 +13,7 @@ import {
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { SQLModel } from "../../src/orm/sql-model.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createPostgresConfig } from "./postgres-test-utils.ts";
 
 // 定义表名常量
 const TABLE_NAME = "postgresql_model_users";
@@ -46,25 +39,8 @@ describe("SQLModel PostgreSQL", () => {
       // 忽略清理错误
     }
 
-    // 获取 PostgreSQL 连接配置
-    const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
-    const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
-    const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-    const defaultUser = "testuser";
-    const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-    const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
-
     // 初始化数据库
-    await initDatabase({
-      type: "postgresql",
-      connection: {
-        host: pgHost,
-        port: pgPort,
-        database: pgDatabase,
-        username: pgUser,
-        password: pgPassword,
-      },
-    });
+    await initDatabase(createPostgresConfig());
 
     adapter = getDatabase();
 

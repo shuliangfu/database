@@ -3,6 +3,7 @@
  * 负责迁移文件的生成、执行和回滚
  */
 
+import { createLogger } from "@dreamer/logger";
 import {
   basename,
   cwd,
@@ -32,10 +33,30 @@ export class MigrationManager {
   private historyTableName: string;
   private historyCollectionName: string;
 
+  /** 日志记录器（使用传入的 logger 或默认 createLogger） */
+  private logger: {
+    info: (msg: string) => void;
+    warn: (msg: string) => void;
+    error: (msg: string) => void;
+    debug: (msg: string) => void;
+  };
+
   constructor(config: MigrationConfig) {
     this.config = config;
     this.historyTableName = config.historyTableName || "migrations";
     this.historyCollectionName = config.historyCollectionName || "migrations";
+    const ext = config.logger;
+    const def = createLogger({
+      level: "info",
+      format: "text",
+      tags: ["database", "migration"],
+    });
+    this.logger = {
+      info: (msg) => ext?.info?.(msg) ?? def.info(msg),
+      warn: (msg) => ext?.warn?.(msg) ?? def.warn(msg),
+      error: (msg) => ext?.error?.(msg) ?? def.error(msg),
+      debug: (msg) => ext?.debug?.(msg) ?? def.debug(msg),
+    };
   }
 
   /**
@@ -378,7 +399,7 @@ export class MigrationManager {
     }
 
     if (pending.length === 0) {
-      console.log("No pending migrations to run.");
+      this.logger.info("No pending migrations to run.");
       return;
     }
 
@@ -392,11 +413,11 @@ export class MigrationManager {
       }
 
       try {
-        console.log(`Running migration: ${info.name}`);
+        this.logger.info(`Running migration: ${info.name}`);
         const migration = await this.loadMigration(file);
         await migration.up(this.config.adapter);
         await this.recordMigration(info.name, batch);
-        console.log(`Migration ${info.name} completed.`);
+        this.logger.info(`Migration ${info.name} completed.`);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         throw new Error(`Migration ${info.name} failed: ${message}`);
@@ -411,7 +432,7 @@ export class MigrationManager {
   async down(count: number = 1): Promise<void> {
     const executed = await this.getExecutedMigrations();
     if (executed.length === 0) {
-      console.log("No migrations to rollback.");
+      this.logger.info("No migrations to rollback.");
       return;
     }
 
@@ -442,11 +463,11 @@ export class MigrationManager {
 
     for (const { file, name } of toRollback) {
       try {
-        console.log(`Rolling back migration: ${name}`);
+        this.logger.info(`Rolling back migration: ${name}`);
         const migration = await this.loadMigration(file);
         await migration.down(this.config.adapter);
         await this.removeMigrationRecord(name);
-        console.log(`Migration ${name} rolled back.`);
+        this.logger.info(`Migration ${name} rolled back.`);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         throw new Error(`Rollback ${name} failed: ${message}`);

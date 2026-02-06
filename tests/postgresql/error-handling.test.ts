@@ -3,7 +3,6 @@
  * 测试 PostgreSQL 适配器在各种错误场景下的处理能力
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import {
   afterAll,
   afterEach,
@@ -14,37 +13,16 @@ import {
   it,
 } from "@dreamer/test";
 import { PostgreSQLAdapter } from "../../src/adapters/postgresql.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createPostgresConfig } from "./postgres-test-utils.ts";
 
 describe("PostgreSQL 错误处理", () => {
   let adapter: PostgreSQLAdapter;
 
   beforeAll(async () => {
     adapter = new PostgreSQLAdapter();
-    const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
-    const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
-    const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-    const defaultUser = "testuser";
-    const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-    const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
 
     try {
-      await adapter.connect({
-        type: "postgresql",
-        connection: {
-          host: pgHost,
-          port: pgPort,
-          database: pgDatabase,
-          username: pgUser,
-          password: pgPassword,
-        },
-      });
+      await adapter.connect(createPostgresConfig());
     } catch (error) {
       console.warn(
         `PostgreSQL not available, skipping tests: ${
@@ -376,23 +354,7 @@ describe("PostgreSQL 错误处理", () => {
       }
 
       const testAdapter = new PostgreSQLAdapter();
-      const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
-      const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
-      const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-      const defaultUser = "testuser";
-      const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-      const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
-
-      await testAdapter.connect({
-        type: "postgresql",
-        connection: {
-          host: pgHost,
-          port: pgPort,
-          database: pgDatabase,
-          username: pgUser,
-          password: pgPassword,
-        },
-      });
+      await testAdapter.connect(createPostgresConfig());
 
       try {
         await testAdapter.close();

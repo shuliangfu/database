@@ -1,16 +1,9 @@
 import { MemoryAdapter } from "@dreamer/cache";
-import { getEnv } from "@dreamer/runtime-adapter";
 import { afterEach, beforeAll, describe, expect, it } from "@dreamer/test";
 import { getDatabaseAsync } from "../../src/access.ts";
 import { initDatabase } from "../../src/init-database.ts";
 import { SQLModel } from "../../src/orm/sql-model.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createPostgresConfig } from "./postgres-test-utils.ts";
 
 // 定义表名常量（使用目录名_文件名_作为前缀）
 const TABLE_NAME = "postgresql_cache_test_users";
@@ -32,25 +25,8 @@ describe("缓存机制测试", () => {
   let adapter: any;
 
   beforeAll(async () => {
-    // 获取 PostgreSQL 连接配置
-    const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
-    const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
-    const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-    const defaultUser = "testuser";
-    const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-    const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
-
     // 初始化数据库
-    await initDatabase({
-      type: "postgresql",
-      connection: {
-        host: pgHost,
-        port: pgPort,
-        database: pgDatabase,
-        username: pgUser,
-        password: pgPassword,
-      },
-    });
+    await initDatabase(createPostgresConfig());
     adapter = await getDatabaseAsync();
 
     // 创建测试表（使用 PostgreSQL 语法）

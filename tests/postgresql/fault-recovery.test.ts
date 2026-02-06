@@ -3,7 +3,6 @@
  * 测试数据库连接断开后的自动恢复能力
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import {
   afterAll,
   afterEach,
@@ -14,13 +13,7 @@ import {
 } from "@dreamer/test";
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createPostgresConfig } from "./postgres-test-utils.ts";
 
 describe("PostgreSQL 故障恢复集成测试", () => {
   let adapter: DatabaseAdapter;
@@ -35,28 +28,15 @@ describe("PostgreSQL 故障恢复集成测试", () => {
       // 忽略清理错误
     }
 
-    const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
-    const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
-    const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-    const defaultUser = "testuser";
-    const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-    const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
-
     // 使用 initDatabase 初始化全局 dbManager
-    await initDatabase({
-      type: "postgresql",
-      connection: {
-        host: pgHost,
-        port: pgPort,
-        database: pgDatabase,
-        username: pgUser,
-        password: pgPassword,
-      },
-      pool: {
-        maxRetries: 3,
-        retryDelay: 1000,
-      },
-    });
+    await initDatabase(
+      createPostgresConfig({
+        pool: {
+          maxRetries: 3,
+          retryDelay: 1000,
+        },
+      }),
+    );
 
     // 从全局 dbManager 获取适配器
     adapter = getDatabase();
@@ -115,23 +95,7 @@ describe("PostgreSQL 故障恢复集成测试", () => {
     expect(adapter.isConnected()).toBe(false);
 
     // 重新连接
-    const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
-    const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
-    const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-    const defaultUser = "testuser";
-    const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-    const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
-
-    await adapter.connect({
-      type: "postgresql",
-      connection: {
-        host: pgHost,
-        port: pgPort,
-        database: pgDatabase,
-        username: pgUser,
-        password: pgPassword,
-      },
-    });
+    await adapter.connect(createPostgresConfig());
 
     expect(adapter.isConnected()).toBe(true);
 

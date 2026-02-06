@@ -3,44 +3,24 @@
  * 测试连接池在达到最大连接数时的行为
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createPostgresConfig } from "./postgres-test-utils.ts";
 
 describe("连接池耗尽测试", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
-    const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
-    const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-    const defaultUser = "testuser";
-    const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-    const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
-
     // 使用 initDatabase 初始化全局 dbManager
-    await initDatabase({
-      type: "postgresql",
-      connection: {
-        host: pgHost,
-        port: pgPort,
-        database: pgDatabase,
-        username: pgUser,
-        password: pgPassword,
-      },
-      pool: {
-        min: 1,
-        max: 2, // 设置较小的最大连接数以便测试
-      },
-    });
+    await initDatabase(
+      createPostgresConfig({
+        pool: {
+          min: 1,
+          max: 2, // 设置较小的最大连接数以便测试
+        },
+      }),
+    );
 
     // 从全局 dbManager 获取适配器
     adapter = getDatabase();

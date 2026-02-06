@@ -80,4 +80,14 @@ export interface MigrationConfig {
    * 数据库适配器实例
    */
   adapter: DatabaseAdapter;
+
+  /**
+   * 日志记录器（可选，由框架传入；未传时使用 @dreamer/logger 创建默认 logger）
+   */
+  logger?: {
+    info?: (msg: string) => void;
+    warn?: (msg: string) => void;
+    error?: (msg: string) => void;
+    debug?: (msg: string) => void;
+  };
 }

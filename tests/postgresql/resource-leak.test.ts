@@ -3,45 +3,25 @@
  * 测试数据库连接、连接池、事务等资源是否正确释放
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import { afterAll, beforeAll, describe, expect, it } from "@dreamer/test";
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
 import { PostgreSQLAdapter } from "../../src/adapters/postgresql.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createPostgresConfig } from "./postgres-test-utils.ts";
 
 describe("资源泄漏测试", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
-    const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
-    const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
-    const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-    const defaultUser = "testuser";
-    const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-    const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
-
     // 使用 initDatabase 初始化全局 dbManager
-    await initDatabase({
-      type: "postgresql",
-      connection: {
-        host: pgHost,
-        port: pgPort,
-        database: pgDatabase,
-        username: pgUser,
-        password: pgPassword,
-      },
-      pool: {
-        min: 1,
-        max: 5,
-      },
-    });
+    await initDatabase(
+      createPostgresConfig({
+        pool: {
+          min: 1,
+          max: 5,
+        },
+      }),
+    );
 
     // 从全局 dbManager 获取适配器
     adapter = getDatabase();
@@ -60,23 +40,7 @@ describe("资源泄漏测试", () => {
 
     // 创建临时适配器
     const testAdapter = new PostgreSQLAdapter();
-    const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
-    const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
-    const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-    const defaultUser = "testuser";
-    const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-    const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
-
-    await testAdapter.connect({
-      type: "postgresql",
-      connection: {
-        host: pgHost,
-        port: pgPort,
-        database: pgDatabase,
-        username: pgUser,
-        password: pgPassword,
-      },
-    });
+    await testAdapter.connect(createPostgresConfig());
 
     // 执行一些操作
     await testAdapter.query("SELECT 1", []);

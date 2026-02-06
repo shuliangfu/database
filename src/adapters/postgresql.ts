@@ -29,6 +29,18 @@ import {
  */
 export class PostgreSQLAdapter extends BaseAdapter {
   protected pool: Pool | null = null;
+
+  /** 获取翻译文本，无 t 或翻译缺失时返回 fallback */
+  private tr(
+    key: string,
+    fallback: string,
+    params?: Record<string, string | number | boolean>,
+  ): string {
+    const t = (this.config as PostgreSQLConfig).t;
+    const r = t?.(key, params);
+    return (r != null && r !== key) ? r : fallback;
+  }
+
   private logger = createLogger({
     level: "warn",
     format: "text",
@@ -300,13 +312,10 @@ export class PostgreSQLAdapter extends BaseAdapter {
         await client.query("ROLLBACK");
       } catch (rollbackError) {
         // 回滚失败，记录但不抛出（原始错误更重要）
-        console.warn(
-          `PostgreSQL transaction rollback failed: ${
-            rollbackError instanceof Error
-              ? rollbackError.message
-              : String(rollbackError)
-          }`,
-        );
+        const msg = rollbackError instanceof Error
+          ? rollbackError.message
+          : String(rollbackError);
+        this.logger.warn(`PostgreSQL transaction rollback failed: ${msg}`);
       }
       const originalError = error instanceof Error
         ? error
@@ -463,9 +472,12 @@ export class PostgreSQLAdapter extends BaseAdapter {
       } catch (error) {
         // 关闭失败或超时，忽略错误（状态已清理）
         const message = error instanceof Error ? error.message : String(error);
-        this.logger.warn(`PostgreSQL 关闭连接时出错（已忽略）: ${message}`, {
-          error: message,
-        });
+        const msg = this.tr(
+          "log.adapterPostgres.closeError",
+          `PostgreSQL 关闭连接时出错（已忽略）: ${message}`,
+          { error: message },
+        );
+        this.logger.warn(msg, { error: message });
       }
     }
   }

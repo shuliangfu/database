@@ -2,7 +2,6 @@
  * @fileoverview DatabaseManager 测试
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import { ServiceContainer } from "@dreamer/service";
 import {
   afterAll,
@@ -13,14 +12,7 @@ import {
   it,
 } from "@dreamer/test";
 import { createDatabaseManager, DatabaseManager } from "../../src/manager.ts";
-import type { DatabaseConfig } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createPostgresConfig } from "./postgres-test-utils.ts";
 
 describe("DatabaseManager", () => {
   let manager: DatabaseManager;
@@ -55,25 +47,7 @@ describe("DatabaseManager", () => {
 
   describe("connect", () => {
     it("应该连接到 PostgreSQL 数据库", async () => {
-      const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
-      const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
-      const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-      const defaultUser = "testuser";
-      const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-      const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
-
-      const config: DatabaseConfig = {
-        type: "postgresql",
-        connection: {
-          host: pgHost,
-          port: pgPort,
-          database: pgDatabase,
-          username: pgUser,
-          password: pgPassword,
-        },
-      };
-
-      const status = await manager.connect("postgres_test", config);
+      const status = await manager.connect("postgres_test", createPostgresConfig());
 
       expect(status.name).toBe("postgres_test");
       expect(status.type).toBe("postgresql");
@@ -81,61 +55,16 @@ describe("DatabaseManager", () => {
     }, { timeout: 10000 });
 
     it("应该支持多个连接", async () => {
-      const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
-      const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
-      const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-      const defaultUser = "testuser";
-      const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-      const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
-
-      const config1: DatabaseConfig = {
-        type: "postgresql",
-        connection: {
-          host: pgHost,
-          port: pgPort,
-          database: pgDatabase,
-          username: pgUser,
-          password: pgPassword,
-        },
-      };
-      const config2: DatabaseConfig = {
-        type: "postgresql",
-        connection: {
-          host: pgHost,
-          port: pgPort,
-          database: pgDatabase,
-          username: pgUser,
-          password: pgPassword,
-        },
-      };
-
-      await manager.connect("connection1", config1);
-      await manager.connect("connection2", config2);
+      const config = createPostgresConfig();
+      await manager.connect("connection1", config);
+      await manager.connect("connection2", config);
 
       expect(manager.hasConnection("connection1")).toBe(true);
       expect(manager.hasConnection("connection2")).toBe(true);
     }, { timeout: 15000 });
 
     it("应该使用默认连接名称", async () => {
-      const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
-      const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
-      const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-      const defaultUser = "testuser";
-      const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-      const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
-
-      const config: DatabaseConfig = {
-        type: "postgresql",
-        connection: {
-          host: pgHost,
-          port: pgPort,
-          database: pgDatabase,
-          username: pgUser,
-          password: pgPassword,
-        },
-      };
-
-      const status = await manager.connect(undefined, config);
+      const status = await manager.connect(undefined, createPostgresConfig());
 
       expect(status.name).toBe("default");
       expect(manager.hasConnection("default")).toBe(true);
@@ -144,25 +73,7 @@ describe("DatabaseManager", () => {
 
   describe("getConnection", () => {
     it("应该获取已存在的连接", async () => {
-      const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
-      const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
-      const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-      const defaultUser = "testuser";
-      const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-      const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
-
-      const config: DatabaseConfig = {
-        type: "postgresql",
-        connection: {
-          host: pgHost,
-          port: pgPort,
-          database: pgDatabase,
-          username: pgUser,
-          password: pgPassword,
-        },
-      };
-
-      await manager.connect("test_connection", config);
+      await manager.connect("test_connection", createPostgresConfig());
       const adapter = manager.getConnection("test_connection");
 
       expect(adapter).toBeTruthy();
@@ -170,25 +81,7 @@ describe("DatabaseManager", () => {
     }, { timeout: 10000 });
 
     it("应该使用默认连接名称", async () => {
-      const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
-      const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
-      const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-      const defaultUser = "testuser";
-      const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-      const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
-
-      const config: DatabaseConfig = {
-        type: "postgresql",
-        connection: {
-          host: pgHost,
-          port: pgPort,
-          database: pgDatabase,
-          username: pgUser,
-          password: pgPassword,
-        },
-      };
-
-      await manager.connect("default", config);
+      await manager.connect("default", createPostgresConfig());
       const adapter = manager.getConnection();
 
       expect(adapter).toBeTruthy();
@@ -204,25 +97,7 @@ describe("DatabaseManager", () => {
 
   describe("close", () => {
     it("应该关闭指定连接", async () => {
-      const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
-      const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
-      const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-      const defaultUser = "testuser";
-      const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-      const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
-
-      const config: DatabaseConfig = {
-        type: "postgresql",
-        connection: {
-          host: pgHost,
-          port: pgPort,
-          database: pgDatabase,
-          username: pgUser,
-          password: pgPassword,
-        },
-      };
-
-      await manager.connect("close_test", config);
+      await manager.connect("close_test", createPostgresConfig());
       expect(manager.hasConnection("close_test")).toBe(true);
 
       await manager.close("close_test");
@@ -230,24 +105,7 @@ describe("DatabaseManager", () => {
     }, { timeout: 10000 });
 
     it("应该关闭所有连接", async () => {
-      const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
-      const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
-      const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-      const defaultUser = "testuser";
-      const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-      const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
-
-      const config: DatabaseConfig = {
-        type: "postgresql",
-        connection: {
-          host: pgHost,
-          port: pgPort,
-          database: pgDatabase,
-          username: pgUser,
-          password: pgPassword,
-        },
-      };
-
+      const config = createPostgresConfig();
       await manager.connect("close_all_1", config);
       await manager.connect("close_all_2", config);
 
@@ -268,50 +126,14 @@ describe("DatabaseManager", () => {
 
   describe("hasConnection", () => {
     it("应该检查连接是否存在", async () => {
-      const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
-      const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
-      const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-      const defaultUser = "testuser";
-      const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-      const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
-
-      const config: DatabaseConfig = {
-        type: "postgresql",
-        connection: {
-          host: pgHost,
-          port: pgPort,
-          database: pgDatabase,
-          username: pgUser,
-          password: pgPassword,
-        },
-      };
-
       expect(manager.hasConnection("has_test")).toBe(false);
 
-      await manager.connect("has_test", config);
+      await manager.connect("has_test", createPostgresConfig());
       expect(manager.hasConnection("has_test")).toBe(true);
     }, { timeout: 10000 });
 
     it("应该使用默认连接名称", async () => {
-      const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
-      const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
-      const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-      const defaultUser = "testuser";
-      const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-      const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
-
-      const config: DatabaseConfig = {
-        type: "postgresql",
-        connection: {
-          host: pgHost,
-          port: pgPort,
-          database: pgDatabase,
-          username: pgUser,
-          password: pgPassword,
-        },
-      };
-
-      await manager.connect("default", config);
+      await manager.connect("default", createPostgresConfig());
       expect(manager.hasConnection()).toBe(true);
     }, { timeout: 10000 });
   });
@@ -321,24 +143,7 @@ describe("DatabaseManager", () => {
       // 先清理可能存在的连接
       await manager.closeAll();
 
-      const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
-      const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
-      const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-      const defaultUser = "testuser";
-      const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-      const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
-
-      const config: DatabaseConfig = {
-        type: "postgresql",
-        connection: {
-          host: pgHost,
-          port: pgPort,
-          database: pgDatabase,
-          username: pgUser,
-          password: pgPassword,
-        },
-      };
-
+      const config = createPostgresConfig();
       // 创建两个连接
       await manager.connect("name_test_1", config);
       await manager.connect("name_test_2", config);
@@ -365,25 +170,7 @@ describe("DatabaseManager", () => {
 
   describe("createAdapter", () => {
     it("应该为 PostgreSQL 创建适配器", async () => {
-      const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
-      const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
-      const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-      const defaultUser = "testuser";
-      const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-      const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
-
-      const config: DatabaseConfig = {
-        type: "postgresql",
-        connection: {
-          host: pgHost,
-          port: pgPort,
-          database: pgDatabase,
-          username: pgUser,
-          password: pgPassword,
-        },
-      };
-
-      const status = await manager.connect("postgres_adapter", config);
+      const status = await manager.connect("postgres_adapter", createPostgresConfig());
       expect(status.type).toBe("postgresql");
     }, { timeout: 10000 });
   });
@@ -402,25 +189,7 @@ describe("DatabaseManager", () => {
 
       manager.setAdapterFactory(factory as any);
 
-      const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
-      const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
-      const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-      const defaultUser = "testuser";
-      const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-      const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
-
-      const config: DatabaseConfig = {
-        type: "postgresql",
-        connection: {
-          host: pgHost,
-          port: pgPort,
-          database: pgDatabase,
-          username: pgUser,
-          password: pgPassword,
-        },
-      };
-
-      const status = await manager.connect("factory_test", config);
+      const status = await manager.connect("factory_test", createPostgresConfig());
 
       expect(status.type).toBe("postgresql");
       expect(status.connected).toBe(true);
@@ -553,24 +322,7 @@ describe("DatabaseManager", () => {
       const container = new ServiceContainer();
       const dbManager = createDatabaseManager({ name: "pg" }, container);
 
-      const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
-      const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
-      const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-      const pgUser = getEnvWithDefault("POSTGRES_USER", "testuser");
-      const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
-
-      const config: DatabaseConfig = {
-        type: "postgresql",
-        connection: {
-          host: pgHost,
-          port: pgPort,
-          database: pgDatabase,
-          username: pgUser,
-          password: pgPassword,
-        },
-      };
-
-      const status = await dbManager.connect("test", config);
+      const status = await dbManager.connect("test", createPostgresConfig());
       expect(status.connected).toBe(true);
 
       await dbManager.closeAll();

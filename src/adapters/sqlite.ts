@@ -53,6 +53,18 @@ interface SQLiteStatement {
  */
 export class SQLiteAdapter extends BaseAdapter {
   protected db: SQLiteDatabase | null = null;
+
+  /** 获取翻译文本，无 t 或翻译缺失时返回 fallback */
+  private tr(
+    key: string,
+    fallback: string,
+    params?: Record<string, string | number | boolean>,
+  ): string {
+    const t = (this.config as SQLiteConfig).t;
+    const r = t?.(key, params);
+    return (r != null && r !== key) ? r : fallback;
+  }
+
   private logger = createLogger({
     level: "warn",
     format: "text",
@@ -202,7 +214,7 @@ export class SQLiteAdapter extends BaseAdapter {
               fileMustExist: sqliteConfig.sqliteOptions?.fileMustExist || false,
               timeout: sqliteConfig.sqliteOptions?.timeout || 5000,
               verbose: sqliteConfig.sqliteOptions?.verbose
-                ? console.log
+                ? (msg: string) => this.logger.debug(msg)
                 : undefined,
             };
             this.db = new Database(filename, options);
@@ -505,9 +517,12 @@ export class SQLiteAdapter extends BaseAdapter {
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        this.logger.warn(`SQLite 关闭连接时出错（已忽略）: ${message}`, {
-          error: message,
-        });
+        const msg = this.tr(
+          "log.adapterSqlite.closeError",
+          `SQLite 关闭连接时出错（已忽略）: ${message}`,
+          { error: message },
+        );
+        this.logger.warn(msg, { error: message });
       } finally {
         // 无论成功与否，都清理状态
         this.db = null;

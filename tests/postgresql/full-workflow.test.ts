@@ -3,7 +3,6 @@
  * 测试从数据库连接到 CRUD 操作的完整流程
  */
 
-import { getEnv } from "@dreamer/runtime-adapter";
 import {
   afterAll,
   afterEach,
@@ -16,13 +15,7 @@ import { getDatabase, initDatabase } from "../../src/access.ts";
 import { closeDatabase } from "../../src/init-database.ts";
 import { SQLModel } from "../../src/orm/sql-model.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
-
-/**
- * 获取环境变量，带默认值
- */
-function getEnvWithDefault(key: string, defaultValue: string = ""): string {
-  return getEnv(key) || defaultValue;
-}
+import { createPostgresConfig } from "./postgres-test-utils.ts";
 
 // 定义表名常量（使用目录名_文件名_作为前缀）
 const TABLE_NAME = "postgresql_full_workflow_integration_users";
@@ -48,24 +41,8 @@ describe("PostgreSQL 完整工作流程集成测试", () => {
       // 忽略清理错误
     }
 
-    const pgHost = getEnvWithDefault("POSTGRES_HOST", "localhost");
-    const pgPort = parseInt(getEnvWithDefault("POSTGRES_PORT", "5432"));
-    const pgDatabase = getEnvWithDefault("POSTGRES_DATABASE", "postgres");
-    const defaultUser = "testuser";
-    const pgUser = getEnvWithDefault("POSTGRES_USER", defaultUser);
-    const pgPassword = getEnvWithDefault("POSTGRES_PASSWORD", "testpass");
-
     // 初始化数据库
-    await initDatabase({
-      type: "postgresql",
-      connection: {
-        host: pgHost,
-        port: pgPort,
-        database: pgDatabase,
-        username: pgUser,
-        password: pgPassword,
-      },
-    });
+    await initDatabase(createPostgresConfig());
 
     adapter = getDatabase()!;
 
