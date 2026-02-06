@@ -62,10 +62,10 @@
 
 ## 测试概览
 
-- **测试库版本**: @dreamer/test@^1.0.0-beta.22
+- **测试库版本**: @dreamer/test@^1.0.0-beta.40
 - **运行时适配器版本**: @dreamer/runtime-adapter@^1.0.0
 - **测试框架**: @dreamer/test (兼容 Deno 和 Bun)
-- **测试时间**: 2026-01-30
+- **测试时间**: 2026-02-06
 - **服务容器版本**: @dreamer/service@^1.0.0-beta.4
 - **测试环境**:
   - Deno 版本要求: 2.5.0+
@@ -77,103 +77,103 @@
 
 ### 总体统计
 
-- **总测试数**: 1,788
-- **通过**: 1,788 ✅
+- **总测试数**: 1,954
+- **通过**: 1,954 ✅
 - **失败**: 0
 - **通过率**: 100% ✅
-- **测试执行时间**: ~222秒（Deno 环境）
-- **测试文件数**: 80 个
+- **测试执行时间**: ~129秒（Deno 环境，分库执行）
+- **测试文件数**: 81 个
 
 ### 测试文件统计
 
 | 测试文件                                    | 测试数 | 状态        | 说明                        |
 | ------------------------------------------- | ------ | ----------- | --------------------------- |
-| `tests/mongo/model.test.ts`                 | ~161   | ✅ 全部通过 | MongoDB ORM 模型操作测试    |
-| `tests/mysql/model.test.ts`                 | ~161   | ✅ 全部通过 | MySQL ORM 模型操作测试      |
-| `tests/postgresql/model.test.ts`            | ~161   | ✅ 全部通过 | PostgreSQL ORM 模型操作测试 |
-| `tests/sqlite/model.test.ts`                | ~161   | ✅ 全部通过 | SQLite ORM 模型操作测试     |
-| `tests/mongo/validation.test.ts`            | ~100+  | ✅ 全部通过 | MongoDB 数据验证测试        |
-| `tests/mysql/validation.test.ts`            | ~100+  | ✅ 全部通过 | MySQL 数据验证测试          |
-| `tests/postgresql/validation.test.ts`       | ~100+  | ✅ 全部通过 | PostgreSQL 数据验证测试     |
-| `tests/sqlite/validation.test.ts`           | ~100+  | ✅ 全部通过 | SQLite 数据验证测试         |
-| `tests/mongo/adapter.test.ts`               | ~20    | ✅ 全部通过 | MongoDB 适配器测试          |
-| `tests/mysql/adapter.test.ts`               | ~20    | ✅ 全部通过 | MySQL 适配器测试            |
-| `tests/postgresql/adapter.test.ts`          | ~20    | ✅ 全部通过 | PostgreSQL 适配器测试       |
-| `tests/sqlite/adapter.test.ts`              | ~20    | ✅ 全部通过 | SQLite 适配器测试           |
-| `tests/mongo/query-builder.test.ts`         | ~15    | ✅ 全部通过 | MongoDB 查询构建器测试      |
-| `tests/mysql/query-builder.test.ts`         | ~15    | ✅ 全部通过 | MySQL 查询构建器测试        |
-| `tests/postgresql/query-builder.test.ts`    | ~15    | ✅ 全部通过 | PostgreSQL 查询构建器测试   |
-| `tests/sqlite/query-builder.test.ts`        | ~15    | ✅ 全部通过 | SQLite 查询构建器测试       |
-| `tests/mongo/transaction.test.ts`           | ~10    | ✅ 全部通过 | MongoDB 事务测试            |
-| `tests/mysql/transaction.test.ts`           | ~10    | ✅ 全部通过 | MySQL 事务测试              |
-| `tests/postgresql/transaction.test.ts`      | ~10    | ✅ 全部通过 | PostgreSQL 事务测试         |
-| `tests/sqlite/transaction.test.ts`          | ~10    | ✅ 全部通过 | SQLite 事务测试             |
-| `tests/mongo/cache.test.ts`                 | ~10    | ✅ 全部通过 | MongoDB 缓存测试            |
-| `tests/mysql/cache.test.ts`                 | ~10    | ✅ 全部通过 | MySQL 缓存测试              |
-| `tests/postgresql/cache.test.ts`            | ~10    | ✅ 全部通过 | PostgreSQL 缓存测试         |
-| `tests/sqlite/cache.test.ts`                | ~10    | ✅ 全部通过 | SQLite 缓存测试             |
-| `tests/mongo/error-handling.test.ts`        | ~15    | ✅ 全部通过 | MongoDB 错误处理测试        |
-| `tests/mysql/error-handling.test.ts`        | ~15    | ✅ 全部通过 | MySQL 错误处理测试          |
-| `tests/postgresql/error-handling.test.ts`   | ~15    | ✅ 全部通过 | PostgreSQL 错误处理测试     |
-| `tests/sqlite/error-handling.test.ts`       | ~15    | ✅ 全部通过 | SQLite 错误处理测试         |
-| `tests/mongo/performance.test.ts`           | ~10    | ✅ 全部通过 | MongoDB 性能测试            |
-| `tests/mysql/performance.test.ts`           | ~10    | ✅ 全部通过 | MySQL 性能测试              |
-| `tests/postgresql/performance.test.ts`      | ~10    | ✅ 全部通过 | PostgreSQL 性能测试         |
-| `tests/sqlite/performance.test.ts`          | ~10    | ✅ 全部通过 | SQLite 性能测试             |
-| `tests/mongo/fault-recovery.test.ts`        | ~10    | ✅ 全部通过 | MongoDB 故障恢复测试        |
-| `tests/mysql/fault-recovery.test.ts`        | ~10    | ✅ 全部通过 | MySQL 故障恢复测试          |
-| `tests/postgresql/fault-recovery.test.ts`   | ~10    | ✅ 全部通过 | PostgreSQL 故障恢复测试     |
-| `tests/sqlite/fault-recovery.test.ts`       | ~10    | ✅ 全部通过 | SQLite 故障恢复测试         |
-| `tests/mongo/resource-leak.test.ts`         | ~10    | ✅ 全部通过 | MongoDB 资源泄漏测试        |
-| `tests/mysql/resource-leak.test.ts`         | ~10    | ✅ 全部通过 | MySQL 资源泄漏测试          |
-| `tests/postgresql/resource-leak.test.ts`    | ~10    | ✅ 全部通过 | PostgreSQL 资源泄漏测试     |
-| `tests/sqlite/resource-leak.test.ts`        | ~10    | ✅ 全部通过 | SQLite 资源泄漏测试         |
-| `tests/mongo/pool-exhaustion.test.ts`       | ~5     | ✅ 全部通过 | MongoDB 连接池耗尽测试      |
-| `tests/mysql/pool-exhaustion.test.ts`       | ~5     | ✅ 全部通过 | MySQL 连接池耗尽测试        |
-| `tests/postgresql/pool-exhaustion.test.ts`  | ~5     | ✅ 全部通过 | PostgreSQL 连接池耗尽测试   |
-| `tests/mongo/long-running.test.ts`          | ~10    | ✅ 全部通过 | MongoDB 长时间运行测试      |
-| `tests/mysql/long-running.test.ts`          | ~10    | ✅ 全部通过 | MySQL 长时间运行测试        |
-| `tests/postgresql/long-running.test.ts`     | ~10    | ✅ 全部通过 | PostgreSQL 长时间运行测试   |
-| `tests/sqlite/long-running.test.ts`         | ~10    | ✅ 全部通过 | SQLite 长时间运行测试       |
-| `tests/mongo/migration.test.ts`             | ~15    | ✅ 全部通过 | MongoDB 迁移测试            |
-| `tests/mysql/migration.test.ts`             | ~15    | ✅ 全部通过 | MySQL 迁移测试              |
-| `tests/postgresql/migration.test.ts`        | ~15    | ✅ 全部通过 | PostgreSQL 迁移测试         |
-| `tests/sqlite/migration.test.ts`            | ~15    | ✅ 全部通过 | SQLite 迁移测试             |
-| `tests/mongo/query-logger.test.ts`          | ~10    | ✅ 全部通过 | MongoDB 查询日志测试        |
-| `tests/mysql/query-logger.test.ts`          | ~10    | ✅ 全部通过 | MySQL 查询日志测试          |
-| `tests/postgresql/query-logger.test.ts`     | ~10    | ✅ 全部通过 | PostgreSQL 查询日志测试     |
-| `tests/sqlite/query-logger.test.ts`         | ~10    | ✅ 全部通过 | SQLite 查询日志测试         |
-| `tests/mongo/database-manager.test.ts`      | ~10    | ✅ 全部通过 | MongoDB 数据库管理器测试    |
-| `tests/mysql/database-manager.test.ts`      | ~10    | ✅ 全部通过 | MySQL 数据库管理器测试      |
-| `tests/postgresql/database-manager.test.ts` | ~10    | ✅ 全部通过 | PostgreSQL 数据库管理器测试 |
-| `tests/sqlite/database-manager.test.ts`     | ~10    | ✅ 全部通过 | SQLite 数据库管理器测试     |
-| `tests/mongo/init-database.test.ts`         | ~10    | ✅ 全部通过 | MongoDB 初始化测试          |
-| `tests/mysql/init-database.test.ts`         | ~10    | ✅ 全部通过 | MySQL 初始化测试            |
-| `tests/postgresql/init-database.test.ts`    | ~10    | ✅ 全部通过 | PostgreSQL 初始化测试       |
-| `tests/sqlite/init-database.test.ts`        | ~10    | ✅ 全部通过 | SQLite 初始化测试           |
-| `tests/mongo/access.test.ts`                | ~5     | ✅ 全部通过 | MongoDB 访问接口测试        |
-| `tests/mysql/access.test.ts`                | ~5     | ✅ 全部通过 | MySQL 访问接口测试          |
-| `tests/postgresql/access.test.ts`           | ~5     | ✅ 全部通过 | PostgreSQL 访问接口测试     |
-| `tests/sqlite/access.test.ts`               | ~5     | ✅ 全部通过 | SQLite 访问接口测试         |
-| `tests/mongo/model-advanced.test.ts`        | ~10    | ✅ 全部通过 | MongoDB 高级功能测试        |
-| `tests/mysql/model-advanced.test.ts`        | ~10    | ✅ 全部通过 | MySQL 高级功能测试          |
-| `tests/postgresql/model-advanced.test.ts`   | ~10    | ✅ 全部通过 | PostgreSQL 高级功能测试     |
-| `tests/sqlite/model-advanced.test.ts`       | ~10    | ✅ 全部通过 | SQLite 高级功能测试         |
-| `tests/mongo/full-workflow.test.ts`         | ~10    | ✅ 全部通过 | MongoDB 完整工作流测试      |
-| `tests/mysql/full-workflow.test.ts`         | ~10    | ✅ 全部通过 | MySQL 完整工作流测试        |
-| `tests/postgresql/full-workflow.test.ts`    | ~10    | ✅ 全部通过 | PostgreSQL 完整工作流测试   |
-| `tests/sqlite/full-workflow.test.ts`        | ~10    | ✅ 全部通过 | SQLite 完整工作流测试       |
-| `tests/mongo/features.test.ts`              | ~10    | ✅ 全部通过 | MongoDB 特性测试            |
-| `tests/mysql/features.test.ts`              | ~10    | ✅ 全部通过 | MySQL 特性测试              |
-| `tests/postgresql/features.test.ts`         | ~10    | ✅ 全部通过 | PostgreSQL 特性测试         |
-| `tests/sqlite/features.test.ts`             | ~10    | ✅ 全部通过 | SQLite 特性测试             |
-| `tests/integration/multi-adapter.test.ts`   | ~10    | ✅ 全部通过 | 多适配器集成测试            |
+| `tests/mongo/model.test.ts`                 | 172    | ✅ 全部通过 | MongoDB ORM 模型操作测试    |
+| `tests/mysql/model.test.ts`                 | 175    | ✅ 全部通过 | MySQL ORM 模型操作测试      |
+| `tests/postgresql/model.test.ts`            | 175    | ✅ 全部通过 | PostgreSQL ORM 模型操作测试 |
+| `tests/sqlite/model.test.ts`                | 174    | ✅ 全部通过 | SQLite ORM 模型操作测试     |
+| `tests/mongo/validation.test.ts`            | 54     | ✅ 全部通过 | MongoDB 数据验证测试        |
+| `tests/mysql/validation.test.ts`            | 54     | ✅ 全部通过 | MySQL 数据验证测试          |
+| `tests/postgresql/validation.test.ts`       | 54     | ✅ 全部通过 | PostgreSQL 数据验证测试     |
+| `tests/sqlite/validation.test.ts`           | 54     | ✅ 全部通过 | SQLite 数据验证测试         |
+| `tests/mongo/adapter.test.ts`               | 67     | ✅ 全部通过 | MongoDB 适配器测试          |
+| `tests/mysql/adapter.test.ts`               | 70     | ✅ 全部通过 | MySQL 适配器测试            |
+| `tests/postgresql/adapter.test.ts`          | 72     | ✅ 全部通过 | PostgreSQL 适配器测试       |
+| `tests/sqlite/adapter.test.ts`              | 66     | ✅ 全部通过 | SQLite 适配器测试           |
+| `tests/mongo/query-builder.test.ts`         | 29     | ✅ 全部通过 | MongoDB 查询构建器测试      |
+| `tests/mysql/query-builder.test.ts`         | 24     | ✅ 全部通过 | MySQL 查询构建器测试        |
+| `tests/postgresql/query-builder.test.ts`    | 24     | ✅ 全部通过 | PostgreSQL 查询构建器测试   |
+| `tests/sqlite/query-builder.test.ts`        | 24     | ✅ 全部通过 | SQLite 查询构建器测试       |
+| `tests/mongo/transaction.test.ts`           | 3      | ✅ 全部通过 | MongoDB 事务测试            |
+| `tests/mysql/transaction.test.ts`           | 5      | ✅ 全部通过 | MySQL 事务测试              |
+| `tests/postgresql/transaction.test.ts`      | 5      | ✅ 全部通过 | PostgreSQL 事务测试         |
+| `tests/sqlite/transaction.test.ts`          | 6      | ✅ 全部通过 | SQLite 事务测试             |
+| `tests/mongo/cache.test.ts`                 | 19     | ✅ 全部通过 | MongoDB 缓存测试            |
+| `tests/mysql/cache.test.ts`                 | 4      | ✅ 全部通过 | MySQL 缓存测试              |
+| `tests/postgresql/cache.test.ts`            | 6      | ✅ 全部通过 | PostgreSQL 缓存测试         |
+| `tests/sqlite/cache.test.ts`                | 6      | ✅ 全部通过 | SQLite 缓存测试             |
+| `tests/mongo/error-handling.test.ts`        | 10     | ✅ 全部通过 | MongoDB 错误处理测试        |
+| `tests/mysql/error-handling.test.ts`        | 11     | ✅ 全部通过 | MySQL 错误处理测试          |
+| `tests/postgresql/error-handling.test.ts`   | 12     | ✅ 全部通过 | PostgreSQL 错误处理测试     |
+| `tests/sqlite/error-handling.test.ts`       | 10     | ✅ 全部通过 | SQLite 错误处理测试         |
+| `tests/mongo/performance.test.ts`           | 6      | ✅ 全部通过 | MongoDB 性能测试            |
+| `tests/mysql/performance.test.ts`           | 6      | ✅ 全部通过 | MySQL 性能测试              |
+| `tests/postgresql/performance.test.ts`      | 6      | ✅ 全部通过 | PostgreSQL 性能测试         |
+| `tests/sqlite/performance.test.ts`          | 6      | ✅ 全部通过 | SQLite 性能测试             |
+| `tests/mongo/fault-recovery.test.ts`        | 5      | ✅ 全部通过 | MongoDB 故障恢复测试        |
+| `tests/mysql/fault-recovery.test.ts`        | 5      | ✅ 全部通过 | MySQL 故障恢复测试          |
+| `tests/postgresql/fault-recovery.test.ts`   | 5      | ✅ 全部通过 | PostgreSQL 故障恢复测试     |
+| `tests/sqlite/fault-recovery.test.ts`       | 5      | ✅ 全部通过 | SQLite 故障恢复测试         |
+| `tests/mongo/resource-leak.test.ts`         | 4      | ✅ 全部通过 | MongoDB 资源泄漏测试        |
+| `tests/mysql/resource-leak.test.ts`         | 4      | ✅ 全部通过 | MySQL 资源泄漏测试          |
+| `tests/postgresql/resource-leak.test.ts`    | 4      | ✅ 全部通过 | PostgreSQL 资源泄漏测试     |
+| `tests/sqlite/resource-leak.test.ts`        | 4      | ✅ 全部通过 | SQLite 资源泄漏测试         |
+| `tests/mongo/pool-exhaustion.test.ts`       | 3      | ✅ 全部通过 | MongoDB 连接池耗尽测试      |
+| `tests/mysql/pool-exhaustion.test.ts`       | 3      | ✅ 全部通过 | MySQL 连接池耗尽测试        |
+| `tests/postgresql/pool-exhaustion.test.ts`  | 3      | ✅ 全部通过 | PostgreSQL 连接池耗尽测试   |
+| `tests/mongo/long-running.test.ts`          | 4      | ✅ 全部通过 | MongoDB 长时间运行测试      |
+| `tests/mysql/long-running.test.ts`          | 4      | ✅ 全部通过 | MySQL 长时间运行测试        |
+| `tests/postgresql/long-running.test.ts`     | 4      | ✅ 全部通过 | PostgreSQL 长时间运行测试   |
+| `tests/sqlite/long-running.test.ts`         | 4      | ✅ 全部通过 | SQLite 长时间运行测试       |
+| `tests/mongo/migration.test.ts`             | 3      | ✅ 全部通过 | MongoDB 迁移测试            |
+| `tests/mysql/migration.test.ts`             | 6      | ✅ 全部通过 | MySQL 迁移测试              |
+| `tests/postgresql/migration.test.ts`        | 6      | ✅ 全部通过 | PostgreSQL 迁移测试         |
+| `tests/sqlite/migration.test.ts`            | 11     | ✅ 全部通过 | SQLite 迁移测试             |
+| `tests/mongo/query-logger.test.ts`          | 26     | ✅ 全部通过 | MongoDB 查询日志测试（含 t、logger、debug） |
+| `tests/mysql/query-logger.test.ts`          | 26     | ✅ 全部通过 | MySQL 查询日志测试（含 t、logger、debug）   |
+| `tests/postgresql/query-logger.test.ts`     | 26     | ✅ 全部通过 | PostgreSQL 查询日志测试（含 t、logger、debug） |
+| `tests/sqlite/query-logger.test.ts`         | 26     | ✅ 全部通过 | SQLite 查询日志测试（含 t、logger、debug）  |
+| `tests/mongo/database-manager.test.ts`      | 28     | ✅ 全部通过 | MongoDB 数据库管理器测试    |
+| `tests/mysql/database-manager.test.ts`      | 28     | ✅ 全部通过 | MySQL 数据库管理器测试      |
+| `tests/postgresql/database-manager.test.ts` | 28     | ✅ 全部通过 | PostgreSQL 数据库管理器测试 |
+| `tests/sqlite/database-manager.test.ts`     | 29     | ✅ 全部通过 | SQLite 数据库管理器测试     |
+| `tests/mongo/init-database.test.ts`         | 23     | ✅ 全部通过 | MongoDB 初始化测试          |
+| `tests/mysql/init-database.test.ts`         | 23     | ✅ 全部通过 | MySQL 初始化测试            |
+| `tests/postgresql/init-database.test.ts`    | 23     | ✅ 全部通过 | PostgreSQL 初始化测试       |
+| `tests/sqlite/init-database.test.ts`        | 23     | ✅ 全部通过 | SQLite 初始化测试           |
+| `tests/mongo/access.test.ts`                | 12     | ✅ 全部通过 | MongoDB 访问接口测试        |
+| `tests/mysql/access.test.ts`                | 12     | ✅ 全部通过 | MySQL 访问接口测试          |
+| `tests/postgresql/access.test.ts`           | 12     | ✅ 全部通过 | PostgreSQL 访问接口测试     |
+| `tests/sqlite/access.test.ts`               | 12     | ✅ 全部通过 | SQLite 访问接口测试         |
+| `tests/mongo/model-advanced.test.ts`        | 9      | ✅ 全部通过 | MongoDB 高级功能测试        |
+| `tests/mysql/model-advanced.test.ts`        | 9      | ✅ 全部通过 | MySQL 高级功能测试          |
+| `tests/postgresql/model-advanced.test.ts`   | 8      | ✅ 全部通过 | PostgreSQL 高级功能测试     |
+| `tests/sqlite/model-advanced.test.ts`       | 6      | ✅ 全部通过 | SQLite 高级功能测试         |
+| `tests/mongo/full-workflow.test.ts`         | 4      | ✅ 全部通过 | MongoDB 完整工作流测试      |
+| `tests/mysql/full-workflow.test.ts`         | 4      | ✅ 全部通过 | MySQL 完整工作流测试        |
+| `tests/postgresql/full-workflow.test.ts`    | 4      | ✅ 全部通过 | PostgreSQL 完整工作流测试   |
+| `tests/sqlite/full-workflow.test.ts`        | 4      | ✅ 全部通过 | SQLite 完整工作流测试       |
+| `tests/mongo/features.test.ts`              | 16     | ✅ 全部通过 | MongoDB 特性测试            |
+| `tests/mysql/features.test.ts`              | 8      | ✅ 全部通过 | MySQL 特性测试              |
+| `tests/postgresql/features.test.ts`         | 11     | ✅ 全部通过 | PostgreSQL 特性测试         |
+| `tests/sqlite/features.test.ts`             | 14     | ✅ 全部通过 | SQLite 特性测试             |
+| `tests/integration/multi-adapter.test.ts`   | 4      | ✅ 全部通过 | 多适配器集成测试（MySQL、SQLite、MongoDB） |
 
 ---
 
 ## 功能测试详情
 
-### 1. ORM 模型操作 (model.test.ts) - 161 个测试（每个适配器）
+### 1. ORM 模型操作 (model.test.ts) - 172~175 个测试（每个适配器）
 
 **测试场景**:
 
@@ -432,7 +432,7 @@
 - ✅ 迁移历史跟踪
 - ✅ 迁移回滚支持
 
-### 14. 查询日志测试 (query-logger.test.ts) - ~10 个测试（每个适配器）
+### 14. 查询日志测试 (query-logger.test.ts) - 26 个测试（每个适配器）
 
 **测试场景**:
 
@@ -440,14 +440,17 @@
 - ✅ 日志级别过滤
 - ✅ 慢查询检测
 - ✅ 错误日志记录
+- ✅ 翻译函数 (t)：未传入 t、传入 t 返回翻译、返回 undefined、带 params
+- ✅ debug 参数：debug 为 false 时调用 logger.debug、为 true 时调用 logger.info、错误/慢查询仍用 error/warn
 
-**测试结果**: 每个适配器 ~10 个测试全部通过
+**测试结果**: 每个适配器 26 个测试全部通过
 
 **实现特点**:
 
 - ✅ 完整的日志记录
 - ✅ 日志级别控制
 - ✅ 慢查询检测
+- ✅ 国际化翻译支持
 
 ### 15. 数据库管理器测试 (database-manager.test.ts) - ~10 个测试（每个适配器）
 
@@ -538,18 +541,19 @@
 
 - ✅ 特定功能特性验证
 
-### 21. 集成测试 (integration/multi-adapter.test.ts) - ~10 个测试
+### 21. 集成测试 (integration/multi-adapter.test.ts) - 4 个测试
 
 **测试场景**:
 
-- ✅ 多适配器集成
-- ✅ 跨适配器功能验证
+- ✅ 同时操作 MySQL、SQLite、MongoDB 多个数据库
+- ✅ 跨数据库数据同步
+- ✅ 独立管理每个连接的状态
 
-**测试结果**: ~10 个测试全部通过
+**测试结果**: 4 个测试全部通过
 
 **实现特点**:
 
-- ✅ 多适配器同时使用
+- ✅ 多适配器同时使用（MySQL、SQLite、MongoDB）
 - ✅ 跨适配器功能验证
 
 ---
@@ -741,17 +745,17 @@
 8. ✅ **错误处理**: 完善的错误类型、详细的错误信息、错误恢复机制
 9. ✅ **性能优化**: 查询缓存、连接池管理、批量操作优化
 10. ✅ **资源管理**: 连接泄漏检测、资源自动清理、长时间运行稳定性
-11. ✅ **测试覆盖**: 1,740 个测试全部通过，测试覆盖率达到 100%
+11. ✅ **测试覆盖**: 1,954 个测试全部通过，测试覆盖率达到 100%
 12. ✅ **跨平台兼容**: 支持 Deno 2.5.0+ 和 Bun 1.3.0+ 运行时
 
 ---
 
 ## 结论
 
-@dreamer/database 库经过全面测试，所有 1,740 个测试全部通过，测试覆盖率达到
+@dreamer/database 库经过全面测试，所有 1,954 个测试全部通过，测试覆盖率达到
 100%。
 
-**测试总数**: 1,788（+48 ServiceContainer 集成测试）
+**测试总数**: 1,954（integration 4 + mongo 497 + mysql 481 + postgresql 488 + sqlite 484）
 
 **测试通过率**: 100% ✅
 
@@ -772,6 +776,5 @@
 
 ---
 
-_测试报告生成时间: 2026-01-27_ _测试执行工具: @dreamer/test (兼容 Deno 和 Bun)_
-_最后更新: 优化 find() 方法设计，移除 where() 和 like()
-方法，只支持追加条件的方法（orWhere, andWhere, orLike, andLike），符合语义设计_
+_测试报告生成时间: 2026-02-06_ _测试执行工具: @dreamer/test (兼容 Deno 和 Bun)_
+_最后更新: 更新测试数据至 1,954 个测试；QueryLogger 新增 t、logger、debug 参数测试；multi-adapter 支持 MySQL、SQLite、MongoDB_
