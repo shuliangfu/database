@@ -11,7 +11,7 @@
 
 ### 变更
 
-- **文档**：将代码示例分离至 [docs/EXAMPLES.md](./docs/EXAMPLES.md)，以缩短 README 长度并改善 JSR 显示。快速开始、事务处理、关联查询详情、迁移管理示例现链接至独立示例文档。
+- **文档**：将代码示例分离至 [docs/zh-CN/EXAMPLES.md](./docs/zh-CN/EXAMPLES.md)，以缩短 README 长度并改善 JSR 显示。快速开始、事务处理、关联查询详情、迁移管理示例现链接至独立示例文档。
 
 ---
 

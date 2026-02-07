@@ -1,14 +1,14 @@
-# @dreamer/database Examples
+# @dreamer/database 示例
 
-> 📖 [README](../README.md) | [中文 README](../README-zh.md)
+> 📖 [README](../../README.md) | [中文 README](../../README-zh.md)
 
-This document contains code examples for @dreamer/database. See [README](../README.md) for API reference and full documentation.
+本文档包含 @dreamer/database 的代码示例。完整 API 参考参见 [README](../../README.md) 或 [API 参考](./API.md)。
 
 ---
 
-## 🚀 Quick Start
+## 🚀 快速开始
 
-### Basic Database Operations
+### 基础数据库操作
 
 ```typescript
 import { getDatabase, initDatabase } from "jsr:@dreamer/database";
@@ -49,7 +49,7 @@ await db.transaction(async (trx) => {
 });
 ```
 
-### SQLModel ORM
+### SQLModel ORM 示例
 
 ```typescript
 import { initDatabase, SQLModel } from "jsr:@dreamer/database";
@@ -153,7 +153,7 @@ await User.updateById(user.id, { age: 26 });
 await User.deleteById(user.id);
 ```
 
-### MongoModel ODM
+### MongoModel ODM 示例
 
 ```typescript
 import { initDatabase, MongoModel } from "jsr:@dreamer/database";
@@ -226,9 +226,9 @@ const jsonArticles = await Article.query()
 
 ---
 
-## 🔄 Transaction Handling
+## 🔄 事务处理
 
-### Basic Transaction
+### 基本事务
 
 ```typescript
 import { getDatabase } from "jsr:@dreamer/database";
@@ -248,7 +248,7 @@ await db.transaction(async (trx) => {
 });
 ```
 
-### Nested Transactions (Savepoints)
+### 嵌套事务（保存点）
 
 SQLite, PostgreSQL, MySQL support nested transactions via savepoints.
 
@@ -276,7 +276,7 @@ await db.transaction(async (trx) => {
 });
 ```
 
-### MongoDB Transaction
+### MongoDB 事务
 
 ```typescript
 import { MongoModel } from "jsr:@dreamer/database";
@@ -290,9 +290,9 @@ await Article.transaction(async (session) => {
 
 ---
 
-## 🔗 Association Query Details
+## 🔗 关联查询详细说明
 
-### belongsTo (Many-to-One)
+### belongsTo（多对一）
 
 Current model belongs to another. E.g.: Post belongsTo User (a post belongs to a user).
 
@@ -318,7 +318,7 @@ const author = await post.belongsTo(User, "user_id", "id", undefined, {
 });
 ```
 
-### hasOne (One-to-One)
+### hasOne（一对一）
 
 Current model has one associated model. E.g.: User hasOne Profile (a user has one profile).
 
@@ -340,7 +340,7 @@ const profile = await user.hasOne(Profile, "user_id", "id", undefined, {
 });
 ```
 
-### hasMany (One-to-Many)
+### hasMany（一对多）
 
 Current model has many associated models. E.g.: User hasMany Post (a user has many posts).
 
@@ -383,9 +383,9 @@ const deletedPosts = await user.hasMany(
 
 ---
 
-## 📦 Migration Management
+## 📦 迁移管理
 
-### Create Migration
+### 创建迁移
 
 ```typescript
 import { getDatabase, MigrationManager } from "jsr:@dreamer/database";
@@ -400,7 +400,7 @@ const manager = new MigrationManager({
 await manager.create("create_users_table");
 ```
 
-### Run Migration
+### 执行迁移
 
 ```typescript
 // Run all pending migrations
@@ -410,7 +410,7 @@ await manager.up();
 await manager.up(2);
 ```
 
-### Rollback Migration
+### 回滚迁移
 
 ```typescript
 // Rollback most recent migration
@@ -420,7 +420,7 @@ await manager.down();
 await manager.down(2);
 ```
 
-### Check Migration Status
+### 查看迁移状态
 
 ```typescript
 const status = await manager.status();
@@ -430,4 +430,4 @@ console.log(status);
 
 ---
 
-> 📖 **Full API Reference**: See [README](../README.md) for Database Initialization, SQLModel API, MongoModel API, Query Builder, and more.
+> 📖 **完整 API 参考**：参见 [README](../../README.md) 或 [API 参考](./API.md)，包含数据库初始化、SQLModel API、MongoModel API、查询构建器等。

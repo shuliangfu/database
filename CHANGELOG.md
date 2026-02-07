@@ -12,7 +12,7 @@ and this project adheres to
 
 ### Changed
 
-- **Documentation**: Extract code examples to [docs/EXAMPLES.md](./docs/EXAMPLES.md) for reduced README size and better JSR display. Quick Start, Transaction Handling, Association Query Details, and Migration Management examples now link to the separate examples document.
+- **Documentation**: Extract code examples to [docs/en-US/EXAMPLES.md](./docs/en-US/EXAMPLES.md) for reduced README size and better JSR display. Quick Start, Transaction Handling, Association Query Details, and Migration Management examples now link to the separate examples document.
 
 ---
 
