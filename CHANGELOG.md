@@ -8,6 +8,14 @@ and this project adheres to
 
 ---
 
+## [1.0.1] - 2026-02-07
+
+### Changed
+
+- **Documentation**: Extract code examples to [docs/EXAMPLES.md](./docs/EXAMPLES.md) for reduced README size and better JSR display. Quick Start, Transaction Handling, Association Query Details, and Migration Management examples now link to the separate examples document.
+
+---
+
 ## [1.0.0] - 2026-02-06
 
 ### Added

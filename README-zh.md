@@ -111,220 +111,18 @@ bunx jsr add @dreamer/database
 
 ## 🚀 快速开始
 
-### 基础数据库操作
+> 📖 **完整示例**：参见 [docs/EXAMPLES.md](./docs/EXAMPLES.md)，包含基础数据库操作、SQLModel ORM、MongoModel ODM、事务处理、关联查询、迁移管理等。
 
 ```typescript
 import { getDatabase, initDatabase } from "jsr:@dreamer/database";
 
-// 初始化 SQLite 数据库
-await initDatabase({
-  adapter: "sqlite",
-  connection: {
-    filename: ":memory:", // 或文件路径
-  },
-});
-
-// 获取数据库适配器
-const db = getDatabase();
-
-// 执行 SQL 查询
-const users = await db.query(
-  "SELECT * FROM users WHERE age > ?",
-  [18],
-);
-
-// 执行更新操作
-await db.execute(
-  "INSERT INTO users (name, email) VALUES (?, ?)",
-  ["Alice", "alice@example.com"],
-);
-
-// 事务支持
-await db.transaction(async (trx) => {
-  await trx.execute("INSERT INTO users (name, email) VALUES (?, ?)", [
-    "Alice",
-    "alice@example.com",
-  ]);
-  await trx.execute("INSERT INTO orders (user_id, amount) VALUES (?, ?)", [
-    1,
-    100,
-  ]);
-});
-```
-
-### SQLModel ORM
-
-```typescript
-import { initDatabase, SQLModel } from "jsr:@dreamer/database";
-
-// 定义用户模型
-class User extends SQLModel {
-  static override tableName = "users";
-  static override primaryKey = "id";
-
-  // 定义字段和验证规则
-  static override schema = {
-    name: {
-      type: "string",
-      validate: {
-        required: true,
-        max: 100,
-      },
-    },
-    email: {
-      type: "string",
-      validate: {
-        required: true,
-        pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-        unique: true,
-      },
-    },
-    age: {
-      type: "number",
-      validate: {
-        min: 0,
-        max: 150,
-      },
-    },
-  };
-}
-
-// 初始化数据库
 await initDatabase({
   adapter: "sqlite",
   connection: { filename: ":memory:" },
 });
 
-// 初始化模型
-await User.init();
-
-// 创建用户
-const user = await User.create({
-  name: "Alice",
-  email: "alice@example.com",
-  age: 25,
-});
-
-// 查询用户
-const foundUser = await User.findById(user.id);
-
-// 使用 query() 方法进行链式查询
-const users = await User.query()
-  .where({ age: { $gt: 18 } })
-  .sort({ created_at: "desc" })
-  .findAll();
-
-// 使用 find() 方法进行链式查询（支持追加查询条件）
-const users2 = await User.find({ age: { $gt: 18 } })
-  .sort({ created_at: "desc" })
-  .findAll();
-
-// find() 方法支持追加条件（orWhere, andWhere, orLike, andLike）
-const users2a = await User.find({ status: "active" })
-  .andWhere({ age: { $gte: 18 } })
-  .orWhere({ status: "inactive" })
-  .findAll();
-
-// 使用 query() 方法进行链式查询（支持所有查询条件方法）
-const users3 = await User.query()
-  .where({ status: "active" })
-  .andWhere({ age: { $gte: 18 } })
-  .orWhere({ status: "inactive" })
-  .findAll();
-
-// 使用模糊查询
-const users4 = await User.query()
-  .like({ name: "Alice" })
-  .orLike({ name: "Bob" })
-  .findAll();
-
-// find() 方法也支持模糊查询（使用 orLike 和 andLike）
-const users4a = await User.find({ name: { $like: "%Alice%" } })
-  .orLike({ name: "Bob" })
-  .findAll();
-
-// 返回纯 JSON 对象数组（不是模型实例）
-const jsonUsers = await User.query()
-  .where("age", ">", 18)
-  .asArray()
-  .findAll();
-
-// 更新用户
-await User.updateById(user.id, { age: 26 });
-
-// 删除用户（软删除）
-await User.deleteById(user.id);
-```
-
-### MongoModel ODM
-
-```typescript
-import { initDatabase, MongoModel } from "jsr:@dreamer/database";
-
-// 定义文章模型
-class Article extends MongoModel {
-  static override collectionName = "articles";
-  static override primaryKey = "_id";
-
-  static override schema = {
-    title: {
-      type: "string",
-      validate: {
-        required: true,
-        max: 200,
-      },
-    },
-    content: {
-      type: "string",
-      validate: {
-        required: true,
-      },
-    },
-    status: {
-      type: "string",
-      validate: {
-        enum: ["draft", "published", "archived"],
-      },
-    },
-  };
-}
-
-// 初始化数据库
-await initDatabase({
-  adapter: "mongodb",
-  connection: {
-    host: "localhost",
-    port: 27017,
-    database: "mydb",
-  },
-});
-
-// 初始化模型
-await Article.init();
-
-// 创建文章
-const article = await Article.create({
-  title: "Hello World",
-  content: "This is my first article",
-  status: "published",
-});
-
-// 查询文章
-const articles = await Article.query()
-  .where({ status: "published" })
-  .sort({ created_at: -1 })
-  .findAll();
-
-// 使用 find() 方法进行链式查询
-const articles2 = await Article.find({ status: "published" })
-  .sort({ created_at: -1 })
-  .findAll();
-
-// 返回纯 JSON 对象数组（不是模型实例）
-const jsonArticles = await Article.query()
-  .where("status", "published")
-  .asArray()
-  .findAll();
+const db = getDatabase();
+const users = await db.query("SELECT * FROM users WHERE age > ?", [18]);
 ```
 
 ---
@@ -1908,205 +1706,19 @@ const result = await builder
 
 ## 🔄 事务处理
 
-### 基本事务
-
-```typescript
-import { getDatabase } from "jsr:@dreamer/database";
-
-const db = getDatabase();
-
-await db.transaction(async (trx) => {
-  await trx.execute("INSERT INTO users (name, email) VALUES (?, ?)", [
-    "Alice",
-    "alice@example.com",
-  ]);
-  await trx.execute("INSERT INTO orders (user_id, amount) VALUES (?, ?)", [
-    1,
-    100,
-  ]);
-  // 如果任何操作失败，事务会自动回滚
-});
-```
-
-### 嵌套事务（保存点）
-
-SQLite、PostgreSQL、MySQL 支持嵌套事务（通过保存点实现）。
-
-```typescript
-await db.transaction(async (trx) => {
-  await trx.execute("INSERT INTO users (name, email) VALUES (?, ?)", [
-    "Bob",
-    "bob@example.com",
-  ]);
-
-  // 创建保存点
-  const savepointId = await trx.createSavepoint("sp1");
-  try {
-    await trx.execute("INSERT INTO orders (user_id, amount) VALUES (?, ?)", [
-      2,
-      200,
-    ]);
-    // 释放保存点
-    await trx.releaseSavepoint(savepointId);
-  } catch (error) {
-    // 回滚到保存点
-    await trx.rollbackToSavepoint(savepointId);
-    throw error;
-  }
-});
-```
-
-### MongoDB 事务
-
-```typescript
-import { MongoModel } from "jsr:@dreamer/database";
-
-await Article.transaction(async (session) => {
-  const article1 = await Article.create({ title: "Article 1" }, { session });
-  const article2 = await Article.create({ title: "Article 2" }, { session });
-  // 如果任何操作失败，事务会自动回滚
-});
-```
+> 📖 **示例**：参见 [docs/EXAMPLES.md#transaction-handling](./docs/EXAMPLES.md#transaction-handling)，包含基本事务、嵌套事务（保存点）、MongoDB 事务。
 
 ---
 
 ## 🔗 关联查询详细说明
 
-### belongsTo（多对一关系）
-
-当前模型属于另一个模型。例如：Post belongsTo User（一个帖子属于一个用户）。
-
-```typescript
-class Post extends SQLModel {
-  static override tableName = "posts";
-}
-
-class User extends SQLModel {
-  static override tableName = "users";
-}
-
-// 获取帖子的作者
-const post = await Post.findById(1);
-const author = await post.belongsTo(User, "user_id", "id");
-
-// 指定字段
-const author = await post.belongsTo(User, "user_id", "id", ["name", "email"]);
-
-// 包含软删除记录
-const author = await post.belongsTo(User, "user_id", "id", undefined, {
-  includeTrashed: true,
-});
-```
-
-### hasOne（一对一关系）
-
-当前模型拥有一个关联模型。例如：User hasOne Profile（一个用户拥有一个资料）。
-
-```typescript
-class Profile extends SQLModel {
-  static override tableName = "profiles";
-}
-
-// 获取用户的资料
-const user = await User.findById(1);
-const profile = await user.hasOne(Profile, "user_id", "id");
-
-// 指定字段
-const profile = await user.hasOne(Profile, "user_id", "id", ["bio", "avatar"]);
-
-// 包含软删除记录
-const profile = await user.hasOne(Profile, "user_id", "id", undefined, {
-  includeTrashed: true,
-});
-```
-
-### hasMany（一对多关系）
-
-当前模型拥有多个关联模型。例如：User hasMany Post（一个用户拥有多个帖子）。
-
-```typescript
-// 获取用户的所有帖子
-const user = await User.findById(1);
-const posts = await user.hasMany(Post, "user_id", "id");
-
-// 指定字段
-const posts = await user.hasMany(Post, "user_id", "id", ["title", "content"]);
-
-// 支持 options 参数（排序、分页等）
-const posts = await user.hasMany(Post, "user_id", "id", undefined, {
-  sort: { created_at: "desc" },
-  limit: 10,
-  skip: 0,
-});
-
-// 包含软删除记录
-const posts = await user.hasMany(
-  Post,
-  "user_id",
-  "id",
-  undefined,
-  undefined,
-  true,
-);
-
-// 仅查询已删除记录
-const deletedPosts = await user.hasMany(
-  Post,
-  "user_id",
-  "id",
-  undefined,
-  undefined,
-  false,
-  true,
-);
-```
+> 📖 **示例**：参见 [docs/EXAMPLES.md#association-query-details](./docs/EXAMPLES.md#association-query-details)，包含 belongsTo、hasOne、hasMany。
 
 ---
 
 ## 📦 迁移管理
 
-### 创建迁移
-
-```typescript
-import { getDatabase, MigrationManager } from "jsr:@dreamer/database";
-
-const db = getDatabase();
-const manager = new MigrationManager({
-  migrationsDir: "./migrations",
-  adapter: db,
-});
-
-// 创建新的迁移文件
-await manager.create("create_users_table");
-```
-
-### 执行迁移
-
-```typescript
-// 执行所有待执行的迁移
-await manager.up();
-
-// 执行指定数量的迁移
-await manager.up(2);
-```
-
-### 回滚迁移
-
-```typescript
-// 回滚最近的迁移
-await manager.down();
-
-// 回滚指定数量的迁移
-await manager.down(2);
-```
-
-### 查看迁移状态
-
-```typescript
-const status = await manager.status();
-console.log(status);
-// 返回: [{ name: "migration_name", executed: true, executedAt: Date }]
-```
+> 📖 **示例**：参见 [docs/EXAMPLES.md#migration-management](./docs/EXAMPLES.md#migration-management)，包含创建、执行、回滚、查看状态。
 
 ---
 
@@ -2303,6 +1915,18 @@ console.log(status);
 - **Bun 原生支持**：SQLiteAdapter 优先使用 Bun 原生 SQLite API，提供更好的性能
 - **测试覆盖**：1,954 个测试用例，核心功能覆盖率 100%
 - **真实数据库测试**：所有测试使用真实数据库实例，确保测试的真实性和可靠性
+
+---
+
+## 📋 变更日志
+
+### [1.0.1] - 2026-02-07
+
+**变更**
+
+- **文档**：将代码示例分离至 [docs/EXAMPLES.md](./docs/EXAMPLES.md)，以缩短 README 并改善 JSR 显示。
+
+完整变更日志：[CHANGELOG-zh.md](./CHANGELOG-zh.md)
 
 ---
 
