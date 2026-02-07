@@ -8,6 +8,14 @@ and this project adheres to
 
 ---
 
+## [1.0.2] - 2026-02-07
+
+### Changed
+
+- **Documentation**: Restructure docs into `docs/en-US/` and `docs/zh-CN/` for bilingual support. Add API, FEATURES, EXAMPLES, UNIFIED-INTERFACE documents in both languages.
+
+---
+
 ## [1.0.1] - 2026-02-07
 
 ### Changed

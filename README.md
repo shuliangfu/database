@@ -163,13 +163,9 @@ Full report: [TEST_REPORT.md](./TEST_REPORT.md)
 
 ## 📋 Changelog
 
-### [1.0.1] - 2026-02-07
+**v1.0.2** (2026-02-07) - Documentation restructure: docs/en-US/ and docs/zh-CN/ with API, FEATURES, EXAMPLES, UNIFIED-INTERFACE.
 
-**Changed**
-
-- **Documentation**: Extract code examples to [docs/en-US/EXAMPLES.md](./docs/en-US/EXAMPLES.md) for reduced README size and better JSR display.
-
-Full changelog: [CHANGELOG.md](./CHANGELOG.md)
+See [CHANGELOG.md](./CHANGELOG.md) for full details.
 
 ---
 

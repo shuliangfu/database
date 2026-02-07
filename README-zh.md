@@ -166,13 +166,9 @@ const users = await db.query("SELECT * FROM users WHERE age > ?", [18]);
 
 ## 📋 变更日志
 
-### [1.0.1] - 2026-02-07
+**v1.0.2** (2026-02-07) - 文档结构重组：docs/en-US/ 与 docs/zh-CN/，包含 API、FEATURES、EXAMPLES、UNIFIED-INTERFACE。
 
-**变更**
-
-- **文档**：将代码示例分离至 [docs/zh-CN/EXAMPLES.md](./docs/zh-CN/EXAMPLES.md)，以缩短 README 并改善 JSR 显示。
-
-完整变更日志：[CHANGELOG-zh.md](./CHANGELOG-zh.md)
+详见 [CHANGELOG-zh.md](./CHANGELOG-zh.md)。
 
 ---
 
