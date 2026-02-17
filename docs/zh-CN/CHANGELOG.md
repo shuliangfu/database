@@ -7,11 +7,31 @@
 
 ---
 
+## [1.0.3] - 2026-02-17
+
+### 新增
+
+- **i18n**：新增对 `@dreamer/i18n` 的依赖。用户可见文案改为基于语言的翻译：通过
+  `$t(key, params?, lang?)` 与 `detectLocale()`；新增 `src/locales/zh-CN.json`
+  与 `en-US.json`。配置项改为可选 `lang`（不再使用 `t`）；不传 `lang`
+  时按环境变量 LANGUAGE / LC_ALL / LANG 检测语言。
+
+### 变更
+
+- **许可证**：更新为 Apache License 2.0。
+- **文档**：将 CHANGELOG、TEST_REPORT 及中文 README 迁入 `docs/en-US/` 与
+  `docs/zh-CN/`。新增中文测试报告（`docs/zh-CN/TEST_REPORT.md`）。将
+  `docs/zh-CN/CHANGELOG-zh.md` 重命名为 `CHANGELOG.md`。根目录 README
+  的变更日志与测试报告链接指向 docs 对应文档。
+
+---
+
 ## [1.0.2] - 2026-02-07
 
 ### 变更
 
-- **文档**：文档结构重组为 `docs/en-US/` 与 `docs/zh-CN/` 以支持中英文双语。新增 API、FEATURES、EXAMPLES、UNIFIED-INTERFACE 文档，中英文版本齐全。
+- **文档**：文档结构重组为 `docs/en-US/` 与 `docs/zh-CN/` 以支持中英文双语。新增
+  API、FEATURES、EXAMPLES、UNIFIED-INTERFACE 文档，中英文版本齐全。
 
 ---
 
@@ -19,7 +39,9 @@
 
 ### 变更
 
-- **文档**：将代码示例分离至 [docs/zh-CN/EXAMPLES.md](./docs/zh-CN/EXAMPLES.md)，以缩短 README 长度并改善 JSR 显示。快速开始、事务处理、关联查询详情、迁移管理示例现链接至独立示例文档。
+- **文档**：将代码示例分离至
+  [docs/zh-CN/EXAMPLES.md](./docs/zh-CN/EXAMPLES.md)，以缩短 README 长度并改善
+  JSR 显示。快速开始、事务处理、关联查询详情、迁移管理示例现链接至独立示例文档。
 
 ---
 

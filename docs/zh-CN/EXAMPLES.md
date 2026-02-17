@@ -2,7 +2,8 @@
 
 > 📖 [README](../../README.md) | [中文 README](../../README-zh.md)
 
-本文档包含 @dreamer/database 的代码示例。完整 API 参考参见 [README](../../README.md) 或 [API 参考](./API.md)。
+本文档包含 @dreamer/database 的代码示例。完整 API 参考参见
+[README](../../README.md) 或 [API 参考](./API.md)。
 
 ---
 
@@ -294,7 +295,8 @@ await Article.transaction(async (session) => {
 
 ### belongsTo（多对一）
 
-Current model belongs to another. E.g.: Post belongsTo User (a post belongs to a user).
+Current model belongs to another. E.g.: Post belongsTo User (a post belongs to a
+user).
 
 ```typescript
 class Post extends SQLModel {
@@ -320,7 +322,8 @@ const author = await post.belongsTo(User, "user_id", "id", undefined, {
 
 ### hasOne（一对一）
 
-Current model has one associated model. E.g.: User hasOne Profile (a user has one profile).
+Current model has one associated model. E.g.: User hasOne Profile (a user has
+one profile).
 
 ```typescript
 class Profile extends SQLModel {
@@ -342,7 +345,8 @@ const profile = await user.hasOne(Profile, "user_id", "id", undefined, {
 
 ### hasMany（一对多）
 
-Current model has many associated models. E.g.: User hasMany Post (a user has many posts).
+Current model has many associated models. E.g.: User hasMany Post (a user has
+many posts).
 
 ```typescript
 // Get all user posts
@@ -430,4 +434,6 @@ console.log(status);
 
 ---
 
-> 📖 **完整 API 参考**：参见 [README](../../README.md) 或 [API 参考](./API.md)，包含数据库初始化、SQLModel API、MongoModel API、查询构建器等。
+> 📖 **完整 API 参考**：参见 [README](../../README.md) 或
+> [API 参考](./API.md)，包含数据库初始化、SQLModel API、MongoModel
+> API、查询构建器等。

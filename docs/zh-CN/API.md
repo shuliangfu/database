@@ -1,6 +1,7 @@
 # @dreamer/database API 参考
 
-> 📖 [README](../../README.md) | [中文 README](../../README-zh.md) | [示例](./EXAMPLES.md)
+> 📖 [README](../../README.md) | [中文 README](../../README-zh.md) |
+> [示例](./EXAMPLES.md)
 
 ---
 
@@ -89,40 +90,42 @@ await initDatabase({
 
 **MySQL/MariaDB**：
 
-| 环境变量 | 默认值 | 说明 |
-|----------|--------|------|
-| `MYSQL_HOST` | `127.0.0.1` | 主机地址 |
-| `MYSQL_PORT` | `3306` | 端口 |
-| `MYSQL_DATABASE` | `test` | 数据库名 |
-| `MYSQL_USER` | `root` | 用户名 |
-| `MYSQL_PASSWORD` | `8866231` | 密码 |
+| 环境变量         | 默认值      | 说明     |
+| ---------------- | ----------- | -------- |
+| `MYSQL_HOST`     | `127.0.0.1` | 主机地址 |
+| `MYSQL_PORT`     | `3306`      | 端口     |
+| `MYSQL_DATABASE` | `test`      | 数据库名 |
+| `MYSQL_USER`     | `root`      | 用户名   |
+| `MYSQL_PASSWORD` | `8866231`   | 密码     |
 
 **PostgreSQL**：
 
-| 环境变量 | 默认值 | 说明 |
-|----------|--------|------|
-| `POSTGRES_HOST` | `localhost` | 主机地址 |
-| `POSTGRES_PORT` | `5432` | 端口 |
-| `POSTGRES_DATABASE` | `postgres` | 数据库名 |
-| `POSTGRES_USER` | `root` | 用户名 |
-| `POSTGRES_PASSWORD` | `8866231` | 密码 |
+| 环境变量            | 默认值      | 说明     |
+| ------------------- | ----------- | -------- |
+| `POSTGRES_HOST`     | `localhost` | 主机地址 |
+| `POSTGRES_PORT`     | `5432`      | 端口     |
+| `POSTGRES_DATABASE` | `postgres`  | 数据库名 |
+| `POSTGRES_USER`     | `root`      | 用户名   |
+| `POSTGRES_PASSWORD` | `8866231`   | 密码     |
 
 **MongoDB**：
 
-| 环境变量 | 默认值 | 说明 |
-|----------|--------|------|
-| `MONGODB_HOST` | `localhost` | 主机地址 |
-| `MONGODB_PORT` | `27017` | 端口 |
-| `MONGODB_DATABASE` | `test` | 数据库名 |
-| `MONGODB_USER` | `root` | 用户名（空则无认证） |
-| `MONGODB_PASSWORD` | `8866231` | 密码 |
-| `MONGODB_AUTH_SOURCE` | `admin` | 认证库 |
-| `MONGODB_REPLICA_SET` | `rs0` | 副本集名称 |
-| `MONGODB_DIRECT_CONNECTION` | `true` | 是否直接连接 |
+| 环境变量                    | 默认值      | 说明                 |
+| --------------------------- | ----------- | -------------------- |
+| `MONGODB_HOST`              | `localhost` | 主机地址             |
+| `MONGODB_PORT`              | `27017`     | 端口                 |
+| `MONGODB_DATABASE`          | `test`      | 数据库名             |
+| `MONGODB_USER`              | `root`      | 用户名（空则无认证） |
+| `MONGODB_PASSWORD`          | `8866231`   | 密码                 |
+| `MONGODB_AUTH_SOURCE`       | `admin`     | 认证库               |
+| `MONGODB_REPLICA_SET`       | `rs0`       | 副本集名称           |
+| `MONGODB_DIRECT_CONNECTION` | `true`      | 是否直接连接         |
 
 **配置覆盖**：`initDatabase` 传入的 `config` 优先于环境变量。可选覆盖项：
+
 - **MySQL/PostgreSQL**：`pool` 合并连接池配置，`database` 指定数据库名
-- **MongoDB**：`mongoOptions` 合并 MongoDB 选项（如 `maxPoolSize`），`database` 指定数据库名
+- **MongoDB**：`mongoOptions` 合并 MongoDB 选项（如 `maxPoolSize`），`database`
+  指定数据库名
 
 #### getDatabase
 
@@ -1583,19 +1586,24 @@ const result = await builder
 
 ## 🔄 事务处理
 
-> 📖 **示例**：参见 [EXAMPLES.md#transaction-handling](./EXAMPLES.md#transaction-handling)，包含基本事务、嵌套事务（保存点）、MongoDB 事务。
+> 📖 **示例**：参见
+> [EXAMPLES.md#transaction-handling](./EXAMPLES.md#transaction-handling)，包含基本事务、嵌套事务（保存点）、MongoDB
+> 事务。
 
 ---
 
 ## 🔗 关联查询详细说明
 
-> 📖 **示例**：参见 [EXAMPLES.md#association-query-details](./EXAMPLES.md#association-query-details)，包含 belongsTo、hasOne、hasMany。
+> 📖 **示例**：参见
+> [EXAMPLES.md#association-query-details](./EXAMPLES.md#association-query-details)，包含
+> belongsTo、hasOne、hasMany。
 
 ---
 
 ## 📦 迁移管理
 
-> 📖 **示例**：参见 [EXAMPLES.md#migration-management](./EXAMPLES.md#migration-management)，包含创建、执行、回滚、查看状态。
+> 📖 **示例**：参见
+> [EXAMPLES.md#migration-management](./EXAMPLES.md#migration-management)，包含创建、执行、回滚、查看状态。
 
 ---
 
@@ -1728,4 +1736,3 @@ const result = await builder
 | **总计**            | **72** | **66** | **6**    | **91.7%** |
 
 ---
-

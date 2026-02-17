@@ -3,6 +3,7 @@
  * 负责迁移文件的生成、执行和回滚
  */
 
+import { $t } from "../i18n.ts";
 import { createLogger } from "@dreamer/logger";
 import {
   basename,
@@ -67,7 +68,7 @@ export class MigrationManager {
     const dbAdapter = (db as any).config?.adapter as DatabaseType | undefined;
 
     if (!dbAdapter) {
-      throw new Error("Cannot determine database type from adapter");
+      throw new Error($t("migration.cannotDetermineType"));
     }
 
     if (dbAdapter === "mongodb") {
@@ -124,7 +125,7 @@ export class MigrationManager {
     const dbAdapter = (db as any).config?.adapter as DatabaseType | undefined;
 
     if (!dbAdapter) {
-      throw new Error("Cannot determine database type from adapter");
+      throw new Error($t("migration.cannotDetermineType"));
     }
 
     if (dbAdapter === "mongodb") {
@@ -152,7 +153,7 @@ export class MigrationManager {
     const dbAdapter = (db as any).config?.adapter as DatabaseType | undefined;
 
     if (!dbAdapter) {
-      throw new Error("Cannot determine database type from adapter");
+      throw new Error($t("migration.cannotDetermineType"));
     }
 
     if (dbAdapter === "mongodb") {
@@ -178,7 +179,7 @@ export class MigrationManager {
     const dbAdapter = (db as any).config?.adapter as DatabaseType | undefined;
 
     if (!dbAdapter) {
-      throw new Error("Cannot determine database type from adapter");
+      throw new Error($t("migration.cannotDetermineType"));
     }
 
     if (dbAdapter === "mongodb") {
@@ -201,7 +202,7 @@ export class MigrationManager {
     const dbAdapter = (db as any).config?.adapter as DatabaseType | undefined;
 
     if (!dbAdapter) {
-      throw new Error("Cannot determine database type from adapter");
+      throw new Error($t("migration.cannotDetermineType"));
     }
 
     if (dbAdapter === "mongodb") {
@@ -344,15 +345,13 @@ export class MigrationManager {
     // 验证文件是否存在
     const fileStat = await stat(statPath);
     if (!fileStat.isFile) {
-      throw new Error(`Path exists but is not a file: ${moduleUrl}`);
+      throw new Error($t("migration.pathNotFile", { path: moduleUrl }));
     }
 
     // 导入迁移文件
     const module = await import(moduleUrl);
     if (!module.default) {
-      throw new Error(
-        `Migration file ${filepath} does not export a default class`,
-      );
+      throw new Error($t("migration.noDefaultExport", { file: filepath }));
     }
     const MigrationClass = module.default;
     return new MigrationClass() as Migration;
@@ -399,7 +398,7 @@ export class MigrationManager {
     }
 
     if (pending.length === 0) {
-      this.logger.info("No pending migrations to run.");
+      this.logger.info($t("migration.noPending"));
       return;
     }
 
@@ -413,14 +412,16 @@ export class MigrationManager {
       }
 
       try {
-        this.logger.info(`Running migration: ${info.name}`);
+        this.logger.info($t("migration.running", { name: info.name }));
         const migration = await this.loadMigration(file);
         await migration.up(this.config.adapter);
         await this.recordMigration(info.name, batch);
-        this.logger.info(`Migration ${info.name} completed.`);
+        this.logger.info($t("migration.completed", { name: info.name }));
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        throw new Error(`Migration ${info.name} failed: ${message}`);
+        throw new Error(
+          $t("migration.migrationFailed", { name: info.name, error: message }),
+        );
       }
     }
   }
@@ -432,7 +433,7 @@ export class MigrationManager {
   async down(count: number = 1): Promise<void> {
     const executed = await this.getExecutedMigrations();
     if (executed.length === 0) {
-      this.logger.info("No migrations to rollback.");
+      this.logger.info($t("migration.noRollback"));
       return;
     }
 
@@ -463,14 +464,16 @@ export class MigrationManager {
 
     for (const { file, name } of toRollback) {
       try {
-        this.logger.info(`Rolling back migration: ${name}`);
+        this.logger.info($t("migration.rollingBack", { name }));
         const migration = await this.loadMigration(file);
         await migration.down(this.config.adapter);
         await this.removeMigrationRecord(name);
-        this.logger.info(`Migration ${name} rolled back.`);
+        this.logger.info($t("migration.rolledBack", { name }));
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        throw new Error(`Rollback ${name} failed: ${message}`);
+        throw new Error(
+          $t("migration.rollbackFailed", { name, error: message }),
+        );
       }
     }
   }
@@ -486,7 +489,7 @@ export class MigrationManager {
     const dbAdapter = (db as any).config?.adapter as DatabaseType | undefined;
 
     if (!dbAdapter) {
-      throw new Error("Cannot determine database type from adapter");
+      throw new Error($t("migration.cannotDetermineType"));
     }
 
     // 获取已执行迁移的详细信息（包括执行时间和批次号）

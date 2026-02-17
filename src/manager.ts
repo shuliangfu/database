@@ -4,6 +4,7 @@
  * 支持服务容器集成，可通过依赖注入方式管理
  */
 
+import { $t } from "./i18n.ts";
 import { MongoDBAdapter } from "./adapters/mongodb.ts";
 import { MySQLAdapter } from "./adapters/mysql.ts";
 import { PostgreSQLAdapter } from "./adapters/postgresql.ts";
@@ -186,9 +187,7 @@ export class DatabaseManager {
   getConnection(name: string = "default"): DatabaseAdapter {
     const adapter = this.adapters.get(name);
     if (!adapter) {
-      throw new Error(
-        `Database connection "${name}" not found. Please connect first.`,
-      );
+      throw new Error($t("error.connectionNotFound", { name }));
     }
     return adapter;
   }
@@ -209,7 +208,7 @@ export class DatabaseManager {
       case "sqlite":
         return new SQLiteAdapter();
       default:
-        throw new Error(`Unsupported database type: ${type}`);
+        throw new Error($t("error.unsupportedDatabaseType", { type }));
     }
   }
 

@@ -13,6 +13,7 @@ import {
   createTransactionError,
   DatabaseErrorCode,
 } from "../errors.ts";
+import { $t } from "../i18n.ts";
 import type { DatabaseAdapter, DatabaseConfig, MySQLConfig } from "../types.ts";
 import {
   BaseAdapter,
@@ -25,17 +26,6 @@ import {
  */
 export class MySQLAdapter extends BaseAdapter {
   private pool: Pool | null = null;
-
-  /** 获取翻译文本，无 t 或翻译缺失时返回 fallback */
-  private tr(
-    key: string,
-    fallback: string,
-    params?: Record<string, string | number | boolean>,
-  ): string {
-    const t = (this.config as MySQLConfig).t;
-    const r = t?.(key, params);
-    return (r != null && r !== key) ? r : fallback;
-  }
 
   private logger = createLogger({
     level: "warn",
@@ -54,7 +44,7 @@ export class MySQLAdapter extends BaseAdapter {
   ): Promise<void> {
     // 类型守卫：确保是 MySQL 配置
     if (config.adapter !== "mysql") {
-      throw new Error("Invalid config type for MySQL adapter");
+      throw new Error($t("error.invalidConfigMysql"));
     }
 
     const mysqlConfig = config as MySQLConfig;
@@ -290,7 +280,13 @@ export class MySQLAdapter extends BaseAdapter {
         const msg = rollbackError instanceof Error
           ? rollbackError.message
           : String(rollbackError);
-        this.logger.warn(`MySQL transaction rollback failed: ${msg}`);
+        this.logger.warn(
+          $t(
+            "log.adapterMysql.rollbackFailed",
+            { error: msg },
+            (this.config as MySQLConfig).lang,
+          ),
+        );
       }
       const originalError = error instanceof Error
         ? error
@@ -404,10 +400,10 @@ export class MySQLAdapter extends BaseAdapter {
       } catch (error) {
         // 关闭失败或超时，忽略错误（状态已清理）
         const message = error instanceof Error ? error.message : String(error);
-        const msg = this.tr(
+        const msg = $t(
           "log.adapterMysql.closeError",
-          `MySQL 关闭连接时出错（已忽略）: ${message}`,
           { error: message },
+          (this.config as MySQLConfig).lang,
         );
         this.logger.warn(msg, { error: message });
       }

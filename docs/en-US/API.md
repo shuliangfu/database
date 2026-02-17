@@ -1,6 +1,7 @@
 # @dreamer/database API Reference
 
-> 📖 [README](../../README.md) | [中文 README](../../README-zh.md) | [Examples](./EXAMPLES.md)
+> 📖 [README](../../README.md) | [中文 README](../../README-zh.md) |
+> [Examples](./EXAMPLES.md)
 
 ---
 
@@ -85,44 +86,49 @@ await initDatabase({
 
 #### Database Configuration Parameters and Environment Variables
 
-Each database supports overriding connection configuration via environment variables for testing and deployment:
+Each database supports overriding connection configuration via environment
+variables for testing and deployment:
 
 **MySQL/MariaDB**:
 
-| Environment Variable | Default | Description |
-|----------------------|---------|-------------|
-| `MYSQL_HOST` | `127.0.0.1` | Host address |
-| `MYSQL_PORT` | `3306` | Port |
-| `MYSQL_DATABASE` | `test` | Database name |
-| `MYSQL_USER` | `root` | Username |
-| `MYSQL_PASSWORD` | `8866231` | Password |
+| Environment Variable | Default     | Description   |
+| -------------------- | ----------- | ------------- |
+| `MYSQL_HOST`         | `127.0.0.1` | Host address  |
+| `MYSQL_PORT`         | `3306`      | Port          |
+| `MYSQL_DATABASE`     | `test`      | Database name |
+| `MYSQL_USER`         | `root`      | Username      |
+| `MYSQL_PASSWORD`     | `8866231`   | Password      |
 
 **PostgreSQL**:
 
-| Environment Variable | Default | Description |
-|----------------------|---------|-------------|
-| `POSTGRES_HOST` | `localhost` | Host address |
-| `POSTGRES_PORT` | `5432` | Port |
-| `POSTGRES_DATABASE` | `postgres` | Database name |
-| `POSTGRES_USER` | `root` | Username |
-| `POSTGRES_PASSWORD` | `8866231` | Password |
+| Environment Variable | Default     | Description   |
+| -------------------- | ----------- | ------------- |
+| `POSTGRES_HOST`      | `localhost` | Host address  |
+| `POSTGRES_PORT`      | `5432`      | Port          |
+| `POSTGRES_DATABASE`  | `postgres`  | Database name |
+| `POSTGRES_USER`      | `root`      | Username      |
+| `POSTGRES_PASSWORD`  | `8866231`   | Password      |
 
 **MongoDB**:
 
-| Environment Variable | Default | Description |
-|----------------------|---------|-------------|
-| `MONGODB_HOST` | `localhost` | Host address |
-| `MONGODB_PORT` | `27017` | Port |
-| `MONGODB_DATABASE` | `test` | Database name |
-| `MONGODB_USER` | `root` | Username (empty for no auth) |
-| `MONGODB_PASSWORD` | `8866231` | Password |
-| `MONGODB_AUTH_SOURCE` | `admin` | Auth database |
-| `MONGODB_REPLICA_SET` | `rs0` | Replica set name |
-| `MONGODB_DIRECT_CONNECTION` | `true` | Direct connection |
+| Environment Variable        | Default     | Description                  |
+| --------------------------- | ----------- | ---------------------------- |
+| `MONGODB_HOST`              | `localhost` | Host address                 |
+| `MONGODB_PORT`              | `27017`     | Port                         |
+| `MONGODB_DATABASE`          | `test`      | Database name                |
+| `MONGODB_USER`              | `root`      | Username (empty for no auth) |
+| `MONGODB_PASSWORD`          | `8866231`   | Password                     |
+| `MONGODB_AUTH_SOURCE`       | `admin`     | Auth database                |
+| `MONGODB_REPLICA_SET`       | `rs0`       | Replica set name             |
+| `MONGODB_DIRECT_CONNECTION` | `true`      | Direct connection            |
 
-**Configuration Override**: `config` passed to `initDatabase` takes precedence over environment variables. Optional overrides:
-- **MySQL/PostgreSQL**: `pool` merges connection pool config, `database` specifies database name
-- **MongoDB**: `mongoOptions` merges MongoDB options (e.g. `maxPoolSize`), `database` specifies database name
+**Configuration Override**: `config` passed to `initDatabase` takes precedence
+over environment variables. Optional overrides:
+
+- **MySQL/PostgreSQL**: `pool` merges connection pool config, `database`
+  specifies database name
+- **MongoDB**: `mongoOptions` merges MongoDB options (e.g. `maxPoolSize`),
+  `database` specifies database name
 
 #### getDatabase
 
@@ -152,7 +158,8 @@ closeDatabase(): Promise<void>
 
 ## 📖 SQLModel API Reference
 
-SQLModel is the ORM base class for relational databases (PostgreSQL, MySQL, SQLite), providing full database operation capabilities.
+SQLModel is the ORM base class for relational databases (PostgreSQL, MySQL,
+SQLite), providing full database operation capabilities.
 
 ### Model Definition
 
@@ -184,7 +191,8 @@ class User extends SQLModel {
 
 ### Data Validation Rules
 
-Database models support rich data validation rules to ensure data integrity and correctness.
+Database models support rich data validation rules to ensure data integrity and
+correctness.
 
 #### Basic Validation
 
@@ -201,8 +209,10 @@ Database models support rich data validation rules to ensure data integrity and 
 
 - **`equals: string`** - Equal to another field value
 - **`notEquals: string`** - Not equal to another field value
-- **`compare: (value, allValues) => boolean | string`** - Custom field comparison function
-- **`compareValue`** - Cross-table/cross-field value comparison (supports cross-table, multiple operators)
+- **`compare: (value, allValues) => boolean | string`** - Custom field
+  comparison function
+- **`compareValue`** - Cross-table/cross-field value comparison (supports
+  cross-table, multiple operators)
 
 #### Database Query Validation (async)
 
@@ -251,7 +261,8 @@ Database models support rich data validation rules to ensure data integrity and 
 
 #### Password Validation
 
-- **`passwordStrength`** - Password strength validation (min length, case, digits, symbols)
+- **`passwordStrength`** - Password strength validation (min length, case,
+  digits, symbols)
 
 #### Validation Example
 
@@ -311,7 +322,8 @@ class User extends SQLModel {
 }
 ```
 
-> 💡 **Tip**: Data validation rules apply to both `SQLModel` and `MongoModel`, using the same validation rules.
+> 💡 **Tip**: Data validation rules apply to both `SQLModel` and `MongoModel`,
+> using the same validation rules.
 
 ### Static Query Methods
 
@@ -682,63 +694,66 @@ await User.forceDeleteById(1);
 
 ### Chained Query Builder
 
-Get chained query builder via `query()` and `find()` methods. Both support chaining but differ in usage and features.
+Get chained query builder via `query()` and `find()` methods. Both support
+chaining but differ in usage and features.
 
 #### query() vs find() Comparison
 
-| Feature | `query()` | `find()` | Description |
-|---------|-----------|----------|-------------|
-| **Query Condition Methods** | | | |
-| `where()` | ✅ | ❌ | Set query conditions (resets all prior). `find()` has initial conditions, no reset |
-| `orWhere()` | ✅ | ✅ | Add OR query condition |
-| `andWhere()` | ✅ | ✅ | Add AND query condition |
-| `like()` | ✅ | ❌ | Set LIKE conditions (resets all prior). `find()` has initial conditions, no reset |
-| `orLike()` | ✅ | ✅ | Add OR LIKE query condition |
-| `andLike()` | ✅ | ✅ | Add AND LIKE query condition |
-| **Query Methods** | | | |
-| `findAll()` | ✅ | ✅ | Find multiple records |
-| `findOne()` | ✅ | ✅ | Find single record |
-| `one()` | ✅ | ✅ | Find single record (alias) |
-| `all()` | ✅ | ✅ | Find multiple records (alias) |
-| `findById()` | ✅ | ❌ | Find by ID (find itself needs ID) |
-| **Aggregation Methods** | | | |
-| `count()` | ✅ | ✅ | Count records |
-| `exists()` | ✅ | ✅ | Check if record exists |
-| `distinct()` | ✅ | ✅ | Get unique field values |
-| `paginate()` | ✅ | ✅ | Paginated query |
-| `aggregate()` | ✅ | ✅ | Aggregate query (MongoDB only) |
-| **Operation Methods** | | | |
-| `update()` | ✅ | ❌ | Update records (find is for query, use query for ops) |
-| `updateById()` | ✅ | ❌ | Update by ID (find is for query, use query for ops) |
-| `updateMany()` | ✅ | ❌ | Batch update (find is for query, use query for ops) |
-| `deleteById()` | ✅ | ❌ | Delete by ID (find is for query, use query for ops) |
-| `deleteMany()` | ✅ | ❌ | Batch delete (find is for query, use query for ops) |
-| `increment()` | ✅ | ❌ | Increment field (find is for query, use query for ops) |
-| `decrement()` | ✅ | ❌ | Decrement field (find is for query, use query for ops) |
-| `incrementMany()` | ✅ | ❌ | Batch increment (find is for query, use query for ops) |
-| `decrementMany()` | ✅ | ❌ | Batch decrement (find is for query, use query for ops) |
-| `restore()` | ✅ | ❌ | Restore soft-deleted (find is for query, use query for ops) |
-| `restoreById()` | ✅ | ❌ | Restore by ID (find is for query, use query for ops) |
-| `forceDelete()` | ✅ | ❌ | Force delete (find is for query, use query for ops) |
-| `forceDeleteById()` | ✅ | ❌ | Force delete by ID (find is for query, use query for ops) |
-| `upsert()` | ✅ | ❌ | Insert or update (find is for query, use query for ops) |
-| `findOrCreate()` | ✅ | ❌ | Find or create (find is for query, use query for ops) |
-| `findOneAndUpdate()` | ✅ | ❌ | Find and update (find is for query, use query for ops) |
-| `findOneAndDelete()` | ✅ | ❌ | Find and delete (find is for query, use query for ops) |
-| `findOneAndReplace()` | ✅ | ❌ | Find and replace (find is for query, use query for ops) |
-| **Other Methods** | | | |
-| `sort()` | ✅ | ✅ | Sort |
-| `limit()` | ✅ | ✅ | Limit count |
-| `skip()` | ✅ | ✅ | Skip count |
-| `fields()` | ✅ | ✅ | Select fields |
-| `includeTrashed()` | ✅ | ✅ | Include deleted records |
-| `onlyTrashed()` | ✅ | ✅ | Query only deleted records |
-| `asArray()` | ✅ | ✅ | Return plain JSON object array |
+| Feature                     | `query()` | `find()` | Description                                                                        |
+| --------------------------- | --------- | -------- | ---------------------------------------------------------------------------------- |
+| **Query Condition Methods** |           |          |                                                                                    |
+| `where()`                   | ✅        | ❌       | Set query conditions (resets all prior). `find()` has initial conditions, no reset |
+| `orWhere()`                 | ✅        | ✅       | Add OR query condition                                                             |
+| `andWhere()`                | ✅        | ✅       | Add AND query condition                                                            |
+| `like()`                    | ✅        | ❌       | Set LIKE conditions (resets all prior). `find()` has initial conditions, no reset  |
+| `orLike()`                  | ✅        | ✅       | Add OR LIKE query condition                                                        |
+| `andLike()`                 | ✅        | ✅       | Add AND LIKE query condition                                                       |
+| **Query Methods**           |           |          |                                                                                    |
+| `findAll()`                 | ✅        | ✅       | Find multiple records                                                              |
+| `findOne()`                 | ✅        | ✅       | Find single record                                                                 |
+| `one()`                     | ✅        | ✅       | Find single record (alias)                                                         |
+| `all()`                     | ✅        | ✅       | Find multiple records (alias)                                                      |
+| `findById()`                | ✅        | ❌       | Find by ID (find itself needs ID)                                                  |
+| **Aggregation Methods**     |           |          |                                                                                    |
+| `count()`                   | ✅        | ✅       | Count records                                                                      |
+| `exists()`                  | ✅        | ✅       | Check if record exists                                                             |
+| `distinct()`                | ✅        | ✅       | Get unique field values                                                            |
+| `paginate()`                | ✅        | ✅       | Paginated query                                                                    |
+| `aggregate()`               | ✅        | ✅       | Aggregate query (MongoDB only)                                                     |
+| **Operation Methods**       |           |          |                                                                                    |
+| `update()`                  | ✅        | ❌       | Update records (find is for query, use query for ops)                              |
+| `updateById()`              | ✅        | ❌       | Update by ID (find is for query, use query for ops)                                |
+| `updateMany()`              | ✅        | ❌       | Batch update (find is for query, use query for ops)                                |
+| `deleteById()`              | ✅        | ❌       | Delete by ID (find is for query, use query for ops)                                |
+| `deleteMany()`              | ✅        | ❌       | Batch delete (find is for query, use query for ops)                                |
+| `increment()`               | ✅        | ❌       | Increment field (find is for query, use query for ops)                             |
+| `decrement()`               | ✅        | ❌       | Decrement field (find is for query, use query for ops)                             |
+| `incrementMany()`           | ✅        | ❌       | Batch increment (find is for query, use query for ops)                             |
+| `decrementMany()`           | ✅        | ❌       | Batch decrement (find is for query, use query for ops)                             |
+| `restore()`                 | ✅        | ❌       | Restore soft-deleted (find is for query, use query for ops)                        |
+| `restoreById()`             | ✅        | ❌       | Restore by ID (find is for query, use query for ops)                               |
+| `forceDelete()`             | ✅        | ❌       | Force delete (find is for query, use query for ops)                                |
+| `forceDeleteById()`         | ✅        | ❌       | Force delete by ID (find is for query, use query for ops)                          |
+| `upsert()`                  | ✅        | ❌       | Insert or update (find is for query, use query for ops)                            |
+| `findOrCreate()`            | ✅        | ❌       | Find or create (find is for query, use query for ops)                              |
+| `findOneAndUpdate()`        | ✅        | ❌       | Find and update (find is for query, use query for ops)                             |
+| `findOneAndDelete()`        | ✅        | ❌       | Find and delete (find is for query, use query for ops)                             |
+| `findOneAndReplace()`       | ✅        | ❌       | Find and replace (find is for query, use query for ops)                            |
+| **Other Methods**           |           |          |                                                                                    |
+| `sort()`                    | ✅        | ✅       | Sort                                                                               |
+| `limit()`                   | ✅        | ✅       | Limit count                                                                        |
+| `skip()`                    | ✅        | ✅       | Skip count                                                                         |
+| `fields()`                  | ✅        | ✅       | Select fields                                                                      |
+| `includeTrashed()`          | ✅        | ✅       | Include deleted records                                                            |
+| `onlyTrashed()`             | ✅        | ✅       | Query only deleted records                                                         |
+| `asArray()`                 | ✅        | ✅       | Return plain JSON object array                                                     |
 
 **Usage Recommendation:**
 
-- Use `query()`: Build complex queries from scratch, perform update/delete operations
-- Use `find()`: When you have initial conditions (ID or condition object), focus on query operations
+- Use `query()`: Build complex queries from scratch, perform update/delete
+  operations
+- Use `find()`: When you have initial conditions (ID or condition object), focus
+  on query operations
 
 #### Query Methods
 
@@ -977,7 +992,8 @@ const users = await User.scope("active").findAll();
 
 #### asArray() - Return Plain JSON Object Array
 
-The `asArray()` method converts query results to plain JSON object arrays instead of model instances. Useful for API responses, serialization, etc.
+The `asArray()` method converts query results to plain JSON object arrays
+instead of model instances. Useful for API responses, serialization, etc.
 
 **Features:**
 
@@ -1083,9 +1099,11 @@ console.log(user?.constructor.name); // "Object" not "User"
 
 **Notes:**
 
-- `asArray()` returns plain JSON objects, cannot call model methods (`save`, `update`, `delete`, etc.)
+- `asArray()` returns plain JSON objects, cannot call model methods (`save`,
+  `update`, `delete`, etc.)
 - Use regular `find()` or `query()` if you need model instance features
-- Returned objects use shallow copy (`{ ...row }`), better performance than `JSON.parse(JSON.stringify())`
+- Returned objects use shallow copy (`{ ...row }`), better performance than
+  `JSON.parse(JSON.stringify())`
 
 ### Instance Methods
 
@@ -1261,7 +1279,8 @@ class User extends SQLModel {
 
 ## 📖 MongoModel API Reference
 
-MongoModel is the ODM base class for MongoDB, providing full MongoDB operation capabilities.
+MongoModel is the ODM base class for MongoDB, providing full MongoDB operation
+capabilities.
 
 ### Model Definition
 
@@ -1302,19 +1321,23 @@ class Article extends MongoModel {
 
 ### Data Validation Rules
 
-MongoModel validation rules are identical to SQLModel. See [SQLModel Data Validation Rules](#data-validation-rules).
+MongoModel validation rules are identical to SQLModel. See
+[SQLModel Data Validation Rules](#data-validation-rules).
 
 ### Static Query Methods
 
-MongoModel static query methods are identical to SQLModel. See [SQLModel docs](#static-query-methods).
+MongoModel static query methods are identical to SQLModel. See
+[SQLModel docs](#static-query-methods).
 
 ### Static Operation Methods
 
-MongoModel static operation methods are identical to SQLModel. See [SQLModel docs](#static-operation-methods).
+MongoModel static operation methods are identical to SQLModel. See
+[SQLModel docs](#static-operation-methods).
 
 ### Chained Query Builder
 
-MongoModel chained query builder methods are identical to SQLModel. See [SQLModel docs](#chained-query-builder).
+MongoModel chained query builder methods are identical to SQLModel. See
+[SQLModel docs](#chained-query-builder).
 
 ### MongoModel-Specific Methods
 
@@ -1380,15 +1403,18 @@ await Article.transaction(async (session) => {
 
 ### Instance Methods
 
-MongoModel instance methods are identical to SQLModel. See [SQLModel docs](#instance-methods).
+MongoModel instance methods are identical to SQLModel. See
+[SQLModel docs](#instance-methods).
 
 ### Association Queries
 
-MongoModel association query methods are identical to SQLModel. See [SQLModel docs](#association-queries).
+MongoModel association query methods are identical to SQLModel. See
+[SQLModel docs](#association-queries).
 
 ### Lifecycle Hooks
 
-MongoModel lifecycle hooks are identical to SQLModel. See [SQLModel docs](#lifecycle-hooks).
+MongoModel lifecycle hooks are identical to SQLModel. See
+[SQLModel docs](#lifecycle-hooks).
 
 ---
 

@@ -1,20 +1,22 @@
 # @dreamer/database
 
 > 一个兼容 Deno 和 Bun
-> 的数据库工具库，提供统一的抽象层支持多种数据库，提供完整的
+> 的数据库工具包，提供统一的抽象层支持多种数据库，提供完整的
 > ORM/ODM、查询构建器和迁移管理功能
 
-[English](./README.md) | 中文 (Chinese)
+[English](../../README.md) | 中文 (Chinese)
 
 [![JSR](https://jsr.io/badges/@dreamer/database)](https://jsr.io/@dreamer/database)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE.md)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](../../LICENSE)
 [![Tests](https://img.shields.io/badge/tests-1,954%20passed-brightgreen)](./TEST_REPORT.md)
 
 ---
 
 ## 🎯 功能
 
-一个经过性能优化的数据库工具库，通过统一的抽象层支持 PostgreSQL、MySQL、SQLite、MongoDB 等多种数据库，提供完整的 ORM/ODM、查询构建器和迁移管理功能。
+一个经过性能优化的数据库工具包，通过统一的抽象层支持
+PostgreSQL、MySQL、SQLite、MongoDB 等多种数据库，提供完整的
+ORM/ODM、查询构建器和迁移管理功能。
 
 ---
 
@@ -48,13 +50,15 @@ bunx jsr add @dreamer/database
 
 ## ✨ 特性与使用场景
 
-> 📖 **完整说明**：参见 [docs/zh-CN/FEATURES.md](./docs/zh-CN/FEATURES.md)
+> 📖 **完整说明**：参见 [FEATURES.md](./FEATURES.md)
 
 ---
 
 ## 🚀 快速开始
 
-> 📖 **完整示例**：参见 [docs/zh-CN/EXAMPLES.md](./docs/zh-CN/EXAMPLES.md)，包含基础数据库操作、SQLModel ORM、MongoModel ODM、事务处理、关联查询、迁移管理等。
+> 📖 **完整示例**：参见
+> [EXAMPLES.md](./EXAMPLES.md)，包含基础数据库操作、SQLModel ORM、MongoModel
+> ODM、事务处理、关联查询、迁移管理等。
 
 ```typescript
 import { getDatabase, initDatabase } from "jsr:@dreamer/database";
@@ -72,43 +76,47 @@ const users = await db.query("SELECT * FROM users WHERE age > ?", [18]);
 
 ## 📚 API 文档
 
-> 📖 **完整 API 参考**：参见 [docs/zh-CN/API.md](./docs/zh-CN/API.md)，包含数据库初始化、SQLModel API、MongoModel API、查询构建器等。
+> 📖 **完整 API 参考**：参见 [API.md](./API.md)，包含数据库初始化、SQLModel
+> API、MongoModel API、查询构建器等。
 
 ---
 
 ## 🔄 事务处理
 
-> 📖 **示例**：参见 [docs/zh-CN/EXAMPLES.md#transaction-handling](./docs/zh-CN/EXAMPLES.md#transaction-handling)
+> 📖 **示例**：参见
+> [EXAMPLES.md#transaction-handling](./EXAMPLES.md#transaction-handling)
 
 ---
 
 ## 🔗 关联查询详细说明
 
-> 📖 **示例**：参见 [docs/zh-CN/EXAMPLES.md#association-query-details](./docs/zh-CN/EXAMPLES.md#association-query-details)
+> 📖 **示例**：参见
+> [EXAMPLES.md#association-query-details](./EXAMPLES.md#association-query-details)
 
 ---
 
 ## 📦 迁移管理
 
-> 📖 **示例**：参见 [docs/zh-CN/EXAMPLES.md#migration-management](./docs/zh-CN/EXAMPLES.md#migration-management)
+> 📖 **示例**：参见
+> [EXAMPLES.md#migration-management](./EXAMPLES.md#migration-management)
 
 ---
 
 ## 🔄 SQLModel 与 MongoModel 统一接口
 
-> 📖 **完整对比**：参见 [docs/zh-CN/UNIFIED-INTERFACE.md](./docs/zh-CN/UNIFIED-INTERFACE.md)
-
+> 📖 **完整对比**：参见 [UNIFIED-INTERFACE.md](./UNIFIED-INTERFACE.md)
 
 ---
 
 ## 📊 测试报告
 
-本库经过全面测试，所有 1,954 个测试用例均已通过，测试覆盖率达到
+本包经过全面测试，所有 1,954 个测试用例均已通过，测试覆盖率达到
 100%。详细测试报告请查看 [TEST_REPORT.md](./TEST_REPORT.md)。
 
 **测试统计**：
 
-- **总测试数**: 1,954（integration 4 + mongo 497 + mysql 481 + postgresql 488 + sqlite 484）
+- **总测试数**: 1,954（integration 4 + mongo 497 + mysql 481 + postgresql 488 +
+  sqlite 484）
 - **通过**: 1,954 ✅
 - **失败**: 0
 - **通过率**: 100% ✅
@@ -118,13 +126,13 @@ const users = await db.query("SELECT * FROM users WHERE age > ?", [18]);
 
 **各适配器测试数**：
 
-| 适配器 | 测试数 | 执行时间 |
-|--------|--------|----------|
-| integration（多适配器） | 4 | 87ms |
-| MongoDB | 497 | ~35s |
-| MySQL | 481 | ~46s |
-| PostgreSQL | 488 | ~40s |
-| SQLite | 484 | ~8s |
+| 适配器                  | 测试数 | 执行时间 |
+| ----------------------- | ------ | -------- |
+| integration（多适配器） | 4      | 87ms     |
+| MongoDB                 | 497    | ~35s     |
+| MySQL                   | 481    | ~46s     |
+| PostgreSQL              | 488    | ~40s     |
+| SQLite                  | 484    | ~8s      |
 
 **测试亮点**：
 
@@ -166,9 +174,10 @@ const users = await db.query("SELECT * FROM users WHERE age > ?", [18]);
 
 ## 📋 变更日志
 
-**v1.0.2** (2026-02-07) - 文档结构重组：docs/en-US/ 与 docs/zh-CN/，包含 API、FEATURES、EXAMPLES、UNIFIED-INTERFACE。
+**v1.0.3** (2026-02-17) - 新增 @dreamer/i18n
+依赖与基于语言的用户文案翻译；文档迁入 docs/en-US/ 与 docs/zh-CN/。
 
-详见 [CHANGELOG-zh.md](./CHANGELOG-zh.md)。
+详见 [CHANGELOG.md](./CHANGELOG.md)。
 
 ---
 
@@ -180,7 +189,7 @@ const users = await db.query("SELECT * FROM users WHERE age > ?", [18]);
 
 ## 📄 许可证
 
-MIT License - 详见 [LICENSE.md](./LICENSE.md)
+Apache License 2.0 - 详见 [LICENSE](../../LICENSE)
 
 ---
 

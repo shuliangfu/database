@@ -21,7 +21,10 @@
   - MongoModel - MongoDB ODM
   - 统一接口 - SQLModel 和 MongoModel 接口完全统一（91.7% 统一率）
   - 链式查询构建器 - 流畅的查询 API，支持 `query()` 和 `find()` 方法
-  - 查询条件方法 - `query()` 支持 `where`、`orWhere`、`andWhere`、`like`、`orLike`、`andLike`；`find()` 支持 `orWhere`、`andWhere`、`orLike`、`andLike`（`find()` 不支持 `where` 和 `like`，因为已有初始条件，不应重置）
+  - 查询条件方法 - `query()` 支持
+    `where`、`orWhere`、`andWhere`、`like`、`orLike`、`andLike`；`find()` 支持
+    `orWhere`、`andWhere`、`orLike`、`andLike`（`find()` 不支持 `where` 和
+    `like`，因为已有初始条件，不应重置）
   - asArray() 方法 - 返回纯 JSON 对象数组，支持所有链式调用和聚合方法
   - 数据验证 - 30+ 种验证规则（详见验证规则章节）
   - 生命周期钩子 - beforeCreate、afterCreate、beforeUpdate、afterUpdate 等
@@ -45,7 +48,8 @@
 - **其他功能**：
   - 事务支持 - 基本事务、嵌套事务、保存点
   - 连接池管理 - 自动管理数据库连接池
-  - 查询日志记录 - 支持日志级别过滤、慢查询检测、翻译函数 `t`、自定义 `logger`、`debug` 参数
+  - 查询日志记录 - 支持日志级别过滤、慢查询检测、翻译函数 `t`、自定义
+    `logger`、`debug` 参数
   - 健康检查 - 数据库连接健康检查
   - 数据库初始化工具 - 支持自动初始化、配置加载
   - 预处理语句 - 防止 SQL 注入

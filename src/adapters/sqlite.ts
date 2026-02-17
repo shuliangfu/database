@@ -14,6 +14,7 @@ import {
   createTransactionError,
   DatabaseErrorCode,
 } from "../errors.ts";
+import { $t } from "../i18n.ts";
 import type {
   DatabaseAdapter,
   DatabaseConfig,
@@ -53,17 +54,6 @@ interface SQLiteStatement {
  */
 export class SQLiteAdapter extends BaseAdapter {
   protected db: SQLiteDatabase | null = null;
-
-  /** 获取翻译文本，无 t 或翻译缺失时返回 fallback */
-  private tr(
-    key: string,
-    fallback: string,
-    params?: Record<string, string | number | boolean>,
-  ): string {
-    const t = (this.config as SQLiteConfig).t;
-    const r = t?.(key, params);
-    return (r != null && r !== key) ? r : fallback;
-  }
 
   private logger = createLogger({
     level: "warn",
@@ -168,7 +158,7 @@ export class SQLiteAdapter extends BaseAdapter {
   async connect(config: SQLiteConfig | DatabaseConfig): Promise<void> {
     // 类型守卫：确保是 SQLite 配置
     if (config.adapter !== "sqlite") {
-      throw new Error("Invalid config type for SQLite adapter");
+      throw new Error($t("error.invalidConfigSqlite"));
     }
 
     const sqliteConfig = config as SQLiteConfig;
@@ -517,10 +507,10 @@ export class SQLiteAdapter extends BaseAdapter {
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        const msg = this.tr(
+        const msg = $t(
           "log.adapterSqlite.closeError",
-          `SQLite 关闭连接时出错（已忽略）: ${message}`,
           { error: message },
+          (this.config as SQLiteConfig).lang,
         );
         this.logger.warn(msg, { error: message });
       } finally {

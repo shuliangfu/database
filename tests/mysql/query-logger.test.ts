@@ -257,7 +257,7 @@ describe("QueryLogger", () => {
       expect(calls[0].msg).toContain("SELECT 1");
     });
 
-    it("传入 t 且返回翻译时使用翻译文本", () => {
+    it("传入 lang 时能打出含 sql 的日志", () => {
       const calls: { method: string; msg: string }[] = [];
       const mockLogger = {
         debug: (msg: string) => calls.push({ method: "debug", msg }),
@@ -265,39 +265,17 @@ describe("QueryLogger", () => {
         warn: (msg: string) => calls.push({ method: "warn", msg }),
         error: (msg: string) => calls.push({ method: "error", msg }),
       };
-      const t = (key: string) =>
-        key === "log.database.queryInfo" ? "Query: {sql}" : undefined;
       const logger = new QueryLogger({
         logger: mockLogger as any,
-        t,
+        lang: "en-US",
         logLevel: "all",
       });
       logger.log("query", "SELECT 1", [], 10);
 
-      expect(calls[0].msg).toBe("Query: {sql}");
-    });
-
-    it("传入 t 但返回 undefined 时使用 fallback", () => {
-      const calls: { method: string; msg: string }[] = [];
-      const mockLogger = {
-        debug: (msg: string) => calls.push({ method: "debug", msg }),
-        info: (msg: string) => calls.push({ method: "info", msg }),
-        warn: (msg: string) => calls.push({ method: "warn", msg }),
-        error: (msg: string) => calls.push({ method: "error", msg }),
-      };
-      const t = () => undefined;
-      const logger = new QueryLogger({
-        logger: mockLogger as any,
-        t,
-        logLevel: "all",
-      });
-      logger.log("query", "SELECT 1", [], 10);
-
-      expect(calls[0].msg).toContain("数据库查询");
       expect(calls[0].msg).toContain("SELECT 1");
     });
 
-    it("传入 t 且带 params 时正确传递参数", () => {
+    it("不传 lang 时按环境检测语言，仍能打出含 sql 的日志", () => {
       const calls: { method: string; msg: string }[] = [];
       const mockLogger = {
         debug: (msg: string) => calls.push({ method: "debug", msg }),
@@ -305,23 +283,33 @@ describe("QueryLogger", () => {
         warn: (msg: string) => calls.push({ method: "warn", msg }),
         error: (msg: string) => calls.push({ method: "error", msg }),
       };
-      const t = (
-        key: string,
-        params?: Record<string, string | number | boolean>,
-      ) =>
-        key === "log.database.slowQuery"
-          ? `Slow: ${params?.sql} ${params?.duration}ms`
-          : undefined;
       const logger = new QueryLogger({
         logger: mockLogger as any,
-        t,
+        logLevel: "all",
+      });
+      logger.log("query", "SELECT 1", [], 10);
+
+      expect(calls[0].msg).toContain("SELECT 1");
+    });
+
+    it("慢查询时打出 warn 且消息含 sql 与 duration", () => {
+      const calls: { method: string; msg: string }[] = [];
+      const mockLogger = {
+        debug: (msg: string) => calls.push({ method: "debug", msg }),
+        info: (msg: string) => calls.push({ method: "info", msg }),
+        warn: (msg: string) => calls.push({ method: "warn", msg }),
+        error: (msg: string) => calls.push({ method: "error", msg }),
+      };
+      const logger = new QueryLogger({
+        logger: mockLogger as any,
         logLevel: "all",
         slowQueryThreshold: 5,
       });
       logger.log("query", "SELECT * FROM big_table", [], 100);
 
       expect(calls[0].method).toBe("warn");
-      expect(calls[0].msg).toBe("Slow: SELECT * FROM big_table 100ms");
+      expect(calls[0].msg).toContain("SELECT * FROM big_table");
+      expect(calls[0].msg).toContain("100");
     });
   });
 
