@@ -174,8 +174,8 @@ const users = await db.query("SELECT * FROM users WHERE age > ?", [18]);
 
 ## 📋 变更日志
 
-**v1.0.3** (2026-02-17) - 新增 @dreamer/i18n
-依赖与基于语言的用户文案翻译；文档迁入 docs/en-US/ 与 docs/zh-CN/。
+**v1.0.4** (2026-02-18)：i18n 仅在入口初始化（mod 中调用
+`initDatabaseI18n()`）；`$t()` 内不再执行 ensure/init。
 
 详见 [CHANGELOG.md](./CHANGELOG.md)。
 

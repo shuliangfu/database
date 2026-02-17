@@ -8,6 +8,15 @@ and this project adheres to
 
 ---
 
+## [1.0.4] - 2026-02-18
+
+### Changed
+
+- **i18n**: Init at entry only; `initDatabaseI18n()` is called once in `mod.ts`.
+  `$t()` no longer calls `ensureDatabaseI18n()` or sets locale internally.
+
+---
+
 ## [1.0.3] - 2026-02-17
 
 ### Added

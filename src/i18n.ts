@@ -68,15 +68,20 @@ export function ensureDatabaseI18n(): void {
 }
 
 /**
- * 根据 key 取翻译文案（使用全局 $t）
- *
- * - 传了 lang：临时切换为该语言后调用 $t，再恢复原 locale
- * - 未传 lang：先按环境变量检测语言（detectLocale），再与当前 $i18n.getLocale() 取其一，
- *   设为当前 locale 后调用 $t（后续未传 lang 的调用会沿用该 locale）
+ * 加载翻译并设置当前 locale。在入口（如 mod）调用一次，$t 内不再做 ensure/init。
+ */
+export function initDatabaseI18n(): void {
+  ensureDatabaseI18n();
+  $i18n.setLocale(detectLocale());
+}
+
+/**
+ * 根据 key 取翻译文案。未传 lang 时使用入口处设置的当前 locale；传 lang 时临时切换后恢复。
+ * 不在 $t 内调用 ensure/init，请在入口调用 initDatabaseI18n()。
  *
  * @param key 文案 key，如 "init.notConfigured"、"log.validation.required"
  * @param params 占位替换，如 { field: "name" } -> 替换 {field}（boolean 由 @dreamer/i18n 转为 "true"/"false"）
- * @param lang 语言，不传则自动检测环境语言（LANGUAGE/LC_ALL/LANG），再回退当前 locale 或 zh-CN
+ * @param lang 语言，不传则使用当前 locale
  * @returns 翻译后的字符串
  */
 export function $t(
@@ -84,13 +89,8 @@ export function $t(
   params?: TranslationParams,
   lang?: Locale,
 ): string {
-  ensureDatabaseI18n();
-  const current = $i18n.getLocale();
-  const isSupported = (l: string): l is Locale =>
-    DATABASE_LOCALES.includes(l as Locale);
-
   if (lang !== undefined) {
-    const prev = current;
+    const prev = $i18n.getLocale();
     $i18n.setLocale(lang);
     try {
       return $i18n.t(key, params);
@@ -98,8 +98,5 @@ export function $t(
       $i18n.setLocale(prev);
     }
   }
-
-  const effective: Locale = isSupported(current) ? current : detectLocale();
-  $i18n.setLocale(effective);
   return $i18n.t(key, params);
 }

@@ -183,9 +183,8 @@ Full report: [TEST_REPORT.md](./docs/en-US/TEST_REPORT.md)
 
 ## 📋 Changelog
 
-**v1.0.3** (2026-02-17) - Added @dreamer/i18n dependency and locale-based
-translation for user-facing messages; documentation moved to docs/en-US/ and
-docs/zh-CN/.
+**v1.0.4** (2026-02-18): i18n init at entry only (`initDatabaseI18n()` in mod);
+`$t()` no longer calls ensure/init internally.
 
 See [CHANGELOG.md](./docs/en-US/CHANGELOG.md) for full details.
 
