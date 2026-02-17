@@ -1,0 +1,146 @@
+{
+  "init": {
+    "notConfigured": "Database not configured. Please configure database in dweb.config.ts",
+    "notInitialized": "Database not initialized. Please call initDatabase() first.",
+    "loaderNotSet": "Database config loader not set. Please call setDatabaseConfigLoader() first or call initDatabase() manually."
+  },
+  "error": {
+    "adapterRequired": "Database adapter is required",
+    "sqliteFilenameRequired": "SQLite database filename is required",
+    "hostAndDatabaseRequired": "Database host and database name are required",
+    "connectionNotFound": "Database connection \"{name}\" not found. Please connect first.",
+    "unsupportedDatabaseType": "Unsupported database type: {type}",
+    "notInitializedGetDatabase": "Database not initialized. Please call initDatabase() first or use getDatabaseAsync() for automatic initialization.",
+    "invalidConfigPostgres": "Invalid config type for PostgreSQL adapter",
+    "invalidConfigMysql": "Invalid config type for MySQL adapter",
+    "invalidConfigSqlite": "Invalid config type for SQLite adapter",
+    "invalidConfigMongo": "Invalid config type for MongoDB adapter"
+  },
+  "log": {
+    "database": {
+      "queryError": "Database query error: {sql}",
+      "executeError": "Database execute error: {sql}",
+      "slowQuery": "Slow query: {sql} (duration {duration}ms)",
+      "queryInfo": "Database query: {sql}",
+      "executeInfo": "Database execute: {sql}"
+    },
+    "adapterPostgres": {
+      "closeError": "PostgreSQL close error (ignored): {error}",
+      "rollbackFailed": "PostgreSQL transaction rollback failed: {error}"
+    },
+    "adapterMysql": {
+      "closeError": "MySQL close error (ignored): {error}",
+      "rollbackFailed": "MySQL transaction rollback failed: {error}"
+    },
+    "adapterSqlite": {
+      "closeError": "SQLite close error (ignored): {error}"
+    },
+    "adapterMongo": {
+      "closeError": "MongoDB close error (ignored): {error}"
+    },
+    "validation": {
+      "required": "{field} is required",
+      "typeArray": "{field} must be an array",
+      "typeObject": "{field} must be an object",
+      "typeExpected": "{field} must be of type {type}",
+      "lengthRequired": "{field} length must be {length}",
+      "minNumber": "{field} must be >= {min}",
+      "minLength": "{field} length must be >= {min}",
+      "maxNumber": "{field} must be <= {max}",
+      "maxLength": "{field} length must be <= {max}",
+      "pattern": "{field} format is invalid",
+      "integer": "{field} must be an integer",
+      "positive": "{field} must be positive",
+      "negative": "{field} must be negative",
+      "multipleOf": "{field} must be a multiple of {multiple}",
+      "range": "{field} must be between {min} and {max}",
+      "alphaNum": "{field} can only contain letters and numbers",
+      "numeric": "{field} can only contain digits",
+      "alpha": "{field} can only contain letters",
+      "lowercase": "{field} must be lowercase",
+      "uppercase": "{field} must be uppercase",
+      "startsWith": "{field} must start with {prefix}",
+      "endsWith": "{field} must end with {suffix}",
+      "contains": "{field} must contain {substring}",
+      "before": "{field} must be before {date}",
+      "after": "{field} must be after {date}",
+      "beforeTime": "{field} must be before {time}",
+      "afterTime": "{field} must be after {time}",
+      "passwordMinLength": "{field} password must be at least {min} characters",
+      "passwordUppercase": "{field} password must contain uppercase letter",
+      "passwordLowercase": "{field} password must contain lowercase letter",
+      "passwordNumber": "{field} password must contain a number",
+      "passwordSpecial": "{field} password must contain special character",
+      "enum": "{field} must be one of: {choices}",
+      "equals": "{field} must equal {other}",
+      "notEquals": "{field} must not equal {other}",
+      "formatExpected": "{field} format is invalid",
+      "arrayLength": "{field} array length must be {length}",
+      "arrayMinLength": "{field} array length must be at least {min}",
+      "arrayMaxLength": "{field} array length must be at most {max}",
+      "arrayUniqueItems": "{field} array elements must be unique",
+      "arrayElementType": "{field} array element type is invalid",
+      "unique": "{field} already exists, must be unique",
+      "exists": "{field} does not exist in table",
+      "notExists": "{field} already exists in table",
+      "compareValueNotFound": "{field} validation failed: target field {targetField} not found",
+      "compareValueNoRecord": "{field} validation failed: target record not found",
+      "compareValueEqual": "{field} must equal {targetField} ({targetValue})",
+      "compareValueGreater": "{field} must be greater than {targetField} ({targetValue})",
+      "compareValueLess": "{field} must be less than {targetField} ({targetValue})",
+      "compareValueGreaterOrEqual": "{field} must be >= {targetField} ({targetValue})",
+      "compareValueLessOrEqual": "{field} must be <= {targetField} ({targetValue})",
+      "customFailed": "{field} validation failed"
+    },
+    "model": {
+      "updateNotFound": "Update failed: record not found",
+      "updateNotFoundWithId": "Update failed: record with id {id} not found or already deleted",
+      "updateNotFoundAfter": "Record not found after update",
+      "cannotGetUpdatedRecord": "Cannot get updated record"
+    }
+  },
+  "migration": {
+    "cannotDetermineType": "Cannot determine database type from adapter",
+    "pathNotFile": "Path exists but is not a file: {path}",
+    "noDefaultExport": "Migration file {file} does not export a default class",
+    "migrationFailed": "Migration {name} failed: {error}",
+    "rollbackFailed": "Rollback {name} failed: {error}",
+    "noPending": "No pending migrations to run.",
+    "running": "Running migration: {name}",
+    "completed": "Migration {name} completed.",
+    "noRollback": "No migrations to rollback.",
+    "rollingBack": "Rolling back migration: {name}",
+    "rolledBack": "Migration {name} rolled back."
+  },
+  "model": {
+    "tableNameRequired": "Table name is not defined",
+    "collectionNameRequired": "Collection name is not defined",
+    "scopeNotDefined": "Scope \"{scope}\" is not defined",
+    "databaseNotConnected": "Database not connected",
+    "databaseNotConnectedMessage": "Database not connected: {message}",
+    "cannotUpdateWithoutPrimaryKey": "Cannot update instance without primary key",
+    "cannotDeleteWithoutPrimaryKey": "Cannot delete instance without primary key",
+    "softDeleteNotEnabled": "Soft delete is not enabled for this model",
+    "adapterNotSet": "Database adapter not set. Please call Model.setAdapter() or ensure database is initialized.",
+    "adapterNotInitialized": "Database adapter not initialized for model \"{table}\". Please call 'await {table}.ensureInitialized()' or 'await {table}.init()' before accessing this property.",
+    "initFailed": "Failed to initialize model {table}: {error}. Please ensure the database connection is initialized first using initDatabase() or initDatabaseFromConfig().",
+    "mongoCountError": "MongoDB count error: {message}",
+    "mongoExistsError": "MongoDB exists error: {message}",
+    "mongoIncrementError": "MongoDB increment error: {message}",
+    "mongoFindOneAndUpdateError": "MongoDB findOneAndUpdate error: {message}",
+    "mongoFindOneAndDeleteError": "MongoDB findOneAndDelete error: {message}",
+    "mongoUpsertError": "MongoDB upsert error: {message}",
+    "mongoFindOneAndReplaceError": "MongoDB findOneAndReplace error: {message}",
+    "mongoDistinctError": "MongoDB distinct error: {message}",
+    "mongoAggregateError": "MongoDB aggregate error: {message}",
+    "mongoRestoreError": "MongoDB restore error: {message}",
+    "mongoForceDeleteError": "MongoDB forceDelete error: {message}",
+    "mongoTruncateError": "MongoDB truncate error: {message}",
+    "failedToCreateIndex": "Failed to create index: {message}",
+    "failedToDropIndex": "Failed to drop index {name}: {message}"
+  },
+  "query": {
+    "collectionNameRequired": "Collection name is required",
+    "databaseNotConnected": "Database not connected"
+  }
+}

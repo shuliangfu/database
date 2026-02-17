@@ -1,18 +1,22 @@
 # @dreamer/database
 
-> A database utility library compatible with Deno and Bun, providing a unified abstraction layer for multiple databases, with complete ORM/ODM, query builder, and migration management features
+> A database utility library compatible with Deno and Bun, providing a unified
+> abstraction layer for multiple databases, with complete ORM/ODM, query
+> builder, and migration management features
 
-English | [中文 (Chinese)](./README-zh.md)
+English | [中文 (Chinese)](./docs/zh-CN/README.md)
 
 [![JSR](https://jsr.io/badges/@dreamer/database)](https://jsr.io/@dreamer/database)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE.md)
-[![Tests](https://img.shields.io/badge/tests-1,954%20passed-brightgreen)](./TEST_REPORT.md)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
+[![Tests](https://img.shields.io/badge/tests-1,954%20passed-brightgreen)](./docs/en-US/TEST_REPORT.md)
 
 ---
 
 ## 🎯 Features
 
-A performance-optimized database utility library that supports PostgreSQL, MySQL, SQLite, MongoDB and other databases through a unified abstraction layer, providing complete ORM/ODM, query builder, and migration management features.
+A performance-optimized database utility library that supports PostgreSQL,
+MySQL, SQLite, MongoDB and other databases through a unified abstraction layer,
+providing complete ORM/ODM, query builder, and migration management features.
 
 ---
 
@@ -34,13 +38,13 @@ bunx jsr add @dreamer/database
 
 ## 🌍 Environment Compatibility
 
-| Environment | Version Requirement | Status                                                          |
-| ----------- | ------------------- | --------------------------------------------------------------- |
-| **Deno**    | 2.5+                | ✅ Fully supported                                              |
-| **Bun**     | 1.0+                | ✅ Fully supported                                              |
-| **Server**  | -                   | ✅ Supported (compatible with Deno and Bun runtimes, requires database driver) |
-| **Client**  | -                   | ❌ Not supported (browser cannot connect to database directly)  |
-| **Dependencies** | -             | 📦 Requires corresponding database drivers (PostgreSQL, MySQL, SQLite, MongoDB) |
+| Environment      | Version Requirement | Status                                                                          |
+| ---------------- | ------------------- | ------------------------------------------------------------------------------- |
+| **Deno**         | 2.5+                | ✅ Fully supported                                                              |
+| **Bun**          | 1.0+                | ✅ Fully supported                                                              |
+| **Server**       | -                   | ✅ Supported (compatible with Deno and Bun runtimes, requires database driver)  |
+| **Client**       | -                   | ❌ Not supported (browser cannot connect to database directly)                  |
+| **Dependencies** | -                   | 📦 Requires corresponding database drivers (PostgreSQL, MySQL, SQLite, MongoDB) |
 
 ---
 
@@ -52,7 +56,9 @@ bunx jsr add @dreamer/database
 
 ## 🚀 Quick Start
 
-> 📖 **Full examples**: See [docs/en-US/EXAMPLES.md](./docs/en-US/EXAMPLES.md) for Basic Database Operations, SQLModel ORM, MongoModel ODM, Transaction Handling, Association Queries, and Migration Management.
+> 📖 **Full examples**: See [docs/en-US/EXAMPLES.md](./docs/en-US/EXAMPLES.md)
+> for Basic Database Operations, SQLModel ORM, MongoModel ODM, Transaction
+> Handling, Association Queries, and Migration Management.
 
 ```typescript
 import { getDatabase, initDatabase } from "jsr:@dreamer/database";
@@ -68,44 +74,56 @@ const users = await db.query("SELECT * FROM users WHERE age > ?", [18]);
 
 ---
 
-
 ## 📚 API Documentation
 
-> 📖 **Full API Reference**: See [docs/en-US/API.md](./docs/en-US/API.md) for Database Initialization, SQLModel API, MongoModel API, Query Builder, and more.
+> 📖 **Full API Reference**: See [docs/en-US/API.md](./docs/en-US/API.md) for
+> Database Initialization, SQLModel API, MongoModel API, Query Builder, and
+> more.
 
 ---
 
 ## 🔄 Transaction Handling
 
-> 📖 **Examples**: See [docs/en-US/EXAMPLES.md#transaction-handling](./docs/en-US/EXAMPLES.md#transaction-handling) for Basic Transaction, Nested Transactions (Savepoints), and MongoDB Transaction.
+> 📖 **Examples**: See
+> [docs/en-US/EXAMPLES.md#transaction-handling](./docs/en-US/EXAMPLES.md#transaction-handling)
+> for Basic Transaction, Nested Transactions (Savepoints), and MongoDB
+> Transaction.
 
 ---
 
 ## 🔗 Association Query Details
 
-> 📖 **Examples**: See [docs/en-US/EXAMPLES.md#association-query-details](./docs/en-US/EXAMPLES.md#association-query-details) for belongsTo, hasOne, and hasMany.
+> 📖 **Examples**: See
+> [docs/en-US/EXAMPLES.md#association-query-details](./docs/en-US/EXAMPLES.md#association-query-details)
+> for belongsTo, hasOne, and hasMany.
 
 ---
 
 ## 📦 Migration Management
 
-> 📖 **Examples**: See [docs/en-US/EXAMPLES.md#migration-management](./docs/en-US/EXAMPLES.md#migration-management) for Create, Run, Rollback, and Status.
+> 📖 **Examples**: See
+> [docs/en-US/EXAMPLES.md#migration-management](./docs/en-US/EXAMPLES.md#migration-management)
+> for Create, Run, Rollback, and Status.
 
 ---
 
 ## 🔄 SQLModel and MongoModel Unified Interface
 
-> 📖 **Full comparison**: See [docs/en-US/UNIFIED-INTERFACE.md](./docs/en-US/UNIFIED-INTERFACE.md) for the 91.7% unified interface between SQLModel and MongoModel.
+> 📖 **Full comparison**: See
+> [docs/en-US/UNIFIED-INTERFACE.md](./docs/en-US/UNIFIED-INTERFACE.md) for the
+> 91.7% unified interface between SQLModel and MongoModel.
 
 ---
 
 ## 📊 Test Report
 
-This library is fully tested. All 1,954 test cases pass with 100% coverage. See [TEST_REPORT.md](./TEST_REPORT.md) for details.
+This library is fully tested. All 1,954 test cases pass with 100% coverage. See
+[TEST_REPORT.md](./docs/en-US/TEST_REPORT.md) for details.
 
 **Test Statistics:**
 
-- **Total tests**: 1,954 (integration 4 + mongo 497 + mysql 481 + postgresql 488 + sqlite 484)
+- **Total tests**: 1,954 (integration 4 + mongo 497 + mysql 481 + postgresql
+  488 + sqlite 484)
 - **Passed**: 1,954 ✅
 - **Failed**: 0
 - **Pass rate**: 100% ✅
@@ -115,13 +133,13 @@ This library is fully tested. All 1,954 test cases pass with 100% coverage. See 
 
 **Tests per adapter:**
 
-| Adapter | Tests | Time |
-|---------|-------|------|
-| integration (multi-adapter) | 4 | 87ms |
-| MongoDB | 497 | ~35s |
-| MySQL | 481 | ~46s |
-| PostgreSQL | 488 | ~40s |
-| SQLite | 484 | ~8s |
+| Adapter                     | Tests | Time |
+| --------------------------- | ----- | ---- |
+| integration (multi-adapter) | 4     | 87ms |
+| MongoDB                     | 497   | ~35s |
+| MySQL                       | 481   | ~46s |
+| PostgreSQL                  | 488   | ~40s |
+| SQLite                      | 484   | ~8s  |
 
 **Highlights:**
 
@@ -133,7 +151,7 @@ This library is fully tested. All 1,954 test cases pass with 100% coverage. See 
 - ✅ Soft delete, associations, transactions all pass
 - ✅ No resource leaks, stable under load
 
-Full report: [TEST_REPORT.md](./TEST_REPORT.md)
+Full report: [TEST_REPORT.md](./docs/en-US/TEST_REPORT.md)
 
 ---
 
@@ -141,7 +159,8 @@ Full report: [TEST_REPORT.md](./TEST_REPORT.md)
 
 - **Connection pool**: Auto-managed, improves concurrency
 - **Query cache**: ORM supports result caching
-- **Prepared statements**: All SQL uses prepared statements (SQL injection safe, faster)
+- **Prepared statements**: All SQL uses prepared statements (SQL injection safe,
+  faster)
 - **Batch ops**: Batch create, update, delete
 - **Index management**: Index create/manage (MongoDB)
 - **Async**: All operations async, non-blocking
@@ -155,7 +174,8 @@ Full report: [TEST_REPORT.md](./TEST_REPORT.md)
 - **Type-safe**: Full TypeScript support
 - **Dependencies**: Requires DB drivers (PostgreSQL, MySQL, SQLite, MongoDB)
 - **Cross-runtime**: Deno 2.5.0+ and Bun 1.3.0+, tested in both
-- **Bun native**: SQLiteAdapter prefers Bun native SQLite API for better performance
+- **Bun native**: SQLiteAdapter prefers Bun native SQLite API for better
+  performance
 - **Test coverage**: 1,954 tests, 100% core coverage
 - **Real DB tests**: All tests use real DB instances
 
@@ -163,9 +183,11 @@ Full report: [TEST_REPORT.md](./TEST_REPORT.md)
 
 ## 📋 Changelog
 
-**v1.0.2** (2026-02-07) - Documentation restructure: docs/en-US/ and docs/zh-CN/ with API, FEATURES, EXAMPLES, UNIFIED-INTERFACE.
+**v1.0.3** (2026-02-17) - Added @dreamer/i18n dependency and locale-based
+translation for user-facing messages; documentation moved to docs/en-US/ and
+docs/zh-CN/.
 
-See [CHANGELOG.md](./CHANGELOG.md) for full details.
+See [CHANGELOG.md](./docs/en-US/CHANGELOG.md) for full details.
 
 ---
 
@@ -177,7 +199,7 @@ Issues and Pull Requests welcome!
 
 ## 📄 License
 
-MIT License - see [LICENSE.md](./LICENSE.md)
+Apache License 2.0 - see [LICENSE](./LICENSE)
 
 ---
 

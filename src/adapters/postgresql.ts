@@ -18,6 +18,7 @@ import type {
   DatabaseConfig,
   PostgreSQLConfig,
 } from "../types.ts";
+import { $t } from "../i18n.ts";
 import {
   BaseAdapter,
   type HealthCheckResult,
@@ -29,17 +30,6 @@ import {
  */
 export class PostgreSQLAdapter extends BaseAdapter {
   protected pool: Pool | null = null;
-
-  /** 获取翻译文本，无 t 或翻译缺失时返回 fallback */
-  private tr(
-    key: string,
-    fallback: string,
-    params?: Record<string, string | number | boolean>,
-  ): string {
-    const t = (this.config as PostgreSQLConfig).t;
-    const r = t?.(key, params);
-    return (r != null && r !== key) ? r : fallback;
-  }
 
   private logger = createLogger({
     level: "warn",
@@ -66,7 +56,7 @@ export class PostgreSQLAdapter extends BaseAdapter {
   ): Promise<void> {
     // 类型守卫：确保是 PostgreSQL 配置
     if (config.adapter !== "postgresql") {
-      throw new Error("Invalid config type for PostgreSQL adapter");
+      throw new Error($t("error.invalidConfigPostgres"));
     }
 
     const pgConfig = config as PostgreSQLConfig;
@@ -315,7 +305,13 @@ export class PostgreSQLAdapter extends BaseAdapter {
         const msg = rollbackError instanceof Error
           ? rollbackError.message
           : String(rollbackError);
-        this.logger.warn(`PostgreSQL transaction rollback failed: ${msg}`);
+        this.logger.warn(
+          $t(
+            "log.adapterPostgres.rollbackFailed",
+            { error: msg },
+            (this.config as PostgreSQLConfig).lang,
+          ),
+        );
       }
       const originalError = error instanceof Error
         ? error
@@ -472,10 +468,10 @@ export class PostgreSQLAdapter extends BaseAdapter {
       } catch (error) {
         // 关闭失败或超时，忽略错误（状态已清理）
         const message = error instanceof Error ? error.message : String(error);
-        const msg = this.tr(
+        const msg = $t(
           "log.adapterPostgres.closeError",
-          `PostgreSQL 关闭连接时出错（已忽略）: ${message}`,
           { error: message },
+          (this.config as PostgreSQLConfig).lang,
         );
         this.logger.warn(msg, { error: message });
       }

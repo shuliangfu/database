@@ -4,6 +4,8 @@
  */
 
 import { createLogger, type Logger } from "@dreamer/logger";
+import type { Locale } from "../i18n.ts";
+import { $t } from "../i18n.ts";
 
 /**
  * 查询日志条目
@@ -35,13 +37,9 @@ export interface QueryLoggerConfig {
    */
   maxLogs?: number;
   /**
-   * 翻译函数（可选，用于 i18n）
-   * 传入时，日志消息将使用 t(key, params) 获取翻译；未传入时使用默认中文
+   * 语言（可选，用于 i18n；不传则按环境 LANGUAGE/LC_ALL/LANG 检测）
    */
-  t?: (
-    key: string,
-    params?: Record<string, string | number | boolean>,
-  ) => string | undefined;
+  lang?: Locale;
 }
 
 /**
@@ -59,7 +57,7 @@ export class QueryLogger {
       slowQueryThreshold: config.slowQueryThreshold ?? 1000,
       maxLogs: config.maxLogs ?? 1000,
       debug: config.debug ?? false,
-      t: config.t,
+      lang: config.lang,
     };
 
     // 传入 logger 时使用该 logger，不传则使用自带的 createLogger
@@ -68,18 +66,6 @@ export class QueryLogger {
       format: "text",
       tags: ["database", "query"],
     });
-  }
-
-  /**
-   * 获取翻译文本，无 t 或翻译缺失时返回 fallback
-   */
-  private tr(
-    key: string,
-    fallback: string,
-    params?: Record<string, string | number | boolean>,
-  ): string {
-    const r = this.config.t?.(key, params);
-    return (r != null && r !== key) ? r : fallback;
   }
 
   /**
@@ -137,30 +123,21 @@ export class QueryLogger {
       const errorKey = type === "query"
         ? "log.database.queryError"
         : "log.database.executeError";
-      const msg = this.tr(
-        errorKey,
-        `数据库${type === "query" ? "查询" : "执行"}错误: ${sql}`,
-        { sql },
-      );
+      const msg = $t(errorKey, { sql }, this.config.lang);
       this.logger.error(msg, logData, error);
     } else if (duration >= (this.config.slowQueryThreshold || 1000)) {
       // 慢查询警告
-      const msg = this.tr(
-        "log.database.slowQuery",
-        `慢查询检测: ${sql} (耗时 ${duration}ms)`,
-        { sql, duration: String(duration) },
-      );
+      const msg = $t("log.database.slowQuery", {
+        sql,
+        duration: String(duration),
+      }, this.config.lang);
       this.logger.warn(msg, logData);
     } else {
       // 正常查询信息：debug 为 true 时用 info 级别（便于在 info 级别下查看），否则用 debug
       const infoKey = type === "query"
         ? "log.database.queryInfo"
         : "log.database.executeInfo";
-      const msg = this.tr(
-        infoKey,
-        `数据库${type === "query" ? "查询" : "执行"}: ${sql}`,
-        { sql },
-      );
+      const msg = $t(infoKey, { sql }, this.config.lang);
       if (this.config.debug) {
         this.logger.info(msg, logData);
       } else {

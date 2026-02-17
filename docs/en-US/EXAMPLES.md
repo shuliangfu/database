@@ -2,7 +2,8 @@
 
 > 📖 [README](../../README.md) | [中文 README](../../README-zh.md)
 
-This document contains code examples for @dreamer/database. See [README](../../README.md) for API reference and full documentation.
+This document contains code examples for @dreamer/database. See
+[README](../../README.md) for API reference and full documentation.
 
 ---
 
@@ -294,7 +295,8 @@ await Article.transaction(async (session) => {
 
 ### belongsTo (Many-to-One)
 
-Current model belongs to another. E.g.: Post belongsTo User (a post belongs to a user).
+Current model belongs to another. E.g.: Post belongsTo User (a post belongs to a
+user).
 
 ```typescript
 class Post extends SQLModel {
@@ -320,7 +322,8 @@ const author = await post.belongsTo(User, "user_id", "id", undefined, {
 
 ### hasOne (One-to-One)
 
-Current model has one associated model. E.g.: User hasOne Profile (a user has one profile).
+Current model has one associated model. E.g.: User hasOne Profile (a user has
+one profile).
 
 ```typescript
 class Profile extends SQLModel {
@@ -342,7 +345,8 @@ const profile = await user.hasOne(Profile, "user_id", "id", undefined, {
 
 ### hasMany (One-to-Many)
 
-Current model has many associated models. E.g.: User hasMany Post (a user has many posts).
+Current model has many associated models. E.g.: User hasMany Post (a user has
+many posts).
 
 ```typescript
 // Get all user posts
@@ -430,4 +434,5 @@ console.log(status);
 
 ---
 
-> 📖 **Full API Reference**: See [README](../../README.md) for Database Initialization, SQLModel API, MongoModel API, Query Builder, and more.
+> 📖 **Full API Reference**: See [README](../../README.md) for Database
+> Initialization, SQLModel API, MongoModel API, Query Builder, and more.

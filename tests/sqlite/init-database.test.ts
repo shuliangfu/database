@@ -189,7 +189,6 @@ describe("init-database", () => {
           await autoInitDatabase();
         },
         Error,
-        "Database not configured",
       );
     });
 
@@ -201,7 +200,6 @@ describe("init-database", () => {
           await autoInitDatabase();
         },
         Error,
-        "Database not configured",
       );
     });
   });
@@ -227,7 +225,7 @@ describe("init-database", () => {
 
       expect(() => {
         getDatabaseManager();
-      }).toThrow("Database not initialized");
+      }).toThrow(Error);
     });
   });
 

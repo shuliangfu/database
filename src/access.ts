@@ -4,6 +4,7 @@
  * 初始化逻辑请使用 init-database.ts 中的方法
  */
 
+import { $t } from "./i18n.ts";
 import {
   autoInitDatabase,
   closeDatabase as closeDatabaseImpl,
@@ -46,9 +47,7 @@ export function getDatabase(
   connectionName: string = "default",
 ): DatabaseAdapter {
   if (!checkInitialized()) {
-    throw new Error(
-      "Database not initialized. Please call initDatabase() first or use getDatabaseAsync() for automatic initialization.",
-    );
+    throw new Error($t("error.notInitializedGetDatabase"));
   }
 
   const dbManager = getManager();

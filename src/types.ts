@@ -2,6 +2,8 @@
  * 数据库支持类型定义
  */
 
+import type { Locale } from "./i18n.ts";
+
 /**
  * 数据库类型
  * 支持的数据库类型：PostgreSQL、MongoDB、MySQL/MariaDB、SQLite
@@ -85,12 +87,9 @@ export interface PostgreSQLConfig {
   };
 
   /**
-   * 翻译函数（可选，用于 i18n，由框架传入）
+   * 语言（可选，用于 i18n；不传则按环境 LANGUAGE/LC_ALL/LANG 检测）
    */
-  t?: (
-    key: string,
-    params?: Record<string, string | number | boolean>,
-  ) => string | undefined;
+  lang?: Locale;
 
   /**
    * PostgreSQL 特定配置
@@ -182,12 +181,9 @@ export interface MySQLConfig {
   };
 
   /**
-   * 翻译函数（可选，用于 i18n，由框架传入）
+   * 语言（可选，用于 i18n；不传则按环境 LANGUAGE/LC_ALL/LANG 检测）
    */
-  t?: (
-    key: string,
-    params?: Record<string, string | number | boolean>,
-  ) => string | undefined;
+  lang?: Locale;
 
   /**
    * MySQL/MariaDB 特定配置
@@ -249,12 +245,9 @@ export interface MongoConfig {
   };
 
   /**
-   * 翻译函数（可选，用于 i18n，由框架传入）
+   * 语言（可选，用于 i18n；不传则按环境 LANGUAGE/LC_ALL/LANG 检测）
    */
-  t?: (
-    key: string,
-    params?: Record<string, string | number | boolean>,
-  ) => string | undefined;
+  lang?: Locale;
 
   /**
    * MongoDB 特定配置
@@ -405,12 +398,9 @@ export interface SQLiteConfig {
   };
 
   /**
-   * 翻译函数（可选，用于 i18n，由框架传入）
+   * 语言（可选，用于 i18n；不传则按环境 LANGUAGE/LC_ALL/LANG 检测）
    */
-  t?: (
-    key: string,
-    params?: Record<string, string | number | boolean>,
-  ) => string | undefined;
+  lang?: Locale;
 
   /**
    * SQLite 特定配置

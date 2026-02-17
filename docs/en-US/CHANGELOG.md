@@ -8,11 +8,33 @@ and this project adheres to
 
 ---
 
+## [1.0.3] - 2026-02-17
+
+### Added
+
+- **i18n**: Add dependency on `@dreamer/i18n`. Rewrite user-facing messages to
+  use locale-based translation via `$t(key, params?, lang?)` and
+  `detectLocale()`. Add `src/locales/zh-CN.json` and `en-US.json`. Config
+  accepts `lang` (optional) instead of `t`; omit `lang` to use environment
+  (LANGUAGE / LC_ALL / LANG).
+
+### Changed
+
+- **License**: Update to Apache License 2.0.
+- **Documentation**: Move CHANGELOG, TEST_REPORT, and Chinese README into
+  `docs/en-US/` and `docs/zh-CN/`. Add Chinese test report
+  (`docs/zh-CN/TEST_REPORT.md`). Rename `docs/zh-CN/CHANGELOG-zh.md` to
+  `CHANGELOG.md`. Root README now links to docs for changelog and test report.
+
+---
+
 ## [1.0.2] - 2026-02-07
 
 ### Changed
 
-- **Documentation**: Restructure docs into `docs/en-US/` and `docs/zh-CN/` for bilingual support. Add API, FEATURES, EXAMPLES, UNIFIED-INTERFACE documents in both languages.
+- **Documentation**: Restructure docs into `docs/en-US/` and `docs/zh-CN/` for
+  bilingual support. Add API, FEATURES, EXAMPLES, UNIFIED-INTERFACE documents in
+  both languages.
 
 ---
 
@@ -20,7 +42,11 @@ and this project adheres to
 
 ### Changed
 
-- **Documentation**: Extract code examples to [docs/en-US/EXAMPLES.md](./docs/en-US/EXAMPLES.md) for reduced README size and better JSR display. Quick Start, Transaction Handling, Association Query Details, and Migration Management examples now link to the separate examples document.
+- **Documentation**: Extract code examples to
+  [docs/en-US/EXAMPLES.md](./docs/en-US/EXAMPLES.md) for reduced README size and
+  better JSR display. Quick Start, Transaction Handling, Association Query
+  Details, and Migration Management examples now link to the separate examples
+  document.
 
 ---
 
@@ -69,7 +95,8 @@ and this project adheres to
 - **Other features**:
   - Transaction support - Basic transactions, nested transactions, savepoints
   - Connection pool management
-  - Query logging - Log level filtering, slow query detection, translation `t`, custom logger, debug param
+  - Query logging - Log level filtering, slow query detection, translation `t`,
+    custom logger, debug param
   - Health check - Database connection health check
   - Prepared statements - SQL injection prevention
 

@@ -13,6 +13,7 @@ import {
   createTransactionError,
   DatabaseErrorCode,
 } from "../errors.ts";
+import { $t } from "../i18n.ts";
 import type { DatabaseAdapter, DatabaseConfig, MongoConfig } from "../types.ts";
 import {
   BaseAdapter,
@@ -27,15 +28,6 @@ import {
 export class MongoDBAdapter extends BaseAdapter {
   protected client: MongoClient | null = null;
   protected db: Db | null = null;
-  private tr(
-    key: string,
-    fallback: string,
-    params?: Record<string, string | number | boolean>,
-  ): string {
-    const t = (this.config as MongoConfig).t;
-    const r = t?.(key, params);
-    return (r != null && r !== key) ? r : fallback;
-  }
   private logger = createLogger({
     level: "warn",
     format: "text",
@@ -53,7 +45,7 @@ export class MongoDBAdapter extends BaseAdapter {
   ): Promise<void> {
     // 类型守卫：确保是 MongoDB 配置
     if (config.adapter !== "mongodb") {
-      throw new Error("Invalid config type for MongoDB adapter");
+      throw new Error($t("error.invalidConfigMongo"));
     }
 
     const mongoConfig = config as MongoConfig;
@@ -624,10 +616,10 @@ export class MongoDBAdapter extends BaseAdapter {
       } catch (error) {
         // 关闭失败或超时，忽略错误（状态已清理）
         const message = error instanceof Error ? error.message : String(error);
-        const msg = this.tr(
+        const msg = $t(
           "log.adapterMongo.closeError",
-          `MongoDB 关闭连接时出错（已忽略）: ${message}`,
           { error: message },
+          (this.config as MongoConfig).lang,
         );
         this.logger.warn(msg, { error: message });
       }

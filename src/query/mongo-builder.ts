@@ -3,6 +3,7 @@
  * 用于 MongoDB 文档数据库
  */
 
+import { $t } from "../i18n.ts";
 import type { MongoDBAdapter } from "../adapters/mongodb.ts";
 import type { DatabaseAdapter } from "../types.ts";
 
@@ -186,7 +187,7 @@ export class MongoQueryBuilder {
    */
   execute(): MongoExecutor {
     if (!this.collection) {
-      throw new Error("Collection name is required");
+      throw new Error($t("query.collectionNameRequired"));
     }
     return new MongoExecutor(this.adapter, this.collection, this.filter);
   }
@@ -200,7 +201,7 @@ export class MongoQueryBuilder {
    */
   async query<T = any>(): Promise<T[]> {
     if (!this.collection) {
-      throw new Error("Collection name is required");
+      throw new Error($t("query.collectionNameRequired"));
     }
     return await this.adapter.query(
       this.collection,
@@ -232,12 +233,12 @@ export class MongoQueryBuilder {
    */
   async count(): Promise<number> {
     if (!this.collection) {
-      throw new Error("Collection name is required");
+      throw new Error($t("query.collectionNameRequired"));
     }
 
     const db = this.adapter.getDatabase();
     if (!db) {
-      throw new Error("Database not connected");
+      throw new Error($t("query.databaseNotConnected"));
     }
 
     try {
@@ -248,7 +249,7 @@ export class MongoQueryBuilder {
       return count;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`MongoDB count error: ${message}`);
+      throw new Error($t("model.mongoCountError", { message }));
     }
   }
 

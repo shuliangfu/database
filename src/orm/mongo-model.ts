@@ -7,7 +7,8 @@ import { ObjectId } from "mongodb";
 import type { MongoDBAdapter } from "../adapters/mongodb.ts";
 import type { CacheAdapter } from "../cache/cache-adapter.ts";
 import type { DatabaseAdapter } from "../types.ts";
-import type { ModelTranslateFn } from "./i18n.ts";
+import type { Locale } from "../i18n.ts";
+import { $t } from "../i18n.ts";
 import type {
   CompoundIndex,
   GeospatialIndex,
@@ -478,10 +479,10 @@ export type MongoQueryBuilder<T extends typeof MongoModel> = {
  */
 export abstract class MongoModel {
   /**
-   * 翻译函数（可选，由框架传入 t 实现 i18n）
-   * 设置后，验证错误等用户-facing 文案将使用此函数翻译
+   * 语言（可选，用于 i18n；不传则按环境 LANGUAGE/LC_ALL/LANG 检测）
+   * 设置后，验证错误等用户面向文案将使用该语言
    */
-  static translate?: ModelTranslateFn;
+  static lang?: Locale;
 
   /**
    * 集合名称（子类必须定义）
@@ -518,15 +519,14 @@ export abstract class MongoModel {
   }
 
   /**
-   * 获取翻译文本，无 translate 或翻译缺失时返回 fallback
+   * 获取翻译文本（使用 $t，lang 不传则环境检测）
    */
   private static tr(
     key: string,
-    fallback: string,
+    _fallback: string,
     params?: Record<string, string | number | boolean>,
   ): string {
-    const r = this.translate?.(key, params);
-    return (r != null && r !== key) ? r : fallback;
+    return $t(key, params, this.lang);
   }
 
   /**
@@ -2033,7 +2033,7 @@ export abstract class MongoModel {
 
     const collectionName = (this as any).collectionName;
     if (!collectionName) {
-      throw new Error("集合名未定义");
+      throw new Error($t("model.collectionNameRequired", undefined, this.lang));
     }
 
     // 构建查询条件
@@ -2080,7 +2080,7 @@ export abstract class MongoModel {
 
     const collectionName = options.collection || (this as any).collectionName;
     if (!collectionName) {
-      throw new Error("集合名未定义");
+      throw new Error($t("model.collectionNameRequired", undefined, this.lang));
     }
 
     // 构建查询条件
@@ -2132,7 +2132,7 @@ export abstract class MongoModel {
 
     const collectionName = options.collection || (this as any).collectionName;
     if (!collectionName) {
-      throw new Error("集合名未定义");
+      throw new Error($t("model.collectionNameRequired", undefined, this.lang));
     }
 
     // 构建查询条件
@@ -3058,7 +3058,9 @@ export abstract class MongoModel {
         const state = getState();
         const db = (this.adapter as any as MongoDBAdapter).getDatabase();
         if (!db) {
-          throw new Error("Database not connected");
+          throw new Error(
+            $t("model.databaseNotConnected", undefined, this.lang),
+          );
         }
 
         // 构建最终查询条件
@@ -3665,7 +3667,9 @@ export abstract class MongoModel {
         await this.ensureAdapter();
         const db = (this.adapter as any as MongoDBAdapter).getDatabase();
         if (!db) {
-          throw new Error("Database not connected");
+          throw new Error(
+            $t("model.databaseNotConnected", undefined, this.lang),
+          );
         }
 
         const finalCondition = buildFinalCondition();
@@ -3898,7 +3902,9 @@ export abstract class MongoModel {
     count: (condition?: MongoWhereCondition) => Promise<number>;
   } {
     if (!this.scopes || !this.scopes[scopeName]) {
-      throw new Error(`Scope "${scopeName}" is not defined`);
+      throw new Error(
+        $t("model.scopeNotDefined", { scope: scopeName }, this.lang),
+      );
     }
 
     // 在闭包中捕获 this（MongoModel 类），这样返回的方法可以直接调用，不需要 .call()
@@ -4173,7 +4179,7 @@ export abstract class MongoModel {
       const appliedFilter = this.applySoftDeleteFilter(filter);
       const db = (this.adapter as any as MongoDBAdapter).getDatabase();
       if (!db) {
-        throw new Error("Database not connected");
+        throw new Error($t("model.databaseNotConnected", undefined, this.lang));
       }
       const checkResult = await db.collection(this.collectionName)
         .countDocuments(
@@ -4393,7 +4399,7 @@ export abstract class MongoModel {
 
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error("Database not connected");
+      throw new Error($t("model.databaseNotConnected", undefined, this.lang));
     }
     if (returnLatest) {
       const opts: any = { returnDocument: "after" };
@@ -4754,7 +4760,9 @@ export abstract class MongoModel {
     }
 
     if (!id) {
-      throw new Error("Cannot update instance without primary key");
+      throw new Error(
+        $t("model.cannotUpdateWithoutPrimaryKey", undefined, this.lang),
+      );
     }
 
     // 使用 returnLatest: true 获取更新后的实例
@@ -4794,7 +4802,9 @@ export abstract class MongoModel {
     let id = (this as any)[primaryKey];
 
     if (!id) {
-      throw new Error("Cannot delete instance without primary key");
+      throw new Error(
+        $t("model.cannotDeleteWithoutPrimaryKey", undefined, this.lang),
+      );
     }
 
     // 如果 id 是 ObjectId 对象，转换为字符串
@@ -4931,7 +4941,7 @@ export abstract class MongoModel {
     await this.ensureAdapter();
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error("Database not connected");
+      throw new Error($t("model.databaseNotConnected", undefined, this.lang));
     }
     let filter: any = {};
     if (typeof condition === "string") {
@@ -5021,7 +5031,7 @@ export abstract class MongoModel {
     if (this.softDelete) {
       const db = (this.adapter as any as MongoDBAdapter).getDatabase();
       if (!db) {
-        throw new Error("Database not connected");
+        throw new Error($t("model.databaseNotConnected", undefined, this.lang));
       }
       // 排除已软删除的记录，避免重复删除
       filter = {
@@ -5060,7 +5070,7 @@ export abstract class MongoModel {
     if (options?.returnIds) {
       const db = (this.adapter as any as MongoDBAdapter).getDatabase();
       if (!db) {
-        throw new Error("Database not connected");
+        throw new Error($t("model.databaseNotConnected", undefined, this.lang));
       }
       preIds = await db.collection(this.collectionName)
         .find(filter, { projection: { [this.primaryKey]: 1 } })
@@ -5110,7 +5120,7 @@ export abstract class MongoModel {
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
 
     if (!db) {
-      throw new Error("Database not connected");
+      throw new Error($t("model.databaseNotConnected", undefined, this.lang));
     }
 
     try {
@@ -5125,7 +5135,9 @@ export abstract class MongoModel {
       return count;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`MongoDB count error: ${message}`);
+      throw new Error(
+        $t("model.mongoCountError", { message }, this.lang),
+      );
     }
   }
 
@@ -5162,7 +5174,7 @@ export abstract class MongoModel {
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
 
     if (!db) {
-      throw new Error("Database not connected");
+      throw new Error($t("model.databaseNotConnected", undefined, this.lang));
     }
 
     try {
@@ -5173,7 +5185,9 @@ export abstract class MongoModel {
       return count > 0;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`MongoDB exists error: ${message}`);
+      throw new Error(
+        $t("model.mongoExistsError", { message }, this.lang),
+      );
     }
   }
 
@@ -5365,7 +5379,7 @@ export abstract class MongoModel {
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
 
     if (!db) {
-      throw new Error("Database not connected");
+      throw new Error($t("model.databaseNotConnected", undefined, this.lang));
     }
 
     // 确保页码和每页数量有效
@@ -5469,7 +5483,7 @@ export abstract class MongoModel {
 
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error("Database not connected");
+      throw new Error($t("model.databaseNotConnected", undefined, this.lang));
     }
 
     // 处理参数：支持两种调用方式
@@ -5533,7 +5547,9 @@ export abstract class MongoModel {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`MongoDB increment error: ${message}`);
+      throw new Error(
+        $t("model.mongoIncrementError", { message }, this.lang),
+      );
     }
   }
 
@@ -5632,7 +5648,7 @@ export abstract class MongoModel {
 
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error("Database not connected");
+      throw new Error($t("model.databaseNotConnected", undefined, this.lang));
     }
 
     try {
@@ -5668,7 +5684,9 @@ export abstract class MongoModel {
       return instance as InstanceType<T>;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`MongoDB findOneAndUpdate error: ${message}`);
+      throw new Error(
+        $t("model.mongoFindOneAndUpdateError", { message }, this.lang),
+      );
     }
   }
 
@@ -5701,7 +5719,7 @@ export abstract class MongoModel {
 
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error("Database not connected");
+      throw new Error($t("model.databaseNotConnected", undefined, this.lang));
     }
 
     try {
@@ -5752,7 +5770,9 @@ export abstract class MongoModel {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`MongoDB findOneAndDelete error: ${message}`);
+      throw new Error(
+        $t("model.mongoFindOneAndDeleteError", { message }, this.lang),
+      );
     }
   }
 
@@ -5794,7 +5814,7 @@ export abstract class MongoModel {
 
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error("Database not connected");
+      throw new Error($t("model.databaseNotConnected", undefined, this.lang));
     }
 
     try {
@@ -5824,7 +5844,9 @@ export abstract class MongoModel {
       return instance as InstanceType<T>;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`MongoDB upsert error: ${message}`);
+      throw new Error(
+        $t("model.mongoUpsertError", { message }, this.lang),
+      );
     }
   }
 
@@ -5852,7 +5874,7 @@ export abstract class MongoModel {
 
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error("Database not connected");
+      throw new Error($t("model.databaseNotConnected", undefined, this.lang));
     }
 
     try {
@@ -5886,7 +5908,9 @@ export abstract class MongoModel {
       return instance as InstanceType<T>;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`MongoDB findOneAndReplace error: ${message}`);
+      throw new Error(
+        $t("model.mongoFindOneAndReplaceError", { message }, this.lang),
+      );
     }
   }
 
@@ -5911,7 +5935,7 @@ export abstract class MongoModel {
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
 
     if (!db) {
-      throw new Error("Database not connected");
+      throw new Error($t("model.databaseNotConnected", undefined, this.lang));
     }
 
     try {
@@ -5927,7 +5951,9 @@ export abstract class MongoModel {
       return values;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`MongoDB distinct error: ${message}`);
+      throw new Error(
+        $t("model.mongoDistinctError", { message }, this.lang),
+      );
     }
   }
 
@@ -5952,7 +5978,7 @@ export abstract class MongoModel {
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
 
     if (!db) {
-      throw new Error("Database not connected");
+      throw new Error($t("model.databaseNotConnected", undefined, this.lang));
     }
 
     try {
@@ -5974,7 +6000,9 @@ export abstract class MongoModel {
       return results;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`MongoDB aggregate error: ${message}`);
+      throw new Error(
+        $t("model.mongoAggregateError", { message }, this.lang),
+      );
     }
   }
 
@@ -6087,7 +6115,9 @@ export abstract class MongoModel {
         const queryFilter = this.applySoftDeleteFilter(condition, false, true);
         const db = (this.adapter as any as MongoDBAdapter).getDatabase();
         if (!db) {
-          throw new Error("Database not connected");
+          throw new Error(
+            $t("model.databaseNotConnected", undefined, this.lang),
+          );
         }
         const count = await db.collection(this.collectionName).countDocuments(
           queryFilter,
@@ -6204,7 +6234,9 @@ export abstract class MongoModel {
         await this.ensureAdapter();
         const db = (this.adapter as any as MongoDBAdapter).getDatabase();
         if (!db) {
-          throw new Error("Database not connected");
+          throw new Error(
+            $t("model.databaseNotConnected", undefined, this.lang),
+          );
         }
         // 应用软删除过滤器（includeTrashed: true，包含所有记录，包括已软删除的）
         const queryFilter = this.applySoftDeleteFilter(condition, true, false);
@@ -6230,7 +6262,9 @@ export abstract class MongoModel {
     options?: { returnIds?: boolean },
   ): Promise<number | { count: number; ids: any[] }> {
     if (!this.softDelete) {
-      throw new Error("Soft delete is not enabled for this model");
+      throw new Error(
+        $t("model.softDeleteNotEnabled", undefined, this.lang),
+      );
     }
     // 自动初始化（懒加载）
     await this.ensureAdapter();
@@ -6253,7 +6287,7 @@ export abstract class MongoModel {
 
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error("Database not connected");
+      throw new Error($t("model.databaseNotConnected", undefined, this.lang));
     }
 
     try {
@@ -6281,7 +6315,9 @@ export abstract class MongoModel {
       return count;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`MongoDB restore error: ${message}`);
+      throw new Error(
+        $t("model.mongoRestoreError", { message }, this.lang),
+      );
     }
   }
 
@@ -6316,7 +6352,7 @@ export abstract class MongoModel {
 
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error("Database not connected");
+      throw new Error($t("model.databaseNotConnected", undefined, this.lang));
     }
 
     try {
@@ -6343,7 +6379,9 @@ export abstract class MongoModel {
       return count;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`MongoDB forceDelete error: ${message}`);
+      throw new Error(
+        $t("model.mongoForceDeleteError", { message }, this.lang),
+      );
     }
   }
 
@@ -6823,7 +6861,9 @@ export abstract class MongoModel {
         await this.ensureAdapter();
         const db = (this.adapter as any as MongoDBAdapter).getDatabase();
         if (!db) {
-          throw new Error("Database not connected");
+          throw new Error(
+            $t("model.databaseNotConnected", undefined, this.lang),
+          );
         }
 
         // 构建最终查询条件
@@ -7137,7 +7177,7 @@ export abstract class MongoModel {
     await this.ensureAdapter();
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error("Database not connected");
+      throw new Error($t("model.databaseNotConnected", undefined, this.lang));
     }
 
     try {
@@ -7145,7 +7185,9 @@ export abstract class MongoModel {
       return result.deletedCount || 0;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`MongoDB truncate error: ${message}`);
+      throw new Error(
+        $t("model.mongoTruncateError", { message }, this.lang),
+      );
     }
   }
 
@@ -7328,7 +7370,7 @@ export abstract class MongoModel {
 
     // 确保适配器已连接
     if (!this.adapter) {
-      throw new Error("Database adapter not set");
+      throw new Error($t("model.adapterNotSet", undefined, this.lang));
     }
 
     // 通过执行一个简单的查询来确保连接（这会自动调用 ensureConnection）
@@ -7337,12 +7379,14 @@ export abstract class MongoModel {
       await this.adapter.query(this.collectionName, {}, { limit: 1 });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Database not connected: ${message}`);
+      throw new Error(
+        $t("model.databaseNotConnectedMessage", { message }, this.lang),
+      );
     }
 
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error("Database not connected");
+      throw new Error($t("model.databaseNotConnected", undefined, this.lang));
     }
 
     const collection = db.collection(this.collectionName);
@@ -7432,7 +7476,9 @@ export abstract class MongoModel {
         createdIndexes.push(indexName);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        throw new Error(`Failed to create index: ${message}`);
+        throw new Error(
+          $t("model.failedToCreateIndex", { message }, this.lang),
+        );
       }
     }
 
@@ -7448,7 +7494,7 @@ export abstract class MongoModel {
     await this.ensureAdapter();
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error("Database not connected");
+      throw new Error($t("model.databaseNotConnected", undefined, this.lang));
     }
 
     const collection = db.collection(this.collectionName);
@@ -7466,7 +7512,12 @@ export abstract class MongoModel {
         droppedIndexes.push(index.name);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        throw new Error(`Failed to drop index ${index.name}: ${message}`);
+        throw new Error(
+          $t("model.failedToDropIndex", {
+            name: index.name,
+            message,
+          }, this.lang),
+        );
       }
     }
 
@@ -7483,7 +7534,7 @@ export abstract class MongoModel {
 
     // 确保适配器已连接
     if (!this.adapter) {
-      throw new Error("Database adapter not set");
+      throw new Error($t("model.adapterNotSet", undefined, this.lang));
     }
 
     // 通过执行一个简单的查询来确保连接（这会自动调用 ensureConnection）
@@ -7492,12 +7543,14 @@ export abstract class MongoModel {
       await this.adapter.query(this.collectionName, {}, { limit: 1 });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Database not connected: ${message}`);
+      throw new Error(
+        $t("model.databaseNotConnectedMessage", { message }, this.lang),
+      );
     }
 
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error("Database not connected");
+      throw new Error($t("model.databaseNotConnected", undefined, this.lang));
     }
 
     const collection = db.collection(this.collectionName);

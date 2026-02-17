@@ -1,0 +1,146 @@
+{
+  "init": {
+    "notConfigured": "数据库未配置，请在 dweb.config.ts 中配置数据库",
+    "notInitialized": "数据库未初始化，请先调用 initDatabase()",
+    "loaderNotSet": "数据库配置加载器未设置，请先调用 setDatabaseConfigLoader() 或手动调用 initDatabase()"
+  },
+  "error": {
+    "adapterRequired": "请提供数据库适配器",
+    "sqliteFilenameRequired": "SQLite 需要指定数据库文件名",
+    "hostAndDatabaseRequired": "请提供数据库主机和数据库名",
+    "connectionNotFound": "数据库连接 \"{name}\" 不存在，请先连接",
+    "unsupportedDatabaseType": "不支持的数据库类型: {type}",
+    "notInitializedGetDatabase": "数据库未初始化，请先调用 initDatabase() 或使用 getDatabaseAsync() 自动初始化",
+    "invalidConfigPostgres": "PostgreSQL 适配器配置类型无效",
+    "invalidConfigMysql": "MySQL 适配器配置类型无效",
+    "invalidConfigSqlite": "SQLite 适配器配置类型无效",
+    "invalidConfigMongo": "MongoDB 适配器配置类型无效"
+  },
+  "log": {
+    "database": {
+      "queryError": "数据库查询错误: {sql}",
+      "executeError": "数据库执行错误: {sql}",
+      "slowQuery": "慢查询检测: {sql} (耗时 {duration}ms)",
+      "queryInfo": "数据库查询: {sql}",
+      "executeInfo": "数据库执行: {sql}"
+    },
+    "adapterPostgres": {
+      "closeError": "PostgreSQL 关闭连接时出错（已忽略）: {error}",
+      "rollbackFailed": "PostgreSQL 事务回滚失败: {error}"
+    },
+    "adapterMysql": {
+      "closeError": "MySQL 关闭连接时出错（已忽略）: {error}",
+      "rollbackFailed": "MySQL 事务回滚失败: {error}"
+    },
+    "adapterSqlite": {
+      "closeError": "SQLite 关闭连接时出错（已忽略）: {error}"
+    },
+    "adapterMongo": {
+      "closeError": "MongoDB 关闭连接时出错（已忽略）: {error}"
+    },
+    "validation": {
+      "required": "{field} 是必填字段",
+      "typeArray": "{field} 必须是数组类型",
+      "typeObject": "{field} 必须是对象类型",
+      "typeExpected": "{field} 必须是 {type} 类型",
+      "lengthRequired": "{field} 长度必须是 {length}",
+      "minNumber": "{field} 必须大于等于 {min}",
+      "minLength": "{field} 长度必须大于等于 {min}",
+      "maxNumber": "{field} 必须小于等于 {max}",
+      "maxLength": "{field} 长度必须小于等于 {max}",
+      "pattern": "{field} 格式不正确",
+      "integer": "{field} 必须是整数",
+      "positive": "{field} 必须是正数",
+      "negative": "{field} 必须是负数",
+      "multipleOf": "{field} 必须是 {multiple} 的倍数",
+      "range": "{field} 必须在 {min} 到 {max} 之间",
+      "alphaNum": "{field} 只能包含字母和数字",
+      "numeric": "{field} 只能包含数字",
+      "alpha": "{field} 只能包含字母",
+      "lowercase": "{field} 必须是小写",
+      "uppercase": "{field} 必须是大写",
+      "startsWith": "{field} 必须以 {prefix} 开头",
+      "endsWith": "{field} 必须以 {suffix} 结尾",
+      "contains": "{field} 必须包含 {substring}",
+      "before": "{field} 必须早于 {date}",
+      "after": "{field} 必须晚于 {date}",
+      "beforeTime": "{field} 必须早于 {time}",
+      "afterTime": "{field} 必须晚于 {time}",
+      "passwordMinLength": "{field} 密码长度至少 {min} 位",
+      "passwordUppercase": "{field} 密码必须包含大写字母",
+      "passwordLowercase": "{field} 密码必须包含小写字母",
+      "passwordNumber": "{field} 密码必须包含数字",
+      "passwordSpecial": "{field} 密码必须包含特殊字符",
+      "enum": "{field} 必须是以下之一: {choices}",
+      "equals": "{field} 必须与 {other} 相等",
+      "notEquals": "{field} 必须与 {other} 不相等",
+      "formatExpected": "{field} 格式不正确",
+      "arrayLength": "{field} 数组长度必须为 {length}",
+      "arrayMinLength": "{field} 数组长度至少 {min}",
+      "arrayMaxLength": "{field} 数组长度最多 {max}",
+      "arrayUniqueItems": "{field} 数组元素必须唯一",
+      "arrayElementType": "{field} 数组元素类型不正确",
+      "unique": "{field} 已存在，必须是唯一的",
+      "exists": "{field} 在数据表中不存在",
+      "notExists": "{field} 在数据表中已存在",
+      "compareValueNotFound": "{field} 验证失败：未找到目标字段 {targetField}",
+      "compareValueNoRecord": "{field} 验证失败：未找到目标记录",
+      "compareValueEqual": "{field} 必须等于 {targetField} ({targetValue})",
+      "compareValueGreater": "{field} 必须大于 {targetField} ({targetValue})",
+      "compareValueLess": "{field} 必须小于 {targetField} ({targetValue})",
+      "compareValueGreaterOrEqual": "{field} 必须大于等于 {targetField} ({targetValue})",
+      "compareValueLessOrEqual": "{field} 必须小于等于 {targetField} ({targetValue})",
+      "customFailed": "{field} 验证未通过"
+    },
+    "model": {
+      "updateNotFound": "更新失败：未找到记录",
+      "updateNotFoundWithId": "更新失败：未找到 ID 为 {id} 的记录或记录已被删除",
+      "updateNotFoundAfter": "更新后未找到记录",
+      "cannotGetUpdatedRecord": "无法获取更新后的记录"
+    }
+  },
+  "migration": {
+    "cannotDetermineType": "无法从适配器确定数据库类型",
+    "pathNotFile": "路径存在但不是文件: {path}",
+    "noDefaultExport": "迁移文件 {file} 未导出默认类",
+    "migrationFailed": "迁移 {name} 执行失败: {error}",
+    "rollbackFailed": "回滚 {name} 失败: {error}",
+    "noPending": "没有待执行的迁移",
+    "running": "正在执行迁移: {name}",
+    "completed": "迁移 {name} 已完成",
+    "noRollback": "没有可回滚的迁移",
+    "rollingBack": "正在回滚迁移: {name}",
+    "rolledBack": "迁移 {name} 已回滚"
+  },
+  "model": {
+    "tableNameRequired": "表名未定义",
+    "collectionNameRequired": "集合名未定义",
+    "scopeNotDefined": "作用域 \"{scope}\" 未定义",
+    "databaseNotConnected": "数据库未连接",
+    "databaseNotConnectedMessage": "数据库未连接: {message}",
+    "cannotUpdateWithoutPrimaryKey": "无法在无主键时更新实例",
+    "cannotDeleteWithoutPrimaryKey": "无法在无主键时删除实例",
+    "softDeleteNotEnabled": "当前模型未启用软删除",
+    "adapterNotSet": "数据库适配器未设置，请调用 Model.setAdapter() 或确保数据库已初始化",
+    "adapterNotInitialized": "模型 \"{table}\" 的数据库适配器未初始化，请在访问该属性前调用 await {table}.ensureInitialized() 或 await {table}.init()",
+    "initFailed": "初始化模型 {table} 失败: {error}，请确保已先使用 initDatabase() 或 initDatabaseFromConfig() 初始化数据库连接",
+    "mongoCountError": "MongoDB count 错误: {message}",
+    "mongoExistsError": "MongoDB exists 错误: {message}",
+    "mongoIncrementError": "MongoDB increment 错误: {message}",
+    "mongoFindOneAndUpdateError": "MongoDB findOneAndUpdate 错误: {message}",
+    "mongoFindOneAndDeleteError": "MongoDB findOneAndDelete 错误: {message}",
+    "mongoUpsertError": "MongoDB upsert 错误: {message}",
+    "mongoFindOneAndReplaceError": "MongoDB findOneAndReplace 错误: {message}",
+    "mongoDistinctError": "MongoDB distinct 错误: {message}",
+    "mongoAggregateError": "MongoDB aggregate 错误: {message}",
+    "mongoRestoreError": "MongoDB restore 错误: {message}",
+    "mongoForceDeleteError": "MongoDB forceDelete 错误: {message}",
+    "mongoTruncateError": "MongoDB truncate 错误: {message}",
+    "failedToCreateIndex": "创建索引失败: {message}",
+    "failedToDropIndex": "删除索引 {name} 失败: {message}"
+  },
+  "query": {
+    "collectionNameRequired": "集合名为必填",
+    "databaseNotConnected": "数据库未连接"
+  }
+}

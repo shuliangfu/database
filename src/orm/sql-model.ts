@@ -6,7 +6,8 @@
 import type { CacheAdapter } from "../cache/cache-adapter.ts";
 import type { DatabaseAdapter } from "../types.ts";
 import type { IndexDefinitions } from "../types/index.ts";
-import type { ModelTranslateFn } from "./i18n.ts";
+import type { Locale } from "../i18n.ts";
+import { $t } from "../i18n.ts";
 
 /**
  * 查询条件类型
@@ -461,10 +462,10 @@ export type SQLQueryBuilder<T extends typeof SQLModel> = {
  */
 export abstract class SQLModel {
   /**
-   * 翻译函数（可选，由框架传入 t 实现 i18n）
-   * 设置后，验证错误等用户-facing 文案将使用此函数翻译
+   * 语言（可选，用于 i18n；不传则按环境 LANGUAGE/LC_ALL/LANG 检测）
+   * 设置后，验证错误等用户面向文案将使用该语言
    */
-  static translate?: ModelTranslateFn;
+  static lang?: Locale;
 
   /**
    * 表名（子类必须定义）
@@ -490,7 +491,9 @@ export abstract class SQLModel {
   static get adapter(): DatabaseAdapter {
     if (!this._adapter) {
       throw new Error(
-        `Database adapter not initialized for model "${this.tableName}". Please call 'await ${this.tableName}.ensureInitialized()' or 'await ${this.tableName}.init()' before accessing this property.`,
+        $t("model.adapterNotInitialized", {
+          table: this.tableName,
+        }, this.lang),
       );
     }
     return this._adapter;
@@ -501,15 +504,14 @@ export abstract class SQLModel {
   }
 
   /**
-   * 获取翻译文本，无 translate 或翻译缺失时返回 fallback
+   * 获取翻译文本（使用 $t，lang 不传则环境检测）
    */
   private static tr(
     key: string,
-    fallback: string,
+    _fallback: string,
     params?: Record<string, string | number | boolean>,
   ): string {
-    const r = this.translate?.(key, params);
-    return (r != null && r !== key) ? r : fallback;
+    return $t(key, params, this.lang);
   }
 
   /**
@@ -942,7 +944,10 @@ export abstract class SQLModel {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(
-        `Failed to initialize model ${this.tableName}: ${message}. Please ensure the database connection is initialized first using initDatabase() or initDatabaseFromConfig().`,
+        $t("model.initFailed", {
+          table: this.tableName,
+          error: message,
+        }, this.lang),
       );
     }
   }
@@ -972,9 +977,7 @@ export abstract class SQLModel {
     if (this._adapter) return;
     await this.ensureInitialized(connectionName);
     if (!this.adapter) {
-      throw new Error(
-        "Database adapter not set. Please call Model.setAdapter() or ensure database is initialized.",
-      );
+      throw new Error($t("model.adapterNotSet", undefined, this.lang));
     }
   }
 
@@ -2625,7 +2628,7 @@ export abstract class SQLModel {
 
     const tableName = (this as any).tableName;
     if (!tableName) {
-      throw new Error("表名未定义");
+      throw new Error($t("model.tableNameRequired", undefined, this.lang));
     }
 
     // 构建查询条件
@@ -2674,7 +2677,7 @@ export abstract class SQLModel {
 
     const tableName = options.table || (this as any).tableName;
     if (!tableName) {
-      throw new Error("表名未定义");
+      throw new Error($t("model.tableNameRequired", undefined, this.lang));
     }
 
     // 构建查询条件
@@ -2728,7 +2731,7 @@ export abstract class SQLModel {
 
     const tableName = options.table || (this as any).tableName;
     if (!tableName) {
-      throw new Error("表名未定义");
+      throw new Error($t("model.tableNameRequired", undefined, this.lang));
     }
 
     // 构建查询条件
@@ -3827,7 +3830,9 @@ export abstract class SQLModel {
     count: (condition?: WhereCondition) => Promise<number>;
   } {
     if (!this.scopes || !this.scopes[scopeName]) {
-      throw new Error(`Scope "${scopeName}" is not defined`);
+      throw new Error(
+        $t("model.scopeNotDefined", { scope: scopeName }, this.lang),
+      );
     }
 
     // 在闭包中捕获 this（SQLModel 类），这样返回的方法可以直接调用，不需要 .call()
@@ -4650,7 +4655,13 @@ export abstract class SQLModel {
     const id = (this as any)[primaryKey];
 
     if (!id) {
-      throw new Error("Cannot update instance without primary key");
+      throw new Error(
+        $t(
+          "model.cannotUpdateWithoutPrimaryKey",
+          undefined,
+          (Model as typeof SQLModel).lang,
+        ),
+      );
     }
 
     // 使用 returnLatest 选项直接获取更新后的数据，避免额外的查询
@@ -4658,11 +4669,9 @@ export abstract class SQLModel {
     if (!updated) {
       throw new Error(
         Model.tr(
-          "log.model.updateNotFound",
+          "log.model.updateNotFoundWithId",
           `更新失败：未找到 ID 为 ${id} 的记录或记录已被删除`,
-          {
-            id: String(id),
-          },
+          { id: String(id) },
         ),
       );
     }
@@ -4683,7 +4692,13 @@ export abstract class SQLModel {
     const id = (this as any)[primaryKey];
 
     if (!id) {
-      throw new Error("Cannot delete instance without primary key");
+      throw new Error(
+        $t(
+          "model.cannotDeleteWithoutPrimaryKey",
+          undefined,
+          (Model as typeof SQLModel).lang,
+        ),
+      );
     }
 
     const deleted = await Model.delete(id);
@@ -6580,7 +6595,9 @@ export abstract class SQLModel {
     options?: { returnIds?: boolean },
   ): Promise<number | { count: number; ids: any[] }> {
     if (!this.softDelete) {
-      throw new Error("Soft delete is not enabled for this model");
+      throw new Error(
+        $t("model.softDeleteNotEnabled", undefined, this.lang),
+      );
     }
     // 自动初始化（如果未初始化）
     await this.ensureAdapter();

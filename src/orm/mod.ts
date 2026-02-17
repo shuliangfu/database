@@ -4,7 +4,7 @@
  */
 
 export { SQLModel, ValidationError } from "./sql-model.ts";
-export type { ModelTranslateFn } from "./i18n.ts";
+export type { Locale, ModelTranslateFn } from "./i18n.ts";
 export type {
   FieldDefinition,
   FieldType,
