@@ -2,7 +2,7 @@
  * 数据库适配器基础接口和抽象类
  */
 
-import { $t } from "../i18n.ts";
+import { $tr } from "../i18n.ts";
 import { createTransactionError, DatabaseErrorCode } from "../errors.ts";
 import type { QueryLogger } from "../logger/query-logger.ts";
 import type {
@@ -183,14 +183,14 @@ export abstract class BaseAdapter implements DatabaseAdapter {
    */
   protected validateConfig(config: DatabaseConfig): void {
     if (!config.adapter) {
-      throw new Error($t("error.adapterRequired"));
+      throw new Error($tr("error.adapterRequired"));
     }
 
     if (config.adapter === "sqlite") {
       // SQLite 需要 filename
       const sqliteConfig = config as SQLiteConfig;
       if (!sqliteConfig.connection.filename) {
-        throw new Error($t("error.sqliteFilenameRequired"));
+        throw new Error($tr("error.sqliteFilenameRequired"));
       }
     } else {
       // 其他数据库需要 host 和 database
@@ -199,7 +199,7 @@ export abstract class BaseAdapter implements DatabaseAdapter {
         | MySQLConfig
         | MongoConfig;
       if (!dbConfig.connection.host || !dbConfig.connection.database) {
-        throw new Error($t("error.hostAndDatabaseRequired"));
+        throw new Error($tr("error.hostAndDatabaseRequired"));
       }
     }
   }

@@ -5,7 +5,7 @@
 
 import { createLogger, type Logger } from "@dreamer/logger";
 import type { Locale } from "../i18n.ts";
-import { $t } from "../i18n.ts";
+import { $tr } from "../i18n.ts";
 
 /**
  * 查询日志条目
@@ -123,11 +123,11 @@ export class QueryLogger {
       const errorKey = type === "query"
         ? "log.database.queryError"
         : "log.database.executeError";
-      const msg = $t(errorKey, { sql }, this.config.lang);
+      const msg = $tr(errorKey, { sql }, this.config.lang);
       this.logger.error(msg, logData, error);
     } else if (duration >= (this.config.slowQueryThreshold || 1000)) {
       // 慢查询警告
-      const msg = $t("log.database.slowQuery", {
+      const msg = $tr("log.database.slowQuery", {
         sql,
         duration: String(duration),
       }, this.config.lang);
@@ -137,7 +137,7 @@ export class QueryLogger {
       const infoKey = type === "query"
         ? "log.database.queryInfo"
         : "log.database.executeInfo";
-      const msg = $t(infoKey, { sql }, this.config.lang);
+      const msg = $tr(infoKey, { sql }, this.config.lang);
       if (this.config.debug) {
         this.logger.info(msg, logData);
       } else {
