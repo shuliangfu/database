@@ -5,7 +5,7 @@
 
 import { createLogger, type Logger } from "@dreamer/logger";
 import type { Locale } from "../i18n.ts";
-import { $tr } from "../i18n.ts";
+import { $tr, setDatabaseLocale } from "../i18n.ts";
 
 /**
  * 查询日志条目
@@ -60,6 +60,10 @@ export class QueryLogger {
       lang: config.lang,
     };
 
+    if (this.config.lang !== undefined) {
+      setDatabaseLocale(this.config.lang);
+    }
+
     // 传入 logger 时使用该 logger，不传则使用自带的 createLogger
     this.logger = config.logger ?? createLogger({
       level: "info",
@@ -80,6 +84,11 @@ export class QueryLogger {
   ): void {
     if (!this.config.enabled) {
       return;
+    }
+
+    // 传过来的 lang 在此设置，后续 $tr 无需再传 lang 参数
+    if (this.config.lang !== undefined) {
+      setDatabaseLocale(this.config.lang);
     }
 
     // 根据日志级别过滤
@@ -123,21 +132,21 @@ export class QueryLogger {
       const errorKey = type === "query"
         ? "log.database.queryError"
         : "log.database.executeError";
-      const msg = $tr(errorKey, { sql }, this.config.lang);
+      const msg = $tr(errorKey, { sql });
       this.logger.error(msg, logData, error);
     } else if (duration >= (this.config.slowQueryThreshold || 1000)) {
       // 慢查询警告
       const msg = $tr("log.database.slowQuery", {
         sql,
         duration: String(duration),
-      }, this.config.lang);
+      });
       this.logger.warn(msg, logData);
     } else {
       // 正常查询信息：debug 为 true 时用 info 级别（便于在 info 级别下查看），否则用 debug
       const infoKey = type === "query"
         ? "log.database.queryInfo"
         : "log.database.executeInfo";
-      const msg = $tr(infoKey, { sql }, this.config.lang);
+      const msg = $tr(infoKey, { sql });
       if (this.config.debug) {
         this.logger.info(msg, logData);
       } else {

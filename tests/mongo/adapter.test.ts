@@ -296,7 +296,7 @@ describe("MongoDBAdapter", () => {
           await adapter.execute("insert", [] as any, { name: "Test" });
         },
         Error,
-        "collection name",
+        /collection name|集合名/,
       );
     }, { sanitizeOps: false, sanitizeResources: false });
 
@@ -311,7 +311,7 @@ describe("MongoDBAdapter", () => {
           await adapter.execute("insert", COLLECTION_USERS, undefined as any);
         },
         Error,
-        "data",
+        /data|数据/,
       );
     }, { sanitizeOps: false, sanitizeResources: false });
   });

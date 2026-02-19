@@ -5,11 +5,6 @@
  * Overview 使用 README 以便在 JSR 上完整展示文档
  */
 
-import { initDatabaseI18n } from "./i18n.ts";
-
-// 入口处初始化 database i18n（加载翻译并设置当前 locale，$tr 内不再做 ensure/init）
-initDatabaseI18n();
-
 // ==================== 管理器 ====================
 export { createDatabaseManager, DatabaseManager } from "./manager.ts";
 export type { ConnectionStatus, DatabaseManagerOptions } from "./manager.ts";

@@ -80,9 +80,25 @@ await initDatabase({
     // Connection pool configuration
     maxPoolSize: 10,
     minPoolSize: 2,
+    // Display timezone for date fields in query results (IANA name, e.g. "Asia/Shanghai", "PRC").
+    // When set, MongoModel will format date fields as local time strings in this timezone; no need to add get on each date in schema.
+    timezone: "Asia/Shanghai",
   },
 });
 ```
+
+#### MongoDB timezone configuration (mongoOptions.timezone)
+
+You can set **`timezone`** in `mongoOptions` (IANA timezone name, e.g.
+`"Asia/Shanghai"`, `"PRC"`):
+
+- **Effect**: When set, MongoModel formats all **date** fields in query results
+  as local time strings in that timezone (e.g. `"1/2/2024, 12:00:00"`), so you
+  do not need a `get` on each date field in schema.
+- **When not set**: Date fields remain `Date` objects (UTC); format in
+  application code as needed.
+- **Note**: MongoDB stores UTC; this option only affects **query result**
+  display format, not writes. Writes still use `Date` objects.
 
 #### Database Configuration Parameters and Environment Variables
 
@@ -127,8 +143,10 @@ over environment variables. Optional overrides:
 
 - **MySQL/PostgreSQL**: `pool` merges connection pool config, `database`
   specifies database name
-- **MongoDB**: `mongoOptions` merges MongoDB options (e.g. `maxPoolSize`),
-  `database` specifies database name
+- **MongoDB**: `mongoOptions` merges MongoDB options (e.g. `maxPoolSize`,
+  `timezone`), `database` specifies database name. `timezone` formats date
+  fields in query results as local time strings in that timezone (e.g.
+  `"Asia/Shanghai"`, `"PRC"`).
 
 #### getDatabase
 

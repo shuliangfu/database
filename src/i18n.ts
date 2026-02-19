@@ -60,10 +60,8 @@ export function detectLocale(): Locale {
   return DEFAULT_LOCALE;
 }
 
-/**
- * 加载翻译并设置当前 locale。在入口（如 mod）调用一次；不挂全局。
- */
-export function initDatabaseI18n(): void {
+/** 内部初始化，导入 i18n 时自动执行，不导出 */
+function initDatabaseI18n(): void {
   if (databaseI18n) return;
   const i18n = createI18n({
     defaultLocale: DEFAULT_LOCALE,
@@ -75,9 +73,20 @@ export function initDatabaseI18n(): void {
   databaseI18n = i18n;
 }
 
+initDatabaseI18n();
+
+/**
+ * 设置数据库包当前语言（适配器在 connect 时调用，后续该上下文中 $tr 可不传 lang 即使用该语言）。
+ * @param locale 语言，如 "zh-CN" | "en-US"
+ */
+export function setDatabaseLocale(locale: Locale): void {
+  if (!databaseI18n) initDatabaseI18n();
+  if (databaseI18n) databaseI18n.setLocale(locale);
+}
+
 /**
  * 框架专用翻译函数：仅用本模块 init 时创建的实例。
- * 未传 lang 时使用当前 locale；传 lang 时临时切换后恢复。未 init 时返回 key。
+ * 未传 lang 时使用当前 locale（可由 setDatabaseLocale 设置）；传 lang 时临时切换后恢复。未 init 时返回 key。
  *
  * @param key 文案 key，如 "init.notConfigured"、"log.validation.required"
  * @param params 占位替换，如 { field: "name" }
@@ -88,6 +97,7 @@ export function $tr(
   params?: Record<string, string | number>,
   lang?: Locale,
 ): string {
+  if (!databaseI18n) initDatabaseI18n();
   if (!databaseI18n) return key;
   if (lang !== undefined) {
     const prev = databaseI18n.getLocale();

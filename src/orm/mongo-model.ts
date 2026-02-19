@@ -8,7 +8,7 @@ import type { MongoDBAdapter } from "../adapters/mongodb.ts";
 import type { CacheAdapter } from "../cache/cache-adapter.ts";
 import type { DatabaseAdapter } from "../types.ts";
 import type { Locale } from "../i18n.ts";
-import { $tr } from "../i18n.ts";
+import { $tr, setDatabaseLocale } from "../i18n.ts";
 import type {
   CompoundIndex,
   GeospatialIndex,
@@ -507,8 +507,11 @@ export abstract class MongoModel {
    */
   static get adapter(): DatabaseAdapter {
     if (!this._adapter) {
+      if (this.lang !== undefined) {
+        setDatabaseLocale(this.lang);
+      }
       throw new Error(
-        `Database adapter not initialized for model "${this.collectionName}". Please call 'await ${this.collectionName}.ensureInitialized()' or 'await ${this.collectionName}.init()' before accessing this property.`,
+        $tr("model.adapterNotInitialized", { table: this.collectionName }),
       );
     }
     return this._adapter;
@@ -519,25 +522,34 @@ export abstract class MongoModel {
   }
 
   /**
-   * 获取翻译文本（使用 $tr，lang 不传则环境检测）
-   */
-  private static tr(
-    key: string,
-    _fallback: string,
-    params?: Record<string, string | number | boolean>,
-  ): string {
-    return $tr(
-      key,
-      params as Record<string, string | number> | undefined,
-      this.lang,
-    );
-  }
-
-  /**
    * Schema 键缓存（性能优化：减少 Object.entries() 开销）
    * 每个子类独立缓存自己的 schema 键
    */
   private static _schemaKeysCache: Map<typeof MongoModel, string[]> = new Map();
+
+  /**
+   * 获取当前连接配置的展示时区（来自 mongoOptions.timezone）
+   * 用于 processFields 中将 date 字段格式化为该时区的本地时间字符串；未配置或适配器未就绪时返回 undefined
+   * @returns IANA 时区名（如 "Asia/Shanghai"、PRC）或 undefined
+   */
+  private static getTimezoneOption(): string | undefined {
+    const a = this._adapter;
+    if (!a) return undefined;
+    return (a as { getTimezone?: () => string }).getTimezone?.();
+  }
+
+  /**
+   * 处理单条查询结果（类型转换 + 若配置了 timezone 则将 date 格式化为该时区字符串）
+   * 仅用于从 adapter.query / findOneAndUpdate 等得到的文档构建实例时调用，不应用默认值
+   */
+  private static processQueryResultRow(
+    row: Record<string, any>,
+  ): Record<string, any> {
+    return this.processFields(row, {
+      formatDateToTimezone: true,
+      applyDefaults: false,
+    });
+  }
 
   /**
    * 获取 Schema 键（带缓存）
@@ -1058,12 +1070,13 @@ export abstract class MongoModel {
   private static async ensureAdapter(
     connectionName: string = "default",
   ): Promise<void> {
+    if (this.lang !== undefined) {
+      setDatabaseLocale(this.lang);
+    }
     if (this._adapter) return;
     await this.ensureInitialized(connectionName);
     if (!this.adapter) {
-      throw new Error(
-        "Database adapter not set. Please call Model.setAdapter() or ensure database is initialized.",
-      );
+      throw new Error($tr("model.adapterNotSet"));
     }
   }
 
@@ -1111,7 +1124,7 @@ export abstract class MongoModel {
       throw new ValidationError(
         fieldName,
         rule?.message ||
-          this.tr("log.validation.required", `${fieldName} 是必填字段`, {
+          $tr("log.validation.required", {
             field: fieldName,
           }),
       );
@@ -1133,11 +1146,10 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule?.message ||
-            this.tr(
-              "log.validation.enum",
-              `${fieldName} 必须是以下之一: ${fieldDef.enum.join(", ")}`,
-              { field: fieldName, values: fieldDef.enum.join(", ") },
-            ),
+            $tr("log.validation.enum", {
+              field: fieldName,
+              choices: fieldDef.enum.join(", "),
+            }),
         );
       }
     }
@@ -1149,9 +1161,8 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule?.message ||
-            this.tr(
+            $tr(
               "log.validation.typeExpected",
-              `${fieldName} 必须是 ${fieldDef.type} 类型`,
               { field: fieldName, type: fieldDef.type },
             ),
         );
@@ -1165,9 +1176,8 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.typeExpected",
-              `${fieldName} 必须是 ${rule.type} 类型`,
               { field: fieldName, type: rule.type },
             ),
         );
@@ -1179,9 +1189,8 @@ export abstract class MongoModel {
       throw new ValidationError(
         fieldName,
         rule.message ||
-          this.tr(
+          $tr(
             "log.validation.enum",
-            `${fieldName} 必须是以下之一: ${rule.enum.join(", ")}`,
             { field: fieldName, values: rule.enum.join(", ") },
           ),
       );
@@ -1193,9 +1202,8 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.lengthRequired",
-              `${fieldName} 长度必须是 ${rule.length}`,
               { field: fieldName, length: String(rule.length) },
             ),
         );
@@ -1204,9 +1212,8 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.minLength",
-              `${fieldName} 长度必须大于等于 ${rule.min}`,
               { field: fieldName, min: rule.min },
             ),
         );
@@ -1215,9 +1222,8 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.maxLength",
-              `${fieldName} 长度必须小于等于 ${rule.max}`,
               { field: fieldName, max: rule.max },
             ),
         );
@@ -1230,9 +1236,8 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.minNumber",
-              `${fieldName} 必须大于等于 ${rule.min}`,
               {
                 field: fieldName,
                 min: rule.min,
@@ -1244,9 +1249,8 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.maxNumber",
-              `${fieldName} 必须小于等于 ${rule.max}`,
               {
                 field: fieldName,
                 max: rule.max,
@@ -1265,7 +1269,7 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr("log.validation.pattern", `${fieldName} 格式不正确`, {
+            $tr("log.validation.pattern", {
               field: fieldName,
             }),
         );
@@ -1279,7 +1283,7 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr("log.validation.integer", `${fieldName} 必须是整数`, {
+            $tr("log.validation.integer", {
               field: fieldName,
             }),
         );
@@ -1290,7 +1294,7 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr("log.validation.positive", `${fieldName} 必须是正数`, {
+            $tr("log.validation.positive", {
               field: fieldName,
             }),
         );
@@ -1301,7 +1305,7 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr("log.validation.negative", `${fieldName} 必须是负数`, {
+            $tr("log.validation.negative", {
               field: fieldName,
             }),
         );
@@ -1313,9 +1317,8 @@ export abstract class MongoModel {
           throw new ValidationError(
             fieldName,
             rule.message ||
-              this.tr(
+              $tr(
                 "log.validation.multipleOf",
-                `${fieldName} 必须是 ${rule.multipleOf} 的倍数`,
                 { field: fieldName, multipleOf: rule.multipleOf },
               ),
           );
@@ -1329,9 +1332,8 @@ export abstract class MongoModel {
           throw new ValidationError(
             fieldName,
             rule.message ||
-              this.tr(
+              $tr(
                 "log.validation.range",
-                `${fieldName} 必须在 ${min} 到 ${max} 之间`,
                 { field: fieldName, min, max },
               ),
           );
@@ -1346,9 +1348,8 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.alphaNum",
-              `${fieldName} 只能包含字母和数字`,
               {
                 field: fieldName,
               },
@@ -1360,7 +1361,7 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr("log.validation.numeric", `${fieldName} 只能包含数字`, {
+            $tr("log.validation.numeric", {
               field: fieldName,
             }),
         );
@@ -1370,7 +1371,7 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr("log.validation.alpha", `${fieldName} 只能包含字母`, {
+            $tr("log.validation.alpha", {
               field: fieldName,
             }),
         );
@@ -1381,7 +1382,7 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr("log.validation.lowercase", `${fieldName} 必须是小写`, {
+            $tr("log.validation.lowercase", {
               field: fieldName,
             }),
         );
@@ -1391,7 +1392,7 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr("log.validation.uppercase", `${fieldName} 必须是大写`, {
+            $tr("log.validation.uppercase", {
               field: fieldName,
             }),
         );
@@ -1404,9 +1405,8 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.startsWith",
-              `${fieldName} 必须以 "${rule.startsWith}" 开头`,
               { field: fieldName, value: rule.startsWith },
             ),
         );
@@ -1416,9 +1416,8 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.endsWith",
-              `${fieldName} 必须以 "${rule.endsWith}" 结尾`,
               { field: fieldName, value: rule.endsWith },
             ),
         );
@@ -1428,9 +1427,8 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.contains",
-              `${fieldName} 必须包含 "${rule.contains}"`,
               { field: fieldName, value: rule.contains },
             ),
         );
@@ -1471,9 +1469,8 @@ export abstract class MongoModel {
             throw new ValidationError(
               fieldName,
               rule.message ||
-                this.tr(
+                $tr(
                   "log.validation.before",
-                  `${fieldName} 必须早于 ${rule.before}`,
                   {
                     field: fieldName,
                     value: String(rule.before),
@@ -1491,9 +1488,8 @@ export abstract class MongoModel {
             throw new ValidationError(
               fieldName,
               rule.message ||
-                this.tr(
+                $tr(
                   "log.validation.after",
-                  `${fieldName} 必须晚于 ${rule.after}`,
                   {
                     field: fieldName,
                     value: String(rule.after),
@@ -1517,9 +1513,8 @@ export abstract class MongoModel {
             throw new ValidationError(
               fieldName,
               rule.message ||
-                this.tr(
+                $tr(
                   "log.validation.beforeTime",
-                  `${fieldName} 必须早于 ${rule.beforeTime}`,
                   { field: fieldName, value: rule.beforeTime },
                 ),
             );
@@ -1539,9 +1534,8 @@ export abstract class MongoModel {
             throw new ValidationError(
               fieldName,
               rule.message ||
-                this.tr(
+                $tr(
                   "log.validation.afterTime",
-                  `${fieldName} 必须晚于 ${rule.afterTime}`,
                   { field: fieldName, value: rule.afterTime },
                 ),
             );
@@ -1557,9 +1551,8 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.passwordMinLength",
-              `${fieldName} 长度必须至少 ${options.minLength} 个字符`,
               { field: fieldName, min: options.minLength },
             ),
         );
@@ -1568,9 +1561,8 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.passwordUppercase",
-              `${fieldName} 必须包含至少一个大写字母`,
               { field: fieldName },
             ),
         );
@@ -1579,9 +1571,8 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.passwordLowercase",
-              `${fieldName} 必须包含至少一个小写字母`,
               { field: fieldName },
             ),
         );
@@ -1590,9 +1581,8 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.passwordNumber",
-              `${fieldName} 必须包含至少一个数字`,
               { field: fieldName },
             ),
         );
@@ -1601,9 +1591,8 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.passwordSpecial",
-              `${fieldName} 必须包含至少一个特殊字符`,
               { field: fieldName },
             ),
         );
@@ -1617,9 +1606,8 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.equals",
-              `${fieldName} 必须与 ${rule.equals} 相等`,
               {
                 field: fieldName,
                 other: rule.equals,
@@ -1636,9 +1624,8 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.notEquals",
-              `${fieldName} 不能与 ${rule.notEquals} 相等`,
               { field: fieldName, other: rule.notEquals },
             ),
         );
@@ -1652,9 +1639,8 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            (typeof result === "string" ? result : this.tr(
+            (typeof result === "string" ? result : $tr(
               "log.validation.customFailed",
-              `${fieldName} 验证失败`,
               {
                 field: fieldName,
               },
@@ -1675,9 +1661,8 @@ export abstract class MongoModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            (typeof result === "string" ? result : this.tr(
+            (typeof result === "string" ? result : $tr(
               "log.validation.customFailed",
-              `${fieldName} 验证失败`,
               {
                 field: fieldName,
               },
@@ -1860,9 +1845,8 @@ export abstract class MongoModel {
       throw new ValidationError(
         fieldName,
         message ||
-          this.tr(
+          $tr(
             "log.validation.formatExpected",
-            `${fieldName} 格式不正确（期望格式: ${format}）`,
             {
               field: fieldName,
               format,
@@ -1891,7 +1875,7 @@ export abstract class MongoModel {
     if (!Array.isArray(value)) {
       throw new ValidationError(
         fieldName,
-        this.tr("log.validation.typeArray", `${fieldName} 必须是数组类型`, {
+        $tr("log.validation.typeArray", {
           field: fieldName,
         }),
       );
@@ -1901,9 +1885,8 @@ export abstract class MongoModel {
     if (arrayRule.length !== undefined && value.length !== arrayRule.length) {
       throw new ValidationError(
         fieldName,
-        this.tr(
+        $tr(
           "log.validation.arrayLength",
-          `${fieldName} 数组长度必须是 ${arrayRule.length}`,
           {
             field: fieldName,
             length: String(arrayRule.length),
@@ -1915,9 +1898,8 @@ export abstract class MongoModel {
     if (arrayRule.min !== undefined && value.length < arrayRule.min) {
       throw new ValidationError(
         fieldName,
-        this.tr(
+        $tr(
           "log.validation.arrayMinLength",
-          `${fieldName} 数组长度必须大于等于 ${arrayRule.min}`,
           {
             field: fieldName,
             min: arrayRule.min,
@@ -1929,9 +1911,8 @@ export abstract class MongoModel {
     if (arrayRule.max !== undefined && value.length > arrayRule.max) {
       throw new ValidationError(
         fieldName,
-        this.tr(
+        $tr(
           "log.validation.arrayMaxLength",
-          `${fieldName} 数组长度必须小于等于 ${arrayRule.max}`,
           {
             field: fieldName,
             max: arrayRule.max,
@@ -1952,9 +1933,8 @@ export abstract class MongoModel {
         if (seen.has(key)) {
           throw new ValidationError(
             fieldName,
-            this.tr(
+            $tr(
               "log.validation.arrayUniqueItems",
-              `${fieldName} 数组元素必须唯一，发现重复元素`,
               {
                 field: fieldName,
               },
@@ -1978,9 +1958,8 @@ export abstract class MongoModel {
             const elemField = `${fieldName}[${i}]`;
             throw new ValidationError(
               elemField,
-              this.tr(
+              $tr(
                 "log.validation.typeArray",
-                `${elemField} 必须是数组类型`,
                 {
                   field: elemField,
                 },
@@ -1994,9 +1973,8 @@ export abstract class MongoModel {
             const elemField = `${fieldName}[${i}]`;
             throw new ValidationError(
               elemField,
-              this.tr(
+              $tr(
                 "log.validation.arrayElementType",
-                `${elemField} 元素必须是 ${expectedType} 类型`,
                 {
                   field: elemField,
                   type: expectedType,
@@ -2038,7 +2016,7 @@ export abstract class MongoModel {
     const collectionName = (this as any).collectionName;
     if (!collectionName) {
       throw new Error(
-        $tr("model.collectionNameRequired", undefined, this.lang),
+        $tr("model.collectionNameRequired"),
       );
     }
 
@@ -2064,7 +2042,7 @@ export abstract class MongoModel {
     if (exists) {
       throw new ValidationError(
         fieldName,
-        this.tr("log.validation.unique", `${fieldName} 已存在，必须是唯一的`, {
+        $tr("log.validation.unique", {
           field: fieldName,
         }),
       );
@@ -2087,7 +2065,7 @@ export abstract class MongoModel {
     const collectionName = options.collection || (this as any).collectionName;
     if (!collectionName) {
       throw new Error(
-        $tr("model.collectionNameRequired", undefined, this.lang),
+        $tr("model.collectionNameRequired"),
       );
     }
 
@@ -2114,7 +2092,7 @@ export abstract class MongoModel {
       if (!exists) {
         throw new ValidationError(
           fieldName,
-          this.tr("log.validation.exists", `${fieldName} 在数据表中不存在`, {
+          $tr("log.validation.exists", {
             field: fieldName,
           }),
         );
@@ -2141,7 +2119,7 @@ export abstract class MongoModel {
     const collectionName = options.collection || (this as any).collectionName;
     if (!collectionName) {
       throw new Error(
-        $tr("model.collectionNameRequired", undefined, this.lang),
+        $tr("model.collectionNameRequired"),
       );
     }
 
@@ -2156,7 +2134,7 @@ export abstract class MongoModel {
     if (exists) {
       throw new ValidationError(
         fieldName,
-        this.tr("log.validation.notExists", `${fieldName} 在数据表中已存在`, {
+        $tr("log.validation.notExists", {
           field: fieldName,
         }),
       );
@@ -2192,9 +2170,8 @@ export abstract class MongoModel {
       if (targetValue === undefined) {
         throw new ValidationError(
           fieldName,
-          this.tr(
+          $tr(
             "log.validation.compareValueNotFound",
-            `${fieldName} 验证失败：未找到目标字段 ${options.targetField}`,
             {
               field: fieldName,
               targetField: options.targetField,
@@ -2222,9 +2199,8 @@ export abstract class MongoModel {
       if (!targetRecord) {
         throw new ValidationError(
           fieldName,
-          this.tr(
+          $tr(
             "log.validation.compareValueNoRecord",
-            `${fieldName} 验证失败：未找到目标记录`,
             {
               field: fieldName,
             },
@@ -2271,18 +2247,10 @@ export abstract class MongoModel {
         ">=": "compareValueGreaterOrEqual",
         "<=": "compareValueLessOrEqual",
       }[compare];
-      const operatorText = {
-        "=": "等于",
-        ">": "大于",
-        "<": "小于",
-        ">=": "大于等于",
-        "<=": "小于等于",
-      }[compare];
       throw new ValidationError(
         fieldName,
-        this.tr(
+        $tr(
           `log.validation.${operatorKey}`,
-          `${fieldName} 必须${operatorText} ${options.targetField} (${targetValue})`,
           {
             field: fieldName,
             targetField: options.targetField,
@@ -2368,15 +2336,25 @@ export abstract class MongoModel {
   }
 
   /**
-   * 处理字段值（应用默认值、类型转换、getter/setter）
+   * 处理字段值（应用默认值、类型转换、getter/setter，以及可选的查询结果时区格式化）
    * @param data 原始数据
+   * @param options 可选：formatDateToTimezone 为 true 时将 date 按 mongoOptions.timezone 格式化为字符串（仅用于查询结果）；applyDefaults 为 false 时不应用默认值（用于查询结果）
    * @returns 处理后的数据
    */
-  private static processFields(data: Record<string, any>): Record<string, any> {
+  private static processFields(
+    data: Record<string, any>,
+    options?: {
+      formatDateToTimezone?: boolean;
+      applyDefaults?: boolean;
+    },
+  ): Record<string, any> {
     const schema = this.schema;
     if (!schema) {
       return data;
     }
+
+    const applyDefaults = options?.applyDefaults !== false;
+    const formatDateToTimezone = options?.formatDateToTimezone === true;
 
     const processed: Record<string, any> = {};
 
@@ -2386,8 +2364,9 @@ export abstract class MongoModel {
       const fieldDef = schema[fieldName];
       let value = data[fieldName];
 
-      // 应用默认值
+      // 应用默认值（写入路径使用；查询结果路径可关闭）
       if (
+        applyDefaults &&
         (value === null || value === undefined) &&
         fieldDef.default !== undefined
       ) {
@@ -2404,6 +2383,21 @@ export abstract class MongoModel {
       // 类型转换（枚举类型不需要转换）
       if (value !== undefined && fieldDef.type && fieldDef.type !== "enum") {
         value = this.convertType(value, fieldDef.type);
+      }
+
+      // 仅当「来自查询结果」且配置了 mongoOptions.timezone 时，将 date 格式化为该时区的本地时间字符串
+      if (
+        formatDateToTimezone &&
+        fieldDef.type === "date" &&
+        value instanceof Date
+      ) {
+        const tz = this.getTimezoneOption();
+        if (tz) {
+          value = value.toLocaleString(undefined, {
+            timeZone: tz,
+            hour12: false,
+          });
+        }
       }
 
       // 注意：验证已移到 create 和 update 方法中，因为需要异步验证（数据库查询）
@@ -3069,7 +3063,7 @@ export abstract class MongoModel {
         const db = (this.adapter as any as MongoDBAdapter).getDatabase();
         if (!db) {
           throw new Error(
-            $tr("model.databaseNotConnected", undefined, this.lang),
+            $tr("model.databaseNotConnected"),
           );
         }
 
@@ -3483,7 +3477,7 @@ export abstract class MongoModel {
       }
 
       const instance = new (this as any)();
-      Object.assign(instance, results[0]);
+      Object.assign(instance, this.processQueryResultRow(results[0]));
 
       // 应用虚拟字段
       // 应用虚拟字段（使用缓存的虚拟字段定义）
@@ -3552,7 +3546,7 @@ export abstract class MongoModel {
 
       return results.map((row: any) => {
         const instance = new (this as any)();
-        Object.assign(instance, row);
+        Object.assign(instance, this.processQueryResultRow(row));
         if ((this as any).virtuals) {
           const Model = this as any;
           for (const [name, getter] of Object.entries(Model.virtuals)) {
@@ -3678,7 +3672,7 @@ export abstract class MongoModel {
         const db = (this.adapter as any as MongoDBAdapter).getDatabase();
         if (!db) {
           throw new Error(
-            $tr("model.databaseNotConnected", undefined, this.lang),
+            $tr("model.databaseNotConnected"),
           );
         }
 
@@ -3818,7 +3812,7 @@ export abstract class MongoModel {
       if (cachedValue !== undefined && Array.isArray(cachedValue)) {
         return cachedValue.map((row: any) => {
           const instance = new (this as any)();
-          Object.assign(instance, row);
+          Object.assign(instance, this.processQueryResultRow(row));
 
           // 应用虚拟字段
           // 应用虚拟字段（使用缓存的虚拟字段定义）
@@ -3860,7 +3854,7 @@ export abstract class MongoModel {
 
     const instances = results.map((row: any) => {
       const instance = new (this as any)();
-      Object.assign(instance, row);
+      Object.assign(instance, this.processQueryResultRow(row));
 
       // 应用虚拟字段
       // 应用虚拟字段（使用缓存的虚拟字段定义）
@@ -3913,7 +3907,7 @@ export abstract class MongoModel {
   } {
     if (!this.scopes || !this.scopes[scopeName]) {
       throw new Error(
-        $tr("model.scopeNotDefined", { scope: scopeName }, this.lang),
+        $tr("model.scopeNotDefined", { scope: scopeName }),
       );
     }
 
@@ -4190,7 +4184,7 @@ export abstract class MongoModel {
       const db = (this.adapter as any as MongoDBAdapter).getDatabase();
       if (!db) {
         throw new Error(
-          $tr("model.databaseNotConnected", undefined, this.lang),
+          $tr("model.databaseNotConnected"),
         );
       }
       const checkResult = await db.collection(this.collectionName)
@@ -4411,7 +4405,7 @@ export abstract class MongoModel {
 
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error($tr("model.databaseNotConnected", undefined, this.lang));
+      throw new Error($tr("model.databaseNotConnected"));
     }
     if (returnLatest) {
       const opts: any = { returnDocument: "after" };
@@ -4713,9 +4707,8 @@ export abstract class MongoModel {
       const affectedRows = await Model.update(String(id), data);
       if (affectedRows === 0) {
         throw new Error(
-          Model.tr(
+          $tr(
             "log.model.updateNotFound",
-            `更新失败：未找到 ID 为 ${id} 的记录或记录已被删除`,
             {
               id: String(id),
             },
@@ -4727,9 +4720,8 @@ export abstract class MongoModel {
       const updated = await Model.find(String(id));
       if (!updated) {
         throw new Error(
-          Model.tr(
+          $tr(
             "log.model.updateNotFoundAfter",
-            `更新后无法找到 ID 为 ${id} 的记录`,
             {
               id: String(id),
             },
@@ -4773,7 +4765,7 @@ export abstract class MongoModel {
 
     if (!id) {
       throw new Error(
-        $tr("model.cannotUpdateWithoutPrimaryKey", undefined, this.lang),
+        $tr("model.cannotUpdateWithoutPrimaryKey"),
       );
     }
 
@@ -4787,9 +4779,8 @@ export abstract class MongoModel {
     if (!updated) {
       // 如果返回 null 或 0，表示更新失败
       throw new Error(
-        Model.tr(
+        $tr(
           "log.model.updateNotFound",
-          `更新失败：未找到 ID 为 ${id} 的记录或记录已被删除`,
           {
             id: String(id),
           },
@@ -4815,7 +4806,7 @@ export abstract class MongoModel {
 
     if (!id) {
       throw new Error(
-        $tr("model.cannotDeleteWithoutPrimaryKey", undefined, this.lang),
+        $tr("model.cannotDeleteWithoutPrimaryKey"),
       );
     }
 
@@ -4953,7 +4944,7 @@ export abstract class MongoModel {
     await this.ensureAdapter();
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error($tr("model.databaseNotConnected", undefined, this.lang));
+      throw new Error($tr("model.databaseNotConnected"));
     }
     let filter: any = {};
     if (typeof condition === "string") {
@@ -5044,7 +5035,7 @@ export abstract class MongoModel {
       const db = (this.adapter as any as MongoDBAdapter).getDatabase();
       if (!db) {
         throw new Error(
-          $tr("model.databaseNotConnected", undefined, this.lang),
+          $tr("model.databaseNotConnected"),
         );
       }
       // 排除已软删除的记录，避免重复删除
@@ -5085,7 +5076,7 @@ export abstract class MongoModel {
       const db = (this.adapter as any as MongoDBAdapter).getDatabase();
       if (!db) {
         throw new Error(
-          $tr("model.databaseNotConnected", undefined, this.lang),
+          $tr("model.databaseNotConnected"),
         );
       }
       preIds = await db.collection(this.collectionName)
@@ -5136,7 +5127,7 @@ export abstract class MongoModel {
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
 
     if (!db) {
-      throw new Error($tr("model.databaseNotConnected", undefined, this.lang));
+      throw new Error($tr("model.databaseNotConnected"));
     }
 
     try {
@@ -5152,7 +5143,7 @@ export abstract class MongoModel {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(
-        $tr("model.mongoCountError", { message }, this.lang),
+        $tr("model.mongoCountError", { message }),
       );
     }
   }
@@ -5190,7 +5181,7 @@ export abstract class MongoModel {
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
 
     if (!db) {
-      throw new Error($tr("model.databaseNotConnected", undefined, this.lang));
+      throw new Error($tr("model.databaseNotConnected"));
     }
 
     try {
@@ -5202,7 +5193,7 @@ export abstract class MongoModel {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(
-        $tr("model.mongoExistsError", { message }, this.lang),
+        $tr("model.mongoExistsError", { message }),
       );
     }
   }
@@ -5395,7 +5386,7 @@ export abstract class MongoModel {
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
 
     if (!db) {
-      throw new Error($tr("model.databaseNotConnected", undefined, this.lang));
+      throw new Error($tr("model.databaseNotConnected"));
     }
 
     // 确保页码和每页数量有效
@@ -5443,7 +5434,7 @@ export abstract class MongoModel {
 
     const data = results.map((row: any) => {
       const instance = new (this as any)();
-      Object.assign(instance, row);
+      Object.assign(instance, this.processQueryResultRow(row));
       return instance as InstanceType<T>;
     });
 
@@ -5499,7 +5490,7 @@ export abstract class MongoModel {
 
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error($tr("model.databaseNotConnected", undefined, this.lang));
+      throw new Error($tr("model.databaseNotConnected"));
     }
 
     // 处理参数：支持两种调用方式
@@ -5538,7 +5529,7 @@ export abstract class MongoModel {
           return 0;
         }
         const instance = new (this as any)();
-        Object.assign(instance, result);
+        Object.assign(instance, this.processQueryResultRow(result));
         // 应用虚拟字段（使用缓存的虚拟字段定义）
         this.applyVirtuals(instance);
 
@@ -5564,7 +5555,7 @@ export abstract class MongoModel {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(
-        $tr("model.mongoIncrementError", { message }, this.lang),
+        $tr("model.mongoIncrementError", { message }),
       );
     }
   }
@@ -5664,7 +5655,7 @@ export abstract class MongoModel {
 
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error($tr("model.databaseNotConnected", undefined, this.lang));
+      throw new Error($tr("model.databaseNotConnected"));
     }
 
     try {
@@ -5690,7 +5681,7 @@ export abstract class MongoModel {
       }
 
       const instance = new (this as any)();
-      Object.assign(instance, result);
+      Object.assign(instance, this.processQueryResultRow(result));
       // 应用虚拟字段（使用缓存的虚拟字段定义）
       this.applyVirtuals(instance);
 
@@ -5701,7 +5692,7 @@ export abstract class MongoModel {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(
-        $tr("model.mongoFindOneAndUpdateError", { message }, this.lang),
+        $tr("model.mongoFindOneAndUpdateError", { message }),
       );
     }
   }
@@ -5735,7 +5726,7 @@ export abstract class MongoModel {
 
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error($tr("model.databaseNotConnected", undefined, this.lang));
+      throw new Error($tr("model.databaseNotConnected"));
     }
 
     try {
@@ -5757,7 +5748,7 @@ export abstract class MongoModel {
           return null;
         }
         const instance = new (this as any)();
-        Object.assign(instance, result);
+        Object.assign(instance, this.processQueryResultRow(result));
         // 应用虚拟字段（使用缓存的虚拟字段定义）
         this.applyVirtuals(instance);
 
@@ -5775,7 +5766,7 @@ export abstract class MongoModel {
           return null;
         }
         const instance = new (this as any)();
-        Object.assign(instance, result);
+        Object.assign(instance, this.processQueryResultRow(result));
         // 应用虚拟字段（使用缓存的虚拟字段定义）
         this.applyVirtuals(instance);
 
@@ -5787,7 +5778,7 @@ export abstract class MongoModel {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(
-        $tr("model.mongoFindOneAndDeleteError", { message }, this.lang),
+        $tr("model.mongoFindOneAndDeleteError", { message }),
       );
     }
   }
@@ -5830,7 +5821,7 @@ export abstract class MongoModel {
 
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error($tr("model.databaseNotConnected", undefined, this.lang));
+      throw new Error($tr("model.databaseNotConnected"));
     }
 
     try {
@@ -5850,7 +5841,7 @@ export abstract class MongoModel {
       );
 
       const instance = new (this as any)();
-      Object.assign(instance, result);
+      Object.assign(instance, this.processQueryResultRow(result));
       // 应用虚拟字段（使用缓存的虚拟字段定义）
       this.applyVirtuals(instance);
 
@@ -5861,7 +5852,7 @@ export abstract class MongoModel {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(
-        $tr("model.mongoUpsertError", { message }, this.lang),
+        $tr("model.mongoUpsertError", { message }),
       );
     }
   }
@@ -5890,7 +5881,7 @@ export abstract class MongoModel {
 
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error($tr("model.databaseNotConnected", undefined, this.lang));
+      throw new Error($tr("model.databaseNotConnected"));
     }
 
     try {
@@ -5914,7 +5905,7 @@ export abstract class MongoModel {
         return null;
       }
       const instance = new (this as any)();
-      Object.assign(instance, result);
+      Object.assign(instance, this.processQueryResultRow(result));
       // 应用虚拟字段（使用缓存的虚拟字段定义）
       this.applyVirtuals(instance);
 
@@ -5925,7 +5916,7 @@ export abstract class MongoModel {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(
-        $tr("model.mongoFindOneAndReplaceError", { message }, this.lang),
+        $tr("model.mongoFindOneAndReplaceError", { message }),
       );
     }
   }
@@ -5951,7 +5942,7 @@ export abstract class MongoModel {
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
 
     if (!db) {
-      throw new Error($tr("model.databaseNotConnected", undefined, this.lang));
+      throw new Error($tr("model.databaseNotConnected"));
     }
 
     try {
@@ -5968,7 +5959,7 @@ export abstract class MongoModel {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(
-        $tr("model.mongoDistinctError", { message }, this.lang),
+        $tr("model.mongoDistinctError", { message }),
       );
     }
   }
@@ -5994,7 +5985,7 @@ export abstract class MongoModel {
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
 
     if (!db) {
-      throw new Error($tr("model.databaseNotConnected", undefined, this.lang));
+      throw new Error($tr("model.databaseNotConnected"));
     }
 
     try {
@@ -6017,7 +6008,7 @@ export abstract class MongoModel {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(
-        $tr("model.mongoAggregateError", { message }, this.lang),
+        $tr("model.mongoAggregateError", { message }),
       );
     }
   }
@@ -6082,7 +6073,7 @@ export abstract class MongoModel {
         );
         return results.map((row: any) => {
           const instance = new (this as any)();
-          Object.assign(instance, row);
+          Object.assign(instance, this.processQueryResultRow(row));
           // 应用虚拟字段（使用缓存的虚拟字段定义）
           this.applyVirtuals(instance);
           return instance as InstanceType<T>;
@@ -6119,7 +6110,7 @@ export abstract class MongoModel {
           return null;
         }
         const instance = new (this as any)();
-        Object.assign(instance, results[0]);
+        Object.assign(instance, this.processQueryResultRow(results[0]));
         // 应用虚拟字段（使用缓存的虚拟字段定义）
         this.applyVirtuals(instance);
         return instance as InstanceType<T>;
@@ -6132,7 +6123,7 @@ export abstract class MongoModel {
         const db = (this.adapter as any as MongoDBAdapter).getDatabase();
         if (!db) {
           throw new Error(
-            $tr("model.databaseNotConnected", undefined, this.lang),
+            $tr("model.databaseNotConnected"),
           );
         }
         const count = await db.collection(this.collectionName).countDocuments(
@@ -6203,7 +6194,7 @@ export abstract class MongoModel {
         );
         return results.map((row: any) => {
           const instance = new (this as any)();
-          Object.assign(instance, row);
+          Object.assign(instance, this.processQueryResultRow(row));
           // 应用虚拟字段（使用缓存的虚拟字段定义）
           this.applyVirtuals(instance);
           return instance as InstanceType<T>;
@@ -6240,7 +6231,7 @@ export abstract class MongoModel {
           return null;
         }
         const instance = new (this as any)();
-        Object.assign(instance, results[0]);
+        Object.assign(instance, this.processQueryResultRow(results[0]));
         // 应用虚拟字段（使用缓存的虚拟字段定义）
         this.applyVirtuals(instance);
         return instance as InstanceType<T>;
@@ -6251,7 +6242,7 @@ export abstract class MongoModel {
         const db = (this.adapter as any as MongoDBAdapter).getDatabase();
         if (!db) {
           throw new Error(
-            $tr("model.databaseNotConnected", undefined, this.lang),
+            $tr("model.databaseNotConnected"),
           );
         }
         // 应用软删除过滤器（includeTrashed: true，包含所有记录，包括已软删除的）
@@ -6279,7 +6270,7 @@ export abstract class MongoModel {
   ): Promise<number | { count: number; ids: any[] }> {
     if (!this.softDelete) {
       throw new Error(
-        $tr("model.softDeleteNotEnabled", undefined, this.lang),
+        $tr("model.softDeleteNotEnabled"),
       );
     }
     // 自动初始化（懒加载）
@@ -6303,7 +6294,7 @@ export abstract class MongoModel {
 
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error($tr("model.databaseNotConnected", undefined, this.lang));
+      throw new Error($tr("model.databaseNotConnected"));
     }
 
     try {
@@ -6332,7 +6323,7 @@ export abstract class MongoModel {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(
-        $tr("model.mongoRestoreError", { message }, this.lang),
+        $tr("model.mongoRestoreError", { message }),
       );
     }
   }
@@ -6368,7 +6359,7 @@ export abstract class MongoModel {
 
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error($tr("model.databaseNotConnected", undefined, this.lang));
+      throw new Error($tr("model.databaseNotConnected"));
     }
 
     try {
@@ -6396,7 +6387,7 @@ export abstract class MongoModel {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(
-        $tr("model.mongoForceDeleteError", { message }, this.lang),
+        $tr("model.mongoForceDeleteError", { message }),
       );
     }
   }
@@ -6635,7 +6626,7 @@ export abstract class MongoModel {
         return null;
       }
       const instance = new (this as any)();
-      Object.assign(instance, results[0]);
+      Object.assign(instance, this.processQueryResultRow(results[0]));
       // 应用虚拟字段（使用缓存的虚拟字段定义）
       this.applyVirtuals(instance);
       return instance as InstanceType<T>;
@@ -6795,7 +6786,7 @@ export abstract class MongoModel {
 
         return results.map((row: any) => {
           const instance = new (this as any)();
-          Object.assign(instance, row);
+          Object.assign(instance, this.processQueryResultRow(row));
           // 应用虚拟字段（使用缓存的虚拟字段定义）
           this.applyVirtuals(instance);
           return instance as InstanceType<T>;
@@ -6842,7 +6833,7 @@ export abstract class MongoModel {
           return null;
         }
         const instance = new (this as any)();
-        Object.assign(instance, results[0]);
+        Object.assign(instance, this.processQueryResultRow(results[0]));
         // 应用虚拟字段（使用缓存的虚拟字段定义）
         this.applyVirtuals(instance);
         return instance as InstanceType<T>;
@@ -6878,7 +6869,7 @@ export abstract class MongoModel {
         const db = (this.adapter as any as MongoDBAdapter).getDatabase();
         if (!db) {
           throw new Error(
-            $tr("model.databaseNotConnected", undefined, this.lang),
+            $tr("model.databaseNotConnected"),
           );
         }
 
@@ -7193,7 +7184,7 @@ export abstract class MongoModel {
     await this.ensureAdapter();
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error($tr("model.databaseNotConnected", undefined, this.lang));
+      throw new Error($tr("model.databaseNotConnected"));
     }
 
     try {
@@ -7202,7 +7193,7 @@ export abstract class MongoModel {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(
-        $tr("model.mongoTruncateError", { message }, this.lang),
+        $tr("model.mongoTruncateError", { message }),
       );
     }
   }
@@ -7386,7 +7377,7 @@ export abstract class MongoModel {
 
     // 确保适配器已连接
     if (!this.adapter) {
-      throw new Error($tr("model.adapterNotSet", undefined, this.lang));
+      throw new Error($tr("model.adapterNotSet"));
     }
 
     // 通过执行一个简单的查询来确保连接（这会自动调用 ensureConnection）
@@ -7396,13 +7387,13 @@ export abstract class MongoModel {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(
-        $tr("model.databaseNotConnectedMessage", { message }, this.lang),
+        $tr("model.databaseNotConnectedMessage", { message }),
       );
     }
 
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error($tr("model.databaseNotConnected", undefined, this.lang));
+      throw new Error($tr("model.databaseNotConnected"));
     }
 
     const collection = db.collection(this.collectionName);
@@ -7493,7 +7484,7 @@ export abstract class MongoModel {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         throw new Error(
-          $tr("model.failedToCreateIndex", { message }, this.lang),
+          $tr("model.failedToCreateIndex", { message }),
         );
       }
     }
@@ -7510,7 +7501,7 @@ export abstract class MongoModel {
     await this.ensureAdapter();
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error($tr("model.databaseNotConnected", undefined, this.lang));
+      throw new Error($tr("model.databaseNotConnected"));
     }
 
     const collection = db.collection(this.collectionName);
@@ -7532,7 +7523,7 @@ export abstract class MongoModel {
           $tr("model.failedToDropIndex", {
             name: index.name,
             message,
-          }, this.lang),
+          }),
         );
       }
     }
@@ -7550,7 +7541,7 @@ export abstract class MongoModel {
 
     // 确保适配器已连接
     if (!this.adapter) {
-      throw new Error($tr("model.adapterNotSet", undefined, this.lang));
+      throw new Error($tr("model.adapterNotSet"));
     }
 
     // 通过执行一个简单的查询来确保连接（这会自动调用 ensureConnection）
@@ -7560,13 +7551,13 @@ export abstract class MongoModel {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(
-        $tr("model.databaseNotConnectedMessage", { message }, this.lang),
+        $tr("model.databaseNotConnectedMessage", { message }),
       );
     }
 
     const db = (this.adapter as any as MongoDBAdapter).getDatabase();
     if (!db) {
-      throw new Error($tr("model.databaseNotConnected", undefined, this.lang));
+      throw new Error($tr("model.databaseNotConnected"));
     }
 
     const collection = db.collection(this.collectionName);

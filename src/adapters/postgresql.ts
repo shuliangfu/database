@@ -18,7 +18,7 @@ import type {
   DatabaseConfig,
   PostgreSQLConfig,
 } from "../types.ts";
-import { $tr } from "../i18n.ts";
+import { $tr, setDatabaseLocale } from "../i18n.ts";
 import {
   BaseAdapter,
   type HealthCheckResult,
@@ -70,6 +70,9 @@ export class PostgreSQLAdapter extends BaseAdapter {
     try {
       this.validateConfig(config);
       this.config = config;
+      if (pgConfig.lang) {
+        setDatabaseLocale(pgConfig.lang);
+      }
 
       const { host, port, database, username, password } = pgConfig.connection;
 
@@ -117,10 +120,9 @@ export class PostgreSQLAdapter extends BaseAdapter {
         );
         return await this.connect(config, retryCount + 1);
       }
+      const message = error instanceof Error ? error.message : String(error);
       throw createConnectionError(
-        `PostgreSQL connection failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        $tr("error.postgresConnectionFailed", { message }),
         {
           code: DatabaseErrorCode.CONNECTION_FAILED,
           originalError: error instanceof Error
@@ -139,12 +141,9 @@ export class PostgreSQLAdapter extends BaseAdapter {
       if (this.config) {
         await this.connect(this.config);
       } else {
-        throw createConnectionError(
-          "Database not connected and no config available for reconnection",
-          {
-            code: DatabaseErrorCode.CONNECTION_NOT_INITIALIZED,
-          },
-        );
+        throw createConnectionError($tr("error.reconnectNoConfig"), {
+          code: DatabaseErrorCode.CONNECTION_NOT_INITIALIZED,
+        });
       }
     }
 
@@ -170,7 +169,7 @@ export class PostgreSQLAdapter extends BaseAdapter {
   async query(sql: string, params: any[] = []): Promise<any[]> {
     await this.ensureConnection();
     if (!this.pool) {
-      throw createConnectionError("Database not connected", {
+      throw createConnectionError($tr("error.databaseNotConnected"), {
         code: DatabaseErrorCode.CONNECTION_NOT_INITIALIZED,
       });
     }
@@ -206,7 +205,7 @@ export class PostgreSQLAdapter extends BaseAdapter {
       }
 
       throw createQueryError(
-        `PostgreSQL query error: ${originalError.message}`,
+        $tr("error.postgresQueryError", { message: originalError.message }),
         {
           code: DatabaseErrorCode.QUERY_FAILED,
           sql: pgSql,
@@ -223,7 +222,7 @@ export class PostgreSQLAdapter extends BaseAdapter {
   async execute(sql: string, params: any[] = []): Promise<any> {
     await this.ensureConnection();
     if (!this.pool) {
-      throw createConnectionError("Database not connected", {
+      throw createConnectionError($tr("error.databaseNotConnected"), {
         code: DatabaseErrorCode.CONNECTION_NOT_INITIALIZED,
       });
     }
@@ -262,7 +261,7 @@ export class PostgreSQLAdapter extends BaseAdapter {
       }
 
       throw createExecuteError(
-        `PostgreSQL execute error: ${originalError.message}`,
+        $tr("error.postgresExecuteError", { message: originalError.message }),
         {
           code: DatabaseErrorCode.EXECUTE_FAILED,
           sql: pgSql,
@@ -280,7 +279,7 @@ export class PostgreSQLAdapter extends BaseAdapter {
     callback: (db: DatabaseAdapter) => Promise<T>,
   ): Promise<T> {
     if (!this.pool) {
-      throw createConnectionError("Database not connected", {
+      throw createConnectionError($tr("error.databaseNotConnected"), {
         code: DatabaseErrorCode.CONNECTION_NOT_INITIALIZED,
       });
     }
@@ -306,18 +305,16 @@ export class PostgreSQLAdapter extends BaseAdapter {
           ? rollbackError.message
           : String(rollbackError);
         this.logger.warn(
-          $tr(
-            "log.adapterPostgres.rollbackFailed",
-            { error: msg },
-            (this.config as PostgreSQLConfig).lang,
-          ),
+          $tr("log.adapterPostgres.rollbackFailed", { error: msg }),
         );
       }
       const originalError = error instanceof Error
         ? error
         : new Error(String(error));
       throw createTransactionError(
-        `PostgreSQL transaction error: ${originalError.message}`,
+        $tr("error.postgresTransactionError", {
+          message: originalError.message,
+        }),
         {
           code: DatabaseErrorCode.TRANSACTION_FAILED,
           originalError,
@@ -333,13 +330,12 @@ export class PostgreSQLAdapter extends BaseAdapter {
    * 注意：此方法需要在事务上下文中调用
    */
   override createSavepoint(_name: string): Promise<void> {
-    // 如果当前在事务中，应该使用事务适配器
     return Promise.reject(
       createTransactionError(
-        "createSavepoint must be called within a transaction context. Use the transaction adapter.",
-        {
-          code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
-        },
+        $tr("error.savepointMustBeInTransaction", {
+          method: "createSavepoint",
+        }),
+        { code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED },
       ),
     );
   }
@@ -350,10 +346,10 @@ export class PostgreSQLAdapter extends BaseAdapter {
   override rollbackToSavepoint(_name: string): Promise<void> {
     return Promise.reject(
       createTransactionError(
-        "rollbackToSavepoint must be called within a transaction context. Use the transaction adapter.",
-        {
-          code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
-        },
+        $tr("error.savepointMustBeInTransaction", {
+          method: "rollbackToSavepoint",
+        }),
+        { code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED },
       ),
     );
   }
@@ -364,10 +360,10 @@ export class PostgreSQLAdapter extends BaseAdapter {
   override releaseSavepoint(_name: string): Promise<void> {
     return Promise.reject(
       createTransactionError(
-        "releaseSavepoint must be called within a transaction context. Use the transaction adapter.",
-        {
-          code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
-        },
+        $tr("error.savepointMustBeInTransaction", {
+          method: "releaseSavepoint",
+        }),
+        { code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED },
       ),
     );
   }
@@ -416,7 +412,7 @@ export class PostgreSQLAdapter extends BaseAdapter {
       if (!this.pool) {
         return {
           healthy: false,
-          error: "Database not connected",
+          error: $tr("error.databaseNotConnected"),
           timestamp: new Date(),
         };
       }
@@ -459,7 +455,10 @@ export class PostgreSQLAdapter extends BaseAdapter {
         const closePromise = pool.end();
         const timeoutPromise = new Promise<void>((_, reject) => {
           setTimeout(
-            () => reject(new Error("PostgreSQL 关闭连接超时（5秒）")),
+            () =>
+              reject(
+                new Error($tr("error.postgresCloseTimeout", { seconds: 5 })),
+              ),
             5000,
           );
         });
@@ -468,11 +467,7 @@ export class PostgreSQLAdapter extends BaseAdapter {
       } catch (error) {
         // 关闭失败或超时，忽略错误（状态已清理）
         const message = error instanceof Error ? error.message : String(error);
-        const msg = $tr(
-          "log.adapterPostgres.closeError",
-          { error: message },
-          (this.config as PostgreSQLConfig).lang,
-        );
+        const msg = $tr("log.adapterPostgres.closeError", { error: message });
         this.logger.warn(msg, { error: message });
       }
     }
@@ -522,14 +517,10 @@ class PostgreSQLTransactionAdapter extends PostgreSQLAdapter {
    * 关闭连接（事务中不支持）
    */
   override close(): Promise<void> {
-    // 事务适配器不应该关闭连接，连接由主适配器管理
     return Promise.reject(
-      createTransactionError(
-        "Cannot close connection in transaction adapter",
-        {
-          code: DatabaseErrorCode.TRANSACTION_FAILED,
-        },
-      ),
+      createTransactionError($tr("error.cannotCloseInTransaction"), {
+        code: DatabaseErrorCode.TRANSACTION_FAILED,
+      }),
     );
   }
 
@@ -568,7 +559,7 @@ class PostgreSQLTransactionAdapter extends PostgreSQLAdapter {
       }
 
       throw createQueryError(
-        `PostgreSQL query error: ${originalError.message}`,
+        $tr("error.postgresQueryError", { message: originalError.message }),
         {
           code: DatabaseErrorCode.QUERY_FAILED,
           sql: pgSql,
@@ -617,7 +608,7 @@ class PostgreSQLTransactionAdapter extends PostgreSQLAdapter {
       }
 
       throw createExecuteError(
-        `PostgreSQL execute error: ${originalError.message}`,
+        $tr("error.postgresExecuteError", { message: originalError.message }),
         {
           code: DatabaseErrorCode.EXECUTE_FAILED,
           sql: pgSql,
@@ -642,7 +633,9 @@ class PostgreSQLTransactionAdapter extends PostgreSQLAdapter {
         ? error
         : new Error(String(error));
       throw createTransactionError(
-        `Failed to create savepoint: ${originalError.message}`,
+        $tr("error.postgresSavepointCreateFailed", {
+          message: originalError.message,
+        }),
         {
           code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
           sql: `SAVEPOINT ${savepointName}`,
@@ -670,9 +663,10 @@ class PostgreSQLTransactionAdapter extends PostgreSQLAdapter {
         timestampPart.split("").every((char) => char >= "0" && char <= "9");
     });
     if (matchingSavepoints.length === 0) {
-      throw createTransactionError(`Savepoint "${name}" not found`, {
-        code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
-      });
+      throw createTransactionError(
+        $tr("error.postgresSavepointNotFound", { name }),
+        { code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED },
+      );
     }
     // 取最后一个匹配的保存点（最新的）
     const savepointName = matchingSavepoints[matchingSavepoints.length - 1];
@@ -687,7 +681,9 @@ class PostgreSQLTransactionAdapter extends PostgreSQLAdapter {
         ? error
         : new Error(String(error));
       throw createTransactionError(
-        `Failed to rollback to savepoint: ${originalError.message}`,
+        $tr("error.postgresSavepointRollbackFailed", {
+          message: originalError.message,
+        }),
         {
           code: DatabaseErrorCode.TRANSACTION_ROLLBACK_FAILED,
           sql: `ROLLBACK TO SAVEPOINT ${savepointName}`,
@@ -714,9 +710,10 @@ class PostgreSQLTransactionAdapter extends PostgreSQLAdapter {
         timestampPart.split("").every((char) => char >= "0" && char <= "9");
     });
     if (matchingSavepoints.length === 0) {
-      throw createTransactionError(`Savepoint "${name}" not found`, {
-        code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
-      });
+      throw createTransactionError(
+        $tr("error.postgresSavepointNotFound", { name }),
+        { code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED },
+      );
     }
     // 取最后一个匹配的保存点（最新的）
     const savepointName = matchingSavepoints[matchingSavepoints.length - 1];
@@ -731,7 +728,9 @@ class PostgreSQLTransactionAdapter extends PostgreSQLAdapter {
         ? error
         : new Error(String(error));
       throw createTransactionError(
-        `Failed to release savepoint: ${originalError.message}`,
+        $tr("error.postgresSavepointReleaseFailed", {
+          message: originalError.message,
+        }),
         {
           code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
           sql: `RELEASE SAVEPOINT ${savepointName}`,

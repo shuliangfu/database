@@ -8,14 +8,18 @@ English | [中文 (Chinese)](./docs/zh-CN/README.md)
 
 [![JSR](https://jsr.io/badges/@dreamer/database)](https://jsr.io/@dreamer/database)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
-[![Tests](https://img.shields.io/badge/tests-1,954%20passed-brightgreen)](./docs/en-US/TEST_REPORT.md)
+[![Tests](https://img.shields.io/badge/tests-2,040%20passed-brightgreen)](./docs/en-US/TEST_REPORT.md)
 
 **Changelog**: [English](./docs/en-US/CHANGELOG.md) |
 [中文 (Chinese)](./docs/zh-CN/CHANGELOG.md)
 
-### [1.0.5] - 2026-02-19
+### [1.0.6] - 2026-02-19
 
-- **Changed**: i18n translation method `$t` → `$tr`.
+- **Added**: MongoDB `mongoOptions.timezone`; query result date fields formatted
+  as local time strings. Adapter `getTimezone()`. New tests:
+  `tests/mongo/timezone.test.ts` (6).
+- **Changed**: Docs updated to 2,040 tests; TEST_REPORT dependency versions; API
+  docs for MongoDB timezone.
 
 ---
 
@@ -124,29 +128,29 @@ const users = await db.query("SELECT * FROM users WHERE age > ?", [18]);
 
 ## 📊 Test Report
 
-This library is fully tested. All 1,954 test cases pass with 100% coverage. See
+This library is fully tested. All 2,040 test cases pass with 100% coverage. See
 [TEST_REPORT.md](./docs/en-US/TEST_REPORT.md) for details.
 
 **Test Statistics:**
 
-- **Total tests**: 1,954 (integration 4 + mongo 497 + mysql 481 + postgresql
-  488 + sqlite 484)
-- **Passed**: 1,954 ✅
+- **Total tests**: 2,040 (integration 5 + mongo 523 + mysql 501 + postgresql
+  508 + sqlite 503)
+- **Passed**: 2,040 ✅
 - **Failed**: 0
 - **Pass rate**: 100% ✅
-- **Execution time**: ~129s (Deno, per-adapter)
-- **Test files**: 81
+- **Execution time**: ~195s (Deno, per-adapter)
+- **Test files**: 82
 - **Environments**: Deno 2.5.0+, Bun 1.3.0+
 
 **Tests per adapter:**
 
 | Adapter                     | Tests | Time |
 | --------------------------- | ----- | ---- |
-| integration (multi-adapter) | 4     | 87ms |
-| MongoDB                     | 497   | ~35s |
-| MySQL                       | 481   | ~46s |
-| PostgreSQL                  | 488   | ~40s |
-| SQLite                      | 484   | ~8s  |
+| integration (multi-adapter) | 5     | -    |
+| MongoDB                     | 523   | ~35s |
+| MySQL                       | 501   | ~46s |
+| PostgreSQL                  | 508   | ~40s |
+| SQLite                      | 503   | ~8s  |
 
 **Highlights:**
 
@@ -183,15 +187,16 @@ Full report: [TEST_REPORT.md](./docs/en-US/TEST_REPORT.md)
 - **Cross-runtime**: Deno 2.5.0+ and Bun 1.3.0+, tested in both
 - **Bun native**: SQLiteAdapter prefers Bun native SQLite API for better
   performance
-- **Test coverage**: 1,954 tests, 100% core coverage
+- **Test coverage**: 2,040 tests, 100% core coverage
 - **Real DB tests**: All tests use real DB instances
 
 ---
 
 ## 📋 Changelog
 
-**v1.0.4** (2026-02-18): i18n init at entry only (`initDatabaseI18n()` in mod);
-`$t()` no longer calls ensure/init internally.
+**v1.0.6** (2026-02-19): Added MongoDB `mongoOptions.timezone`; query result
+date fields auto-formatted to that timezone. Docs: 2,040 tests, dependency
+versions, API timezone.
 
 See [CHANGELOG.md](./docs/en-US/CHANGELOG.md) for full details.
 

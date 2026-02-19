@@ -80,9 +80,25 @@ await initDatabase({
     // 连接池配置
     maxPoolSize: 10,
     minPoolSize: 2,
+    // 查询结果中 date 字段的展示时区（IANA 时区名，如 "Asia/Shanghai"、PRC）。
+    // 配置后，MongoModel 查询返回的 date 类型字段会自动格式化为该时区的本地时间字符串，无需在 schema 每个 date 上写 get。
+    timezone: "Asia/Shanghai",
   },
 });
 ```
+
+#### MongoDB 时区配置（mongoOptions.timezone）
+
+在 `mongoOptions` 中可配置 **`timezone`**（IANA 时区名，如
+`"Asia/Shanghai"`、`PRC`）：
+
+- **作用**：配置后，MongoModel 在构建查询结果时会将所有 **date**
+  类型字段自动格式化为该时区的本地时间字符串（如 `"2024/1/2 12:00:00"`），无需在
+  schema 的每个 date 字段上单独写 `get`。
+- **不配置时**：date 字段保持为 `Date` 对象（UTC），由业务层自行格式化。
+- **说明**：MongoDB 存储为
+  UTC；该配置仅影响**查询结果**的展示格式，不影响写入。写入时仍使用 `Date`
+  对象。
 
 #### 数据库配置参数与环境变量
 
@@ -124,8 +140,10 @@ await initDatabase({
 **配置覆盖**：`initDatabase` 传入的 `config` 优先于环境变量。可选覆盖项：
 
 - **MySQL/PostgreSQL**：`pool` 合并连接池配置，`database` 指定数据库名
-- **MongoDB**：`mongoOptions` 合并 MongoDB 选项（如 `maxPoolSize`），`database`
-  指定数据库名
+- **MongoDB**：`mongoOptions` 合并 MongoDB 选项（如
+  `maxPoolSize`、`timezone`），`database` 指定数据库名。其中 `timezone`
+  用于将查询结果中的 date 字段自动格式化为指定时区字符串（如
+  `"Asia/Shanghai"`、`PRC`）。
 
 #### getDatabase
 

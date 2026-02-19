@@ -189,6 +189,7 @@ describe("init-database", () => {
           await autoInitDatabase();
         },
         Error,
+        /Database not configured|数据库未配置/,
       );
     });
 
@@ -200,6 +201,7 @@ describe("init-database", () => {
           await autoInitDatabase();
         },
         Error,
+        /Database not configured|数据库未配置/,
       );
     });
   });
@@ -225,7 +227,7 @@ describe("init-database", () => {
 
       expect(() => {
         getDatabaseManager();
-      }).toThrow(Error);
+      }).toThrow(/Database not initialized|数据库未初始化/);
     });
   });
 

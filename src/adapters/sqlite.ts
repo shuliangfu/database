@@ -14,7 +14,7 @@ import {
   createTransactionError,
   DatabaseErrorCode,
 } from "../errors.ts";
-import { $tr } from "../i18n.ts";
+import { $tr, setDatabaseLocale } from "../i18n.ts";
 import type {
   DatabaseAdapter,
   DatabaseConfig,
@@ -165,10 +165,13 @@ export class SQLiteAdapter extends BaseAdapter {
     try {
       this.validateConfig(config);
       this.config = config;
+      if (sqliteConfig.lang) {
+        setDatabaseLocale(sqliteConfig.lang);
+      }
 
       const { filename } = sqliteConfig.connection;
       if (!filename) {
-        throw createConfigError("SQLite filename is required", {
+        throw createConfigError($tr("error.sqliteFilenameRequired"), {
           code: DatabaseErrorCode.CONFIG_MISSING,
         });
       }
@@ -210,17 +213,17 @@ export class SQLiteAdapter extends BaseAdapter {
             this.db = new Database(filename, options);
             this.connected = true;
           } catch (betterSqliteError) {
-            // 如果两种方式都失败，抛出错误
+            const nativeMsg = nativeError instanceof Error
+              ? nativeError.message
+              : String(nativeError);
+            const betterMsg = betterSqliteError instanceof Error
+              ? betterSqliteError.message
+              : String(betterSqliteError);
             throw createConnectionError(
-              `SQLite connection failed. Native API error: ${
-                nativeError instanceof Error
-                  ? nativeError.message
-                  : String(nativeError)
-              }. Better-sqlite3 error: ${
-                betterSqliteError instanceof Error
-                  ? betterSqliteError.message
-                  : String(betterSqliteError)
-              }`,
+              $tr("error.sqliteConnectionFailed", {
+                nativeError: nativeMsg,
+                betterError: betterMsg,
+              }),
               {
                 code: DatabaseErrorCode.CONNECTION_FAILED,
                 originalError: betterSqliteError instanceof Error
@@ -232,20 +235,21 @@ export class SQLiteAdapter extends BaseAdapter {
         }
       } else {
         throw createConfigError(
-          "SQLite adapter only supports Deno and Bun runtimes",
-          {
-            code: DatabaseErrorCode.CONFIG_INVALID,
-          },
+          $tr("error.sqliteUnsupportedRuntime"),
+          { code: DatabaseErrorCode.CONFIG_INVALID },
         );
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw createConnectionError(`SQLite connection error: ${message}`, {
-        code: DatabaseErrorCode.CONNECTION_FAILED,
-        originalError: error instanceof Error
-          ? error
-          : new Error(String(error)),
-      });
+      throw createConnectionError(
+        $tr("error.sqliteConnectionError", { message }),
+        {
+          code: DatabaseErrorCode.CONNECTION_FAILED,
+          originalError: error instanceof Error
+            ? error
+            : new Error(String(error)),
+        },
+      );
     }
   }
 
@@ -254,7 +258,7 @@ export class SQLiteAdapter extends BaseAdapter {
    */
   private ensureConnection(): void {
     if (!this.connected || !this.db) {
-      throw createConnectionError("Database not connected", {
+      throw createConnectionError($tr("error.databaseNotConnected"), {
         code: DatabaseErrorCode.CONNECTION_NOT_INITIALIZED,
       });
     }
@@ -266,7 +270,7 @@ export class SQLiteAdapter extends BaseAdapter {
   async query(sql: string, params: any[] = []): Promise<any[]> {
     this.ensureConnection();
     if (!this.db) {
-      throw createConnectionError("Database not connected", {
+      throw createConnectionError($tr("error.databaseNotConnected"), {
         code: DatabaseErrorCode.CONNECTION_NOT_INITIALIZED,
       });
     }
@@ -301,12 +305,15 @@ export class SQLiteAdapter extends BaseAdapter {
       const originalError = error instanceof Error
         ? error
         : new Error(String(error));
-      throw createQueryError(`SQLite query error: ${originalError.message}`, {
-        code: DatabaseErrorCode.QUERY_FAILED,
-        sql,
-        params,
-        originalError,
-      });
+      throw createQueryError(
+        $tr("error.sqliteQueryError", { message: originalError.message }),
+        {
+          code: DatabaseErrorCode.QUERY_FAILED,
+          sql,
+          params,
+          originalError,
+        },
+      );
     }
   }
 
@@ -316,7 +323,7 @@ export class SQLiteAdapter extends BaseAdapter {
   async execute(sql: string, params: any[] = []): Promise<any> {
     this.ensureConnection();
     if (!this.db) {
-      throw createConnectionError("Database not connected", {
+      throw createConnectionError($tr("error.databaseNotConnected"), {
         code: DatabaseErrorCode.CONNECTION_NOT_INITIALIZED,
       });
     }
@@ -368,7 +375,7 @@ export class SQLiteAdapter extends BaseAdapter {
         ? error
         : new Error(String(error));
       throw createExecuteError(
-        `SQLite execute error: ${originalError.message}`,
+        $tr("error.sqliteExecuteError", { message: originalError.message }),
         {
           code: DatabaseErrorCode.EXECUTE_FAILED,
           sql,
@@ -389,7 +396,7 @@ export class SQLiteAdapter extends BaseAdapter {
   ): Promise<T> {
     this.ensureConnection();
     if (!this.db) {
-      throw createConnectionError("Database not connected", {
+      throw createConnectionError($tr("error.databaseNotConnected"), {
         code: DatabaseErrorCode.CONNECTION_NOT_INITIALIZED,
       });
     }
@@ -420,7 +427,9 @@ export class SQLiteAdapter extends BaseAdapter {
         ? error
         : new Error(String(error));
       throw createTransactionError(
-        `SQLite transaction error: ${originalError.message}`,
+        $tr("error.sqliteTransactionError", {
+          message: originalError.message,
+        }),
         {
           code: DatabaseErrorCode.TRANSACTION_FAILED,
           originalError,
@@ -463,7 +472,7 @@ export class SQLiteAdapter extends BaseAdapter {
       if (!this.db) {
         return {
           healthy: false,
-          error: "Database not connected",
+          error: $tr("error.databaseNotConnected"),
           timestamp: new Date(),
         };
       }
@@ -507,11 +516,7 @@ export class SQLiteAdapter extends BaseAdapter {
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        const msg = $tr(
-          "log.adapterSqlite.closeError",
-          { error: message },
-          (this.config as SQLiteConfig).lang,
-        );
+        const msg = $tr("log.adapterSqlite.closeError", { error: message });
         this.logger.warn(msg, { error: message });
       } finally {
         // 无论成功与否，都清理状态
@@ -528,10 +533,10 @@ export class SQLiteAdapter extends BaseAdapter {
   override createSavepoint(_name: string): Promise<void> {
     return Promise.reject(
       createTransactionError(
-        "createSavepoint must be called within a transaction context. Use the transaction adapter.",
-        {
-          code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
-        },
+        $tr("error.savepointMustBeInTransaction", {
+          method: "createSavepoint",
+        }),
+        { code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED },
       ),
     );
   }
@@ -542,10 +547,10 @@ export class SQLiteAdapter extends BaseAdapter {
   override rollbackToSavepoint(_name: string): Promise<void> {
     return Promise.reject(
       createTransactionError(
-        "rollbackToSavepoint must be called within a transaction context. Use the transaction adapter.",
-        {
-          code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
-        },
+        $tr("error.savepointMustBeInTransaction", {
+          method: "rollbackToSavepoint",
+        }),
+        { code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED },
       ),
     );
   }
@@ -556,10 +561,10 @@ export class SQLiteAdapter extends BaseAdapter {
   override releaseSavepoint(_name: string): Promise<void> {
     return Promise.reject(
       createTransactionError(
-        "releaseSavepoint must be called within a transaction context. Use the transaction adapter.",
-        {
-          code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
-        },
+        $tr("error.savepointMustBeInTransaction", {
+          method: "releaseSavepoint",
+        }),
+        { code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED },
       ),
     );
   }
@@ -596,7 +601,9 @@ class SQLiteTransactionAdapter extends SQLiteAdapter {
         : new Error(String(error));
       return Promise.reject(
         createTransactionError(
-          `Failed to create savepoint: ${originalError.message}`,
+          $tr("error.sqliteSavepointCreateFailed", {
+            message: originalError.message,
+          }),
           {
             code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
             sql: `SAVEPOINT ${savepointName}`,
@@ -614,9 +621,10 @@ class SQLiteTransactionAdapter extends SQLiteAdapter {
     const savepointName = this.savepoints.find((sp) => sp.includes(name));
     if (!savepointName) {
       return Promise.reject(
-        createTransactionError(`Savepoint "${name}" not found`, {
-          code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
-        }),
+        createTransactionError(
+          $tr("error.sqliteSavepointNotFound", { name }),
+          { code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED },
+        ),
       );
     }
 
@@ -632,7 +640,9 @@ class SQLiteTransactionAdapter extends SQLiteAdapter {
         : new Error(String(error));
       return Promise.reject(
         createTransactionError(
-          `Failed to rollback to savepoint: ${originalError.message}`,
+          $tr("error.sqliteSavepointRollbackFailed", {
+            message: originalError.message,
+          }),
           {
             code: DatabaseErrorCode.TRANSACTION_ROLLBACK_FAILED,
             sql: `ROLLBACK TO SAVEPOINT ${savepointName}`,
@@ -650,9 +660,10 @@ class SQLiteTransactionAdapter extends SQLiteAdapter {
     const savepointName = this.savepoints.find((sp) => sp.includes(name));
     if (!savepointName) {
       return Promise.reject(
-        createTransactionError(`Savepoint "${name}" not found`, {
-          code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
-        }),
+        createTransactionError(
+          $tr("error.sqliteSavepointNotFound", { name }),
+          { code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED },
+        ),
       );
     }
 
@@ -668,7 +679,9 @@ class SQLiteTransactionAdapter extends SQLiteAdapter {
         : new Error(String(error));
       return Promise.reject(
         createTransactionError(
-          `Failed to release savepoint: ${originalError.message}`,
+          $tr("error.sqliteSavepointReleaseFailed", {
+            message: originalError.message,
+          }),
           {
             code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
             sql: `RELEASE SAVEPOINT ${savepointName}`,
@@ -738,12 +751,9 @@ class SQLiteTransactionAdapter extends SQLiteAdapter {
    */
   override close(): Promise<void> {
     return Promise.reject(
-      createTransactionError(
-        "Cannot close connection in transaction adapter",
-        {
-          code: DatabaseErrorCode.TRANSACTION_FAILED,
-        },
-      ),
+      createTransactionError($tr("error.cannotCloseInTransaction"), {
+        code: DatabaseErrorCode.TRANSACTION_FAILED,
+      }),
     );
   }
 }

@@ -336,6 +336,15 @@ export interface MongoConfig {
     replicaSet?: string;
 
     /**
+     * 查询结果中 date 字段的展示时区（IANA 时区名）
+     * 配置后，MongoModel 在构建查询结果时会自动将所有 date 类型字段格式化为该时区的本地时间字符串，
+     * 无需在 schema 的每个 date 字段上单独写 get。
+     * 不配置则保持 Date 对象，由业务层自行格式化。
+     * 常用值：如 "Asia/Shanghai"、PRC（与 Asia/Shanghai 等价）等。
+     */
+    timezone?: string;
+
+    /**
      * 是否使用直接连接模式
      *
      * **为什么需要这个选项？**
@@ -631,4 +640,12 @@ export interface DatabaseAdapter {
    * @returns 底层数据库实例，如果不适用则返回 null
    */
   getDatabase(): any | null;
+
+  /**
+   * 获取查询结果中 date 字段的展示时区（可选）
+   * 仅 MongoDB 适配器可返回配置的 mongoOptions.timezone，用于将查询结果中的 Date 自动格式化为该时区字符串。
+   *
+   * @returns IANA 时区名（如 "Asia/Shanghai"、PRC），未配置则返回 undefined
+   */
+  getTimezone?(): string | undefined;
 }

@@ -7,6 +7,25 @@
 
 ---
 
+01## [1.0.6] - 2026-02-19
+
+### 新增
+
+- **MongoDB 时区**：新增 `mongoOptions.timezone`（IANA 时区名，如
+  `Asia/Shanghai`、`PRC`）。配置后，MongoModel 会将查询结果中所有 date
+  字段格式化为该时区的本地时间字符串，无需在 schema 的每个 date 上写
+  `get`。适配器提供可选方法 `getTimezone()`。新增测试：
+  `tests/mongo/timezone.test.ts`（6 条）。
+
+### 变更
+
+- **文档**：测试报告与 README 更新为 2,040 条测试（Mongo 523，含时区 6
+  条）。TEST_REPORT 依赖版本更新为：@dreamer/test@^1.0.11、
+  @dreamer/runtime-adapter@^1.0.15、@dreamer/service@^1.0.2。中英文 API 文档补充
+  MongoDB 时区配置及 `mongoOptions.timezone` 说明。
+
+---
+
 ## [1.0.5] - 2026-02-19
 
 ### 变更

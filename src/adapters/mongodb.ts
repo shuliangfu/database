@@ -13,7 +13,7 @@ import {
   createTransactionError,
   DatabaseErrorCode,
 } from "../errors.ts";
-import { $tr } from "../i18n.ts";
+import { $tr, setDatabaseLocale } from "../i18n.ts";
 import type { DatabaseAdapter, DatabaseConfig, MongoConfig } from "../types.ts";
 import {
   BaseAdapter,
@@ -62,6 +62,9 @@ export class MongoDBAdapter extends BaseAdapter {
     try {
       this.validateConfig(config);
       this.config = config;
+      if (mongoConfig.lang) {
+        setDatabaseLocale(mongoConfig.lang);
+      }
 
       const { host, port, database, username, password, authSource } =
         mongoConfig.connection;
@@ -127,7 +130,7 @@ export class MongoDBAdapter extends BaseAdapter {
       const connectPromise = this.client.connect();
       const connectTimeout = new Promise<never>((_, reject) => {
         setTimeout(
-          () => reject(new Error("MongoDB connection timeout")),
+          () => reject(new Error($tr("error.mongoConnectionTimeout"))),
           (mongoOptions?.serverSelectionTimeoutMS || 30000) + 5000, // 比 serverSelectionTimeoutMS 多 5 秒
         );
       });
@@ -154,10 +157,9 @@ export class MongoDBAdapter extends BaseAdapter {
         );
         return await this.connect(config, retryCount + 1);
       }
+      const message = error instanceof Error ? error.message : String(error);
       throw createConnectionError(
-        `MongoDB connection failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        $tr("error.mongoConnectionFailed", { message }),
         {
           code: DatabaseErrorCode.CONNECTION_FAILED,
           originalError: error instanceof Error
@@ -176,12 +178,9 @@ export class MongoDBAdapter extends BaseAdapter {
       if (this.config) {
         await this.connect(this.config);
       } else {
-        throw createConnectionError(
-          "Database not connected and no config available for reconnection",
-          {
-            code: DatabaseErrorCode.CONNECTION_NOT_INITIALIZED,
-          },
-        );
+        throw createConnectionError($tr("error.reconnectNoConfig"), {
+          code: DatabaseErrorCode.CONNECTION_NOT_INITIALIZED,
+        });
       }
     }
 
@@ -214,7 +213,7 @@ export class MongoDBAdapter extends BaseAdapter {
   ): Promise<any[]> {
     await this.ensureConnection();
     if (!this.db) {
-      throw createConnectionError("Database not connected", {
+      throw createConnectionError($tr("error.databaseNotConnected"), {
         code: DatabaseErrorCode.CONNECTION_NOT_INITIALIZED,
       });
     }
@@ -264,12 +263,15 @@ export class MongoDBAdapter extends BaseAdapter {
           originalError,
         );
       }
-      throw createQueryError(`MongoDB query error: ${originalError.message}`, {
-        code: DatabaseErrorCode.QUERY_FAILED,
-        sql,
-        params: [filter, options],
-        originalError,
-      });
+      throw createQueryError(
+        $tr("error.mongoQueryError", { message: originalError.message }),
+        {
+          code: DatabaseErrorCode.QUERY_FAILED,
+          sql,
+          params: [filter, options],
+          originalError,
+        },
+      );
     }
   }
 
@@ -286,26 +288,21 @@ export class MongoDBAdapter extends BaseAdapter {
   ): Promise<any> {
     await this.ensureConnection();
     if (!this.db) {
-      throw createConnectionError("Database not connected", {
+      throw createConnectionError($tr("error.databaseNotConnected"), {
         code: DatabaseErrorCode.CONNECTION_NOT_INITIALIZED,
       });
     }
 
-    // MongoDB 适配器需要 collection 和 data 参数
     if (typeof collection !== "string") {
       throw createExecuteError(
-        "MongoDB execute requires collection name as second parameter",
-        {
-          code: DatabaseErrorCode.EXECUTE_FAILED,
-        },
+        $tr("error.mongoExecuteRequiresCollection"),
+        { code: DatabaseErrorCode.EXECUTE_FAILED },
       );
     }
     if (data === undefined) {
       throw createExecuteError(
-        "MongoDB execute requires data as third parameter",
-        {
-          code: DatabaseErrorCode.EXECUTE_FAILED,
-        },
+        $tr("error.mongoExecuteRequiresData"),
+        { code: DatabaseErrorCode.EXECUTE_FAILED },
       );
     }
 
@@ -386,9 +383,10 @@ export class MongoDBAdapter extends BaseAdapter {
           result = await coll.deleteMany(data.filter);
           break;
         default:
-          throw createExecuteError(`Unknown MongoDB operation: ${operation}`, {
-            code: DatabaseErrorCode.EXECUTE_FAILED,
-          });
+          throw createExecuteError(
+            $tr("error.mongoUnknownOperation", { operation }),
+            { code: DatabaseErrorCode.EXECUTE_FAILED },
+          );
       }
 
       const duration = Date.now() - startTime;
@@ -416,7 +414,7 @@ export class MongoDBAdapter extends BaseAdapter {
         );
       }
       throw createExecuteError(
-        `MongoDB execute error: ${originalError.message}`,
+        $tr("error.mongoExecuteError", { message: originalError.message }),
         {
           code: DatabaseErrorCode.EXECUTE_FAILED,
           sql: `${operation} ${collection}`,
@@ -436,7 +434,7 @@ export class MongoDBAdapter extends BaseAdapter {
     callback: (db: DatabaseAdapter) => Promise<T>,
   ): Promise<T> {
     if (!this.client) {
-      throw createConnectionError("Database not connected", {
+      throw createConnectionError($tr("error.databaseNotConnected"), {
         code: DatabaseErrorCode.CONNECTION_NOT_INITIALIZED,
       });
     }
@@ -469,10 +467,8 @@ export class MongoDBAdapter extends BaseAdapter {
           // 单机 MongoDB 实例无法支持事务，这是 MongoDB 的设计限制
           // 如果需要事务支持，请将 MongoDB 配置为副本集（即使只有一个节点）
           throw createTransactionError(
-            "MongoDB transactions are only supported on replica sets or sharded clusters. Single-node MongoDB instances do not support transactions. To enable transactions, configure MongoDB as a replica set (even with a single node) by starting MongoDB with --replSet option.",
-            {
-              code: DatabaseErrorCode.TRANSACTION_NOT_SUPPORTED,
-            },
+            $tr("error.mongoTransactionReplicaSetOnly"),
+            { code: DatabaseErrorCode.TRANSACTION_NOT_SUPPORTED },
           );
         }
       }
@@ -501,6 +497,13 @@ export class MongoDBAdapter extends BaseAdapter {
    */
   override getDatabase(): Db | null {
     return this.db;
+  }
+
+  /**
+   * 返回配置的展示时区（mongoOptions.timezone），用于查询结果中 date 字段的自动格式化
+   */
+  getTimezone(): string | undefined {
+    return (this.config as MongoConfig)?.mongoOptions?.timezone;
   }
 
   /**
@@ -561,7 +564,7 @@ export class MongoDBAdapter extends BaseAdapter {
       if (!this.db) {
         return {
           healthy: false,
-          error: "Database not connected",
+          error: $tr("error.databaseNotConnected"),
           timestamp: new Date(),
         };
       }
@@ -607,7 +610,10 @@ export class MongoDBAdapter extends BaseAdapter {
         const closePromise = client.close();
         const timeoutPromise = new Promise<void>((_, reject) => {
           setTimeout(
-            () => reject(new Error("MongoDB 关闭连接超时（1秒）")),
+            () =>
+              reject(
+                new Error($tr("error.mongoCloseTimeout", { seconds: 1 })),
+              ),
             1000,
           );
         });
@@ -616,11 +622,7 @@ export class MongoDBAdapter extends BaseAdapter {
       } catch (error) {
         // 关闭失败或超时，忽略错误（状态已清理）
         const message = error instanceof Error ? error.message : String(error);
-        const msg = $tr(
-          "log.adapterMongo.closeError",
-          { error: message },
-          (this.config as MongoConfig).lang,
-        );
+        const msg = $tr("log.adapterMongo.closeError", { error: message });
         this.logger.warn(msg, { error: message });
       }
     }
@@ -658,7 +660,7 @@ class MongoDBTransactionAdapter extends MongoDBAdapter {
   ): Promise<any[]> {
     await this.ensureConnection();
     if (!this.db) {
-      throw createConnectionError("Database not connected", {
+      throw createConnectionError($tr("error.databaseNotConnected"), {
         code: DatabaseErrorCode.CONNECTION_NOT_INITIALIZED,
       });
     }
@@ -700,7 +702,7 @@ class MongoDBTransactionAdapter extends MongoDBAdapter {
       }
 
       throw createQueryError(
-        `MongoDB query error: ${originalError.message}`,
+        $tr("error.mongoQueryError", { message: originalError.message }),
         {
           code: DatabaseErrorCode.QUERY_FAILED,
           sql,
@@ -721,26 +723,21 @@ class MongoDBTransactionAdapter extends MongoDBAdapter {
   ): Promise<any> {
     await this.ensureConnection();
     if (!this.db) {
-      throw createConnectionError("Database not connected", {
+      throw createConnectionError($tr("error.databaseNotConnected"), {
         code: DatabaseErrorCode.CONNECTION_NOT_INITIALIZED,
       });
     }
 
-    // MongoDB 适配器需要 collection 和 data 参数
     if (typeof collection !== "string") {
       throw createExecuteError(
-        "MongoDB execute requires collection name as second parameter",
-        {
-          code: DatabaseErrorCode.EXECUTE_FAILED,
-        },
+        $tr("error.mongoExecuteRequiresCollection"),
+        { code: DatabaseErrorCode.EXECUTE_FAILED },
       );
     }
     if (data === undefined) {
       throw createExecuteError(
-        "MongoDB execute requires data as third parameter",
-        {
-          code: DatabaseErrorCode.EXECUTE_FAILED,
-        },
+        $tr("error.mongoExecuteRequiresData"),
+        { code: DatabaseErrorCode.EXECUTE_FAILED },
       );
     }
 
@@ -800,9 +797,10 @@ class MongoDBTransactionAdapter extends MongoDBAdapter {
           });
           break;
         default:
-          throw createExecuteError(`Unknown MongoDB operation: ${operation}`, {
-            code: DatabaseErrorCode.EXECUTE_FAILED,
-          });
+          throw createExecuteError(
+            $tr("error.mongoUnknownOperation", { operation }),
+            { code: DatabaseErrorCode.EXECUTE_FAILED },
+          );
       }
 
       const duration = Date.now() - startTime;
@@ -830,7 +828,7 @@ class MongoDBTransactionAdapter extends MongoDBAdapter {
         );
       }
       throw createExecuteError(
-        `MongoDB execute error: ${originalError.message}`,
+        $tr("error.mongoExecuteError", { message: originalError.message }),
         {
           code: DatabaseErrorCode.EXECUTE_FAILED,
           sql: `${operation} ${collection}`,
