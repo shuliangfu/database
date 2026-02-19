@@ -3,7 +3,7 @@
  * 负责所有数据库初始化相关的逻辑，包括 DatabaseManager 的创建和管理
  */
 
-import { $t } from "./i18n.ts";
+import { $tr } from "./i18n.ts";
 import type { ConnectionStatus } from "./manager.ts";
 import { DatabaseManager } from "./manager.ts";
 import type { DatabaseConfig } from "./types.ts";
@@ -112,14 +112,14 @@ export async function autoInitDatabase(
   connectionName: string = "default",
 ): Promise<void> {
   if (!configLoader) {
-    throw new Error($t("init.loaderNotSet"));
+    throw new Error($tr("init.loaderNotSet"));
   }
 
   const config = await configLoader();
   if (config) {
     await initDatabase(config, connectionName);
   } else {
-    throw new Error($t("init.notConfigured"));
+    throw new Error($tr("init.notConfigured"));
   }
 }
 
@@ -130,7 +130,7 @@ export async function autoInitDatabase(
  */
 export function getDatabaseManager(): DatabaseManager {
   if (!dbManager) {
-    throw new Error($t("init.notInitialized"));
+    throw new Error($tr("init.notInitialized"));
   }
 
   return dbManager;

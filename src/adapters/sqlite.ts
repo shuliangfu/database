@@ -14,7 +14,7 @@ import {
   createTransactionError,
   DatabaseErrorCode,
 } from "../errors.ts";
-import { $t } from "../i18n.ts";
+import { $tr } from "../i18n.ts";
 import type {
   DatabaseAdapter,
   DatabaseConfig,
@@ -158,7 +158,7 @@ export class SQLiteAdapter extends BaseAdapter {
   async connect(config: SQLiteConfig | DatabaseConfig): Promise<void> {
     // 类型守卫：确保是 SQLite 配置
     if (config.adapter !== "sqlite") {
-      throw new Error($t("error.invalidConfigSqlite"));
+      throw new Error($tr("error.invalidConfigSqlite"));
     }
 
     const sqliteConfig = config as SQLiteConfig;
@@ -507,7 +507,7 @@ export class SQLiteAdapter extends BaseAdapter {
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        const msg = $t(
+        const msg = $tr(
           "log.adapterSqlite.closeError",
           { error: message },
           (this.config as SQLiteConfig).lang,

@@ -18,7 +18,7 @@ import type {
   DatabaseConfig,
   PostgreSQLConfig,
 } from "../types.ts";
-import { $t } from "../i18n.ts";
+import { $tr } from "../i18n.ts";
 import {
   BaseAdapter,
   type HealthCheckResult,
@@ -56,7 +56,7 @@ export class PostgreSQLAdapter extends BaseAdapter {
   ): Promise<void> {
     // 类型守卫：确保是 PostgreSQL 配置
     if (config.adapter !== "postgresql") {
-      throw new Error($t("error.invalidConfigPostgres"));
+      throw new Error($tr("error.invalidConfigPostgres"));
     }
 
     const pgConfig = config as PostgreSQLConfig;
@@ -306,7 +306,7 @@ export class PostgreSQLAdapter extends BaseAdapter {
           ? rollbackError.message
           : String(rollbackError);
         this.logger.warn(
-          $t(
+          $tr(
             "log.adapterPostgres.rollbackFailed",
             { error: msg },
             (this.config as PostgreSQLConfig).lang,
@@ -468,7 +468,7 @@ export class PostgreSQLAdapter extends BaseAdapter {
       } catch (error) {
         // 关闭失败或超时，忽略错误（状态已清理）
         const message = error instanceof Error ? error.message : String(error);
-        const msg = $t(
+        const msg = $tr(
           "log.adapterPostgres.closeError",
           { error: message },
           (this.config as PostgreSQLConfig).lang,

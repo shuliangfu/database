@@ -7,7 +7,7 @@ import type { CacheAdapter } from "../cache/cache-adapter.ts";
 import type { DatabaseAdapter } from "../types.ts";
 import type { IndexDefinitions } from "../types/index.ts";
 import type { Locale } from "../i18n.ts";
-import { $t } from "../i18n.ts";
+import { $tr } from "../i18n.ts";
 
 /**
  * 查询条件类型
@@ -491,7 +491,7 @@ export abstract class SQLModel {
   static get adapter(): DatabaseAdapter {
     if (!this._adapter) {
       throw new Error(
-        $t("model.adapterNotInitialized", {
+        $tr("model.adapterNotInitialized", {
           table: this.tableName,
         }, this.lang),
       );
@@ -504,14 +504,18 @@ export abstract class SQLModel {
   }
 
   /**
-   * 获取翻译文本（使用 $t，lang 不传则环境检测）
+   * 获取翻译文本（使用 $tr，lang 不传则环境检测）
    */
   private static tr(
     key: string,
     _fallback: string,
     params?: Record<string, string | number | boolean>,
   ): string {
-    return $t(key, params, this.lang);
+    return $tr(
+      key,
+      params as Record<string, string | number> | undefined,
+      this.lang,
+    );
   }
 
   /**
@@ -944,7 +948,7 @@ export abstract class SQLModel {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(
-        $t("model.initFailed", {
+        $tr("model.initFailed", {
           table: this.tableName,
           error: message,
         }, this.lang),
@@ -977,7 +981,7 @@ export abstract class SQLModel {
     if (this._adapter) return;
     await this.ensureInitialized(connectionName);
     if (!this.adapter) {
-      throw new Error($t("model.adapterNotSet", undefined, this.lang));
+      throw new Error($tr("model.adapterNotSet", undefined, this.lang));
     }
   }
 
@@ -2628,7 +2632,7 @@ export abstract class SQLModel {
 
     const tableName = (this as any).tableName;
     if (!tableName) {
-      throw new Error($t("model.tableNameRequired", undefined, this.lang));
+      throw new Error($tr("model.tableNameRequired", undefined, this.lang));
     }
 
     // 构建查询条件
@@ -2677,7 +2681,7 @@ export abstract class SQLModel {
 
     const tableName = options.table || (this as any).tableName;
     if (!tableName) {
-      throw new Error($t("model.tableNameRequired", undefined, this.lang));
+      throw new Error($tr("model.tableNameRequired", undefined, this.lang));
     }
 
     // 构建查询条件
@@ -2731,7 +2735,7 @@ export abstract class SQLModel {
 
     const tableName = options.table || (this as any).tableName;
     if (!tableName) {
-      throw new Error($t("model.tableNameRequired", undefined, this.lang));
+      throw new Error($tr("model.tableNameRequired", undefined, this.lang));
     }
 
     // 构建查询条件
@@ -3831,7 +3835,7 @@ export abstract class SQLModel {
   } {
     if (!this.scopes || !this.scopes[scopeName]) {
       throw new Error(
-        $t("model.scopeNotDefined", { scope: scopeName }, this.lang),
+        $tr("model.scopeNotDefined", { scope: scopeName }, this.lang),
       );
     }
 
@@ -4656,7 +4660,7 @@ export abstract class SQLModel {
 
     if (!id) {
       throw new Error(
-        $t(
+        $tr(
           "model.cannotUpdateWithoutPrimaryKey",
           undefined,
           (Model as typeof SQLModel).lang,
@@ -4693,7 +4697,7 @@ export abstract class SQLModel {
 
     if (!id) {
       throw new Error(
-        $t(
+        $tr(
           "model.cannotDeleteWithoutPrimaryKey",
           undefined,
           (Model as typeof SQLModel).lang,
@@ -6596,7 +6600,7 @@ export abstract class SQLModel {
   ): Promise<number | { count: number; ids: any[] }> {
     if (!this.softDelete) {
       throw new Error(
-        $t("model.softDeleteNotEnabled", undefined, this.lang),
+        $tr("model.softDeleteNotEnabled", undefined, this.lang),
       );
     }
     // 自动初始化（如果未初始化）

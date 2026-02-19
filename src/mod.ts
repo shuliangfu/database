@@ -7,7 +7,7 @@
 
 import { initDatabaseI18n } from "./i18n.ts";
 
-// 入口处初始化 database i18n（加载翻译并设置当前 locale，$t 内不再做 ensure/init）
+// 入口处初始化 database i18n（加载翻译并设置当前 locale，$tr 内不再做 ensure/init）
 initDatabaseI18n();
 
 // ==================== 管理器 ====================

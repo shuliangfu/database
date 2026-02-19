@@ -13,7 +13,7 @@ import {
   createTransactionError,
   DatabaseErrorCode,
 } from "../errors.ts";
-import { $t } from "../i18n.ts";
+import { $tr } from "../i18n.ts";
 import type { DatabaseAdapter, DatabaseConfig, MongoConfig } from "../types.ts";
 import {
   BaseAdapter,
@@ -45,7 +45,7 @@ export class MongoDBAdapter extends BaseAdapter {
   ): Promise<void> {
     // 类型守卫：确保是 MongoDB 配置
     if (config.adapter !== "mongodb") {
-      throw new Error($t("error.invalidConfigMongo"));
+      throw new Error($tr("error.invalidConfigMongo"));
     }
 
     const mongoConfig = config as MongoConfig;
@@ -616,7 +616,7 @@ export class MongoDBAdapter extends BaseAdapter {
       } catch (error) {
         // 关闭失败或超时，忽略错误（状态已清理）
         const message = error instanceof Error ? error.message : String(error);
-        const msg = $t(
+        const msg = $tr(
           "log.adapterMongo.closeError",
           { error: message },
           (this.config as MongoConfig).lang,

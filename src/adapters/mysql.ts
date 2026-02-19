@@ -13,7 +13,7 @@ import {
   createTransactionError,
   DatabaseErrorCode,
 } from "../errors.ts";
-import { $t } from "../i18n.ts";
+import { $tr } from "../i18n.ts";
 import type { DatabaseAdapter, DatabaseConfig, MySQLConfig } from "../types.ts";
 import {
   BaseAdapter,
@@ -44,7 +44,7 @@ export class MySQLAdapter extends BaseAdapter {
   ): Promise<void> {
     // 类型守卫：确保是 MySQL 配置
     if (config.adapter !== "mysql") {
-      throw new Error($t("error.invalidConfigMysql"));
+      throw new Error($tr("error.invalidConfigMysql"));
     }
 
     const mysqlConfig = config as MySQLConfig;
@@ -281,7 +281,7 @@ export class MySQLAdapter extends BaseAdapter {
           ? rollbackError.message
           : String(rollbackError);
         this.logger.warn(
-          $t(
+          $tr(
             "log.adapterMysql.rollbackFailed",
             { error: msg },
             (this.config as MySQLConfig).lang,
@@ -400,7 +400,7 @@ export class MySQLAdapter extends BaseAdapter {
       } catch (error) {
         // 关闭失败或超时，忽略错误（状态已清理）
         const message = error instanceof Error ? error.message : String(error);
-        const msg = $t(
+        const msg = $tr(
           "log.adapterMysql.closeError",
           { error: message },
           (this.config as MySQLConfig).lang,
