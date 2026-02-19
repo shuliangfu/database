@@ -81,7 +81,7 @@ describe("access", () => {
     it("应该在数据库未初始化时抛出错误", () => {
       expect(() => {
         getDatabase();
-      }).toThrow("Database not initialized");
+      }).toThrow(/Database not initialized|数据库未初始化/);
     });
 
     it("应该提示使用 getDatabaseAsync 进行自动初始化", () => {
@@ -146,7 +146,7 @@ describe("access", () => {
           await getDatabaseAsync();
         },
         Error,
-        "Database config loader not set",
+        /Database config loader not set|数据库配置加载器未设置/,
       );
     });
   });
@@ -179,7 +179,7 @@ describe("access", () => {
 
       expect(() => {
         getDatabaseManager();
-      }).toThrow("Database not initialized");
+      }).toThrow(/Database not initialized|数据库未初始化/);
     });
   });
 

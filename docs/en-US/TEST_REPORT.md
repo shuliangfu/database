@@ -62,11 +62,11 @@
 
 ## Test Overview
 
-- **Test library version**: @dreamer/test@^1.0.0-beta.40
-- **Runtime adapter version**: @dreamer/runtime-adapter@^1.0.0
+- **Test library version**: @dreamer/test@^1.0.11
+- **Runtime adapter version**: @dreamer/runtime-adapter@^1.0.15
 - **Test framework**: @dreamer/test (compatible with Deno and Bun)
-- **Test date**: 2026-02-06
-- **Service container version**: @dreamer/service@^1.0.0-beta.4
+- **Test date**: 2026-02-19
+- **Service container version**: @dreamer/service@^1.0.2
 - **Test environment**:
   - Deno version requirement: 2.5.0+
   - Bun version requirement: 1.3.0+
@@ -77,27 +77,27 @@
 
 ### Overall Statistics
 
-- **Total tests**: 1,954
-- **Passed**: 1,954 ✅
+- **Total tests**: 2,040
+- **Passed**: 2,040 ✅
 - **Failed**: 0
 - **Pass rate**: 100% ✅
-- **Test execution time**: ~129 seconds (Deno environment, per-database
+- **Test execution time**: ~195 seconds (Deno environment, per-database
   execution)
-- **Test file count**: 81 files
+- **Test file count**: 82 files
 
 ### Test File Statistics
 
 | Test File                                   | Test Count | Status        | Description                                              |
 | ------------------------------------------- | ---------- | ------------- | -------------------------------------------------------- |
-| `tests/mongo/model.test.ts`                 | 172        | ✅ All passed | MongoDB ORM model operation tests                        |
+| `tests/mongo/model.test.ts`                 | 173        | ✅ All passed | MongoDB ORM model operation tests                        |
 | `tests/mysql/model.test.ts`                 | 175        | ✅ All passed | MySQL ORM model operation tests                          |
 | `tests/postgresql/model.test.ts`            | 175        | ✅ All passed | PostgreSQL ORM model operation tests                     |
 | `tests/sqlite/model.test.ts`                | 174        | ✅ All passed | SQLite ORM model operation tests                         |
-| `tests/mongo/validation.test.ts`            | 54         | ✅ All passed | MongoDB data validation tests                            |
+| `tests/mongo/validation.test.ts`            | 55         | ✅ All passed | MongoDB data validation tests                            |
 | `tests/mysql/validation.test.ts`            | 54         | ✅ All passed | MySQL data validation tests                              |
 | `tests/postgresql/validation.test.ts`       | 54         | ✅ All passed | PostgreSQL data validation tests                         |
 | `tests/sqlite/validation.test.ts`           | 54         | ✅ All passed | SQLite data validation tests                             |
-| `tests/mongo/adapter.test.ts`               | 67         | ✅ All passed | MongoDB adapter tests                                    |
+| `tests/mongo/adapter.test.ts`               | 68         | ✅ All passed | MongoDB adapter tests                                    |
 | `tests/mysql/adapter.test.ts`               | 70         | ✅ All passed | MySQL adapter tests                                      |
 | `tests/postgresql/adapter.test.ts`          | 72         | ✅ All passed | PostgreSQL adapter tests                                 |
 | `tests/sqlite/adapter.test.ts`              | 66         | ✅ All passed | SQLite adapter tests                                     |
@@ -165,10 +165,11 @@
 | `tests/postgresql/full-workflow.test.ts`    | 4          | ✅ All passed | PostgreSQL full workflow tests                           |
 | `tests/sqlite/full-workflow.test.ts`        | 4          | ✅ All passed | SQLite full workflow tests                               |
 | `tests/mongo/features.test.ts`              | 16         | ✅ All passed | MongoDB features tests                                   |
+| `tests/mongo/timezone.test.ts`              | 6          | ✅ All passed | MongoDB timezone (mongoOptions.timezone) tests           |
 | `tests/mysql/features.test.ts`              | 8          | ✅ All passed | MySQL features tests                                     |
 | `tests/postgresql/features.test.ts`         | 11         | ✅ All passed | PostgreSQL features tests                                |
 | `tests/sqlite/features.test.ts`             | 14         | ✅ All passed | SQLite features tests                                    |
-| `tests/integration/multi-adapter.test.ts`   | 4          | ✅ All passed | Multi-adapter integration tests (MySQL, SQLite, MongoDB) |
+| `tests/integration/multi-adapter.test.ts`   | 5          | ✅ All passed | Multi-adapter integration tests (MySQL, SQLite, MongoDB) |
 
 ---
 
@@ -551,7 +552,7 @@
 
 - ✅ Specific feature verification
 
-### 21. Integration Tests (integration/multi-adapter.test.ts) - 4 tests
+### 21. Integration Tests (integration/multi-adapter.test.ts) - 5 tests
 
 **Test scenarios**:
 
@@ -559,12 +560,31 @@
 - ✅ Cross-database data sync
 - ✅ Independently manage each connection's state
 
-**Test result**: All 4 tests passed
+**Test result**: All 5 tests passed
 
 **Implementation characteristics**:
 
 - ✅ Multi-adapter simultaneous use (MySQL, SQLite, MongoDB)
 - ✅ Cross-adapter functionality verification
+
+### 22. MongoDB Timezone Tests (tests/mongo/timezone.test.ts) - 6 tests
+
+**Test scenarios**:
+
+- ✅ Adapter `getTimezone()` returns configured timezone (e.g. Asia/Shanghai)
+- ✅ Query result date fields are formatted as local time string in configured
+  timezone
+- ✅ findAll returns date fields as timezone-formatted strings
+- ✅ PRC timezone equivalent to Asia/Shanghai (e.g. 12:00:00 for same UTC
+  moment)
+
+**Test result**: All 6 tests passed
+
+**Implementation characteristics**:
+
+- ✅ mongoOptions.timezone config; date fields in query results auto-formatted
+  to that timezone
+- ✅ Supports IANA names (Asia/Shanghai, PRC, etc.)
 
 ---
 
@@ -760,7 +780,7 @@
    batch operation optimization
 10. ✅ **Resource management**: Connection leak detection, auto resource
     cleanup, long-running stability
-11. ✅ **Test coverage**: All 1,954 tests passed, 100% test coverage rate
+11. ✅ **Test coverage**: All 2,040 tests passed, 100% test coverage rate
 12. ✅ **Cross-platform compatibility**: Supports Deno 2.5.0+ and Bun 1.3.0+
     runtimes
 
@@ -768,11 +788,11 @@
 
 ## Conclusion
 
-The @dreamer/database library has been thoroughly tested, all 1,954 tests
+The @dreamer/database library has been thoroughly tested, all 2,040 tests
 passed, with 100% test coverage rate.
 
-**Total tests**: 1,954 (integration 4 + mongo 497 + mysql 481 + postgresql 488 +
-sqlite 484)
+**Total tests**: 2,040 (integration 5 + mongo 523 + mysql 501 + postgresql 508 +
+sqlite 503)
 
 **Test pass rate**: 100% ✅
 
@@ -795,7 +815,6 @@ sqlite 484)
 
 ---
 
-_Test report generated: 2026-02-06_ _Test execution tool: @dreamer/test
-(compatible with Deno and Bun)_ _Last updated: Updated test data to 1,954 tests;
-QueryLogger added t, logger, debug parameter tests; multi-adapter supports
-MySQL, SQLite, MongoDB_
+_Test report generated: 2026-02-19_ _Test execution tool: @dreamer/test
+(compatible with Deno and Bun)_ _Last updated: Test data updated to 2,040 tests
+(integration 5, mongo 523, mysql 501, postgresql 508, sqlite 503); all passed._

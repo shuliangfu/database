@@ -8,7 +8,7 @@
 
 [![JSR](https://jsr.io/badges/@dreamer/database)](https://jsr.io/@dreamer/database)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](../../LICENSE)
-[![Tests](https://img.shields.io/badge/tests-1,954%20passed-brightgreen)](./TEST_REPORT.md)
+[![Tests](https://img.shields.io/badge/tests-2,040%20passed-brightgreen)](./TEST_REPORT.md)
 
 ---
 
@@ -110,29 +110,29 @@ const users = await db.query("SELECT * FROM users WHERE age > ?", [18]);
 
 ## 📊 测试报告
 
-本包经过全面测试，所有 1,954 个测试用例均已通过，测试覆盖率达到
+本包经过全面测试，所有 2,040 个测试用例均已通过，测试覆盖率达到
 100%。详细测试报告请查看 [TEST_REPORT.md](./TEST_REPORT.md)。
 
 **测试统计**：
 
-- **总测试数**: 1,954（integration 4 + mongo 497 + mysql 481 + postgresql 488 +
-  sqlite 484）
-- **通过**: 1,954 ✅
+- **总测试数**: 2,040（integration 5 + mongo 523 + mysql 501 + postgresql 508 +
+  sqlite 503）
+- **通过**: 2,040 ✅
 - **失败**: 0
 - **通过率**: 100% ✅
-- **测试执行时间**: ~129秒（Deno 环境，分库执行）
-- **测试文件数**: 81 个
+- **测试执行时间**: ~195秒（Deno 环境，分库执行）
+- **测试文件数**: 82 个
 - **测试环境**: Deno 2.5.0+, Bun 1.3.0+
 
 **各适配器测试数**：
 
 | 适配器                  | 测试数 | 执行时间 |
 | ----------------------- | ------ | -------- |
-| integration（多适配器） | 4      | 87ms     |
-| MongoDB                 | 497    | ~35s     |
-| MySQL                   | 481    | ~46s     |
-| PostgreSQL              | 488    | ~40s     |
-| SQLite                  | 484    | ~8s      |
+| integration（多适配器） | 5      | -        |
+| MongoDB                 | 523    | ~35s     |
+| MySQL                   | 501    | ~46s     |
+| PostgreSQL              | 508    | ~40s     |
+| SQLite                  | 503    | ~8s      |
 
 **测试亮点**：
 
@@ -174,8 +174,8 @@ const users = await db.query("SELECT * FROM users WHERE age > ?", [18]);
 
 ## 📋 变更日志
 
-**v1.0.4** (2026-02-18)：i18n 仅在入口初始化（mod 中调用
-`initDatabaseI18n()`）；`$t()` 内不再执行 ensure/init。
+**v1.0.6** (2026-02-19)：新增 MongoDB `mongoOptions.timezone`，查询结果 date
+自动格式化为该时区字符串。文档：2,040 条测试、依赖版本、API 时区说明。
 
 详见 [CHANGELOG.md](./CHANGELOG.md)。
 

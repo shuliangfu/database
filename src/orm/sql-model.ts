@@ -7,7 +7,7 @@ import type { CacheAdapter } from "../cache/cache-adapter.ts";
 import type { DatabaseAdapter } from "../types.ts";
 import type { IndexDefinitions } from "../types/index.ts";
 import type { Locale } from "../i18n.ts";
-import { $tr } from "../i18n.ts";
+import { $tr, setDatabaseLocale } from "../i18n.ts";
 
 /**
  * 查询条件类型
@@ -490,10 +490,13 @@ export abstract class SQLModel {
    */
   static get adapter(): DatabaseAdapter {
     if (!this._adapter) {
+      if (this.lang !== undefined) {
+        setDatabaseLocale(this.lang);
+      }
       throw new Error(
         $tr("model.adapterNotInitialized", {
           table: this.tableName,
-        }, this.lang),
+        }),
       );
     }
     return this._adapter;
@@ -501,21 +504,6 @@ export abstract class SQLModel {
 
   static set adapter(value: DatabaseAdapter | null) {
     this._adapter = value;
-  }
-
-  /**
-   * 获取翻译文本（使用 $tr，lang 不传则环境检测）
-   */
-  private static tr(
-    key: string,
-    _fallback: string,
-    params?: Record<string, string | number | boolean>,
-  ): string {
-    return $tr(
-      key,
-      params as Record<string, string | number> | undefined,
-      this.lang,
-    );
   }
 
   /**
@@ -951,7 +939,7 @@ export abstract class SQLModel {
         $tr("model.initFailed", {
           table: this.tableName,
           error: message,
-        }, this.lang),
+        }),
       );
     }
   }
@@ -978,10 +966,13 @@ export abstract class SQLModel {
   private static async ensureAdapter(
     connectionName: string = "default",
   ): Promise<void> {
+    if (this.lang !== undefined) {
+      setDatabaseLocale(this.lang);
+    }
     if (this._adapter) return;
     await this.ensureInitialized(connectionName);
     if (!this.adapter) {
-      throw new Error($tr("model.adapterNotSet", undefined, this.lang));
+      throw new Error($tr("model.adapterNotSet"));
     }
   }
 
@@ -1729,7 +1720,7 @@ export abstract class SQLModel {
       throw new ValidationError(
         fieldName,
         rule.message ||
-          this.tr("log.validation.required", `${fieldName} 是必填字段`, {
+          $tr("log.validation.required", {
             field: fieldName,
           }),
       );
@@ -1753,7 +1744,7 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr("log.validation.typeArray", `${fieldName} 必须是数组类型`, {
+            $tr("log.validation.typeArray", {
               field: fieldName,
             }),
         );
@@ -1765,9 +1756,8 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.typeObject",
-              `${fieldName} 必须是对象类型`,
               {
                 field: fieldName,
               },
@@ -1781,9 +1771,8 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.typeExpected",
-              `${fieldName} 必须是 ${expectedType} 类型`,
               { field: fieldName, type: expectedType },
             ),
         );
@@ -1797,9 +1786,8 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.lengthRequired",
-              `${fieldName} 长度必须是 ${rule.length}`,
               { field: fieldName, length: String(rule.length) },
             ),
         );
@@ -1813,9 +1801,8 @@ export abstract class SQLModel {
           throw new ValidationError(
             fieldName,
             rule.message ||
-              this.tr(
+              $tr(
                 "log.validation.minNumber",
-                `${fieldName} 必须大于等于 ${rule.min}`,
                 {
                   field: fieldName,
                   min: rule.min,
@@ -1829,9 +1816,8 @@ export abstract class SQLModel {
           throw new ValidationError(
             fieldName,
             rule.message ||
-              this.tr(
+              $tr(
                 "log.validation.minLength",
-                `${fieldName} 长度必须大于等于 ${rule.min}`,
                 { field: fieldName, min: rule.min },
               ),
           );
@@ -1846,9 +1832,8 @@ export abstract class SQLModel {
           throw new ValidationError(
             fieldName,
             rule.message ||
-              this.tr(
+              $tr(
                 "log.validation.maxNumber",
-                `${fieldName} 必须小于等于 ${rule.max}`,
                 {
                   field: fieldName,
                   max: rule.max,
@@ -1862,9 +1847,8 @@ export abstract class SQLModel {
           throw new ValidationError(
             fieldName,
             rule.message ||
-              this.tr(
+              $tr(
                 "log.validation.maxLength",
-                `${fieldName} 长度必须小于等于 ${rule.max}`,
                 { field: fieldName, max: rule.max },
               ),
           );
@@ -1881,7 +1865,7 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr("log.validation.pattern", `${fieldName} 格式不正确`, {
+            $tr("log.validation.pattern", {
               field: fieldName,
             }),
         );
@@ -1895,7 +1879,7 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr("log.validation.integer", `${fieldName} 必须是整数`, {
+            $tr("log.validation.integer", {
               field: fieldName,
             }),
         );
@@ -1906,7 +1890,7 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr("log.validation.positive", `${fieldName} 必须是正数`, {
+            $tr("log.validation.positive", {
               field: fieldName,
             }),
         );
@@ -1917,7 +1901,7 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr("log.validation.negative", `${fieldName} 必须是负数`, {
+            $tr("log.validation.negative", {
               field: fieldName,
             }),
         );
@@ -1929,9 +1913,8 @@ export abstract class SQLModel {
           throw new ValidationError(
             fieldName,
             rule.message ||
-              this.tr(
+              $tr(
                 "log.validation.multipleOf",
-                `${fieldName} 必须是 ${rule.multipleOf} 的倍数`,
                 { field: fieldName, multipleOf: rule.multipleOf },
               ),
           );
@@ -1945,9 +1928,8 @@ export abstract class SQLModel {
           throw new ValidationError(
             fieldName,
             rule.message ||
-              this.tr(
+              $tr(
                 "log.validation.range",
-                `${fieldName} 必须在 ${min} 到 ${max} 之间`,
                 { field: fieldName, min, max },
               ),
           );
@@ -1962,9 +1944,8 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.alphaNum",
-              `${fieldName} 只能包含字母和数字`,
               {
                 field: fieldName,
               },
@@ -1976,7 +1957,7 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr("log.validation.numeric", `${fieldName} 只能包含数字`, {
+            $tr("log.validation.numeric", {
               field: fieldName,
             }),
         );
@@ -1986,7 +1967,7 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr("log.validation.alpha", `${fieldName} 只能包含字母`, {
+            $tr("log.validation.alpha", {
               field: fieldName,
             }),
         );
@@ -1997,7 +1978,7 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr("log.validation.lowercase", `${fieldName} 必须是小写`, {
+            $tr("log.validation.lowercase", {
               field: fieldName,
             }),
         );
@@ -2007,7 +1988,7 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr("log.validation.uppercase", `${fieldName} 必须是大写`, {
+            $tr("log.validation.uppercase", {
               field: fieldName,
             }),
         );
@@ -2018,9 +1999,8 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.startsWith",
-              `${fieldName} 必须以 "${rule.startsWith}" 开头`,
               { field: fieldName, value: rule.startsWith },
             ),
         );
@@ -2030,9 +2010,8 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.endsWith",
-              `${fieldName} 必须以 "${rule.endsWith}" 结尾`,
               { field: fieldName, value: rule.endsWith },
             ),
         );
@@ -2042,9 +2021,8 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.contains",
-              `${fieldName} 必须包含 "${rule.contains}"`,
               { field: fieldName, value: rule.contains },
             ),
         );
@@ -2085,9 +2063,8 @@ export abstract class SQLModel {
             throw new ValidationError(
               fieldName,
               rule.message ||
-                this.tr(
+                $tr(
                   "log.validation.before",
-                  `${fieldName} 必须早于 ${rule.before}`,
                   {
                     field: fieldName,
                     value: String(rule.before),
@@ -2105,9 +2082,8 @@ export abstract class SQLModel {
             throw new ValidationError(
               fieldName,
               rule.message ||
-                this.tr(
+                $tr(
                   "log.validation.after",
-                  `${fieldName} 必须晚于 ${rule.after}`,
                   {
                     field: fieldName,
                     value: String(rule.after),
@@ -2131,9 +2107,8 @@ export abstract class SQLModel {
             throw new ValidationError(
               fieldName,
               rule.message ||
-                this.tr(
+                $tr(
                   "log.validation.beforeTime",
-                  `${fieldName} 必须早于 ${rule.beforeTime}`,
                   { field: fieldName, value: rule.beforeTime },
                 ),
             );
@@ -2153,9 +2128,8 @@ export abstract class SQLModel {
             throw new ValidationError(
               fieldName,
               rule.message ||
-                this.tr(
+                $tr(
                   "log.validation.afterTime",
-                  `${fieldName} 必须晚于 ${rule.afterTime}`,
                   { field: fieldName, value: rule.afterTime },
                 ),
             );
@@ -2171,9 +2145,8 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.passwordMinLength",
-              `${fieldName} 长度必须至少 ${options.minLength} 个字符`,
               { field: fieldName, min: options.minLength },
             ),
         );
@@ -2182,9 +2155,8 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.passwordUppercase",
-              `${fieldName} 必须包含至少一个大写字母`,
               { field: fieldName },
             ),
         );
@@ -2193,9 +2165,8 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.passwordLowercase",
-              `${fieldName} 必须包含至少一个小写字母`,
               { field: fieldName },
             ),
         );
@@ -2204,9 +2175,8 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.passwordNumber",
-              `${fieldName} 必须包含至少一个数字`,
               { field: fieldName },
             ),
         );
@@ -2215,9 +2185,8 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.passwordSpecial",
-              `${fieldName} 必须包含至少一个特殊字符`,
               { field: fieldName },
             ),
         );
@@ -2229,9 +2198,8 @@ export abstract class SQLModel {
       throw new ValidationError(
         fieldName,
         rule.message ||
-          this.tr(
+          $tr(
             "log.validation.enum",
-            `${fieldName} 必须是以下之一: ${rule.enum.join(", ")}`,
             { field: fieldName, values: rule.enum.join(", ") },
           ),
       );
@@ -2249,9 +2217,8 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.equals",
-              `${fieldName} 必须与 ${rule.equals} 相等`,
               {
                 field: fieldName,
                 other: rule.equals,
@@ -2268,9 +2235,8 @@ export abstract class SQLModel {
         throw new ValidationError(
           fieldName,
           rule.message ||
-            this.tr(
+            $tr(
               "log.validation.notEquals",
-              `${fieldName} 不能与 ${rule.notEquals} 相等`,
               { field: fieldName, other: rule.notEquals },
             ),
         );
@@ -2473,9 +2439,8 @@ export abstract class SQLModel {
       throw new ValidationError(
         fieldName,
         message ||
-          this.tr(
+          $tr(
             "log.validation.formatExpected",
-            `${fieldName} 格式不正确（期望格式: ${format}）`,
             { field: fieldName, format },
           ),
       );
@@ -2501,7 +2466,7 @@ export abstract class SQLModel {
     if (!Array.isArray(value)) {
       throw new ValidationError(
         fieldName,
-        this.tr("log.validation.typeArray", `${fieldName} 必须是数组类型`, {
+        $tr("log.validation.typeArray", {
           field: fieldName,
         }),
       );
@@ -2511,9 +2476,8 @@ export abstract class SQLModel {
     if (arrayRule.length !== undefined && value.length !== arrayRule.length) {
       throw new ValidationError(
         fieldName,
-        this.tr(
+        $tr(
           "log.validation.arrayLength",
-          `${fieldName} 数组长度必须是 ${arrayRule.length}`,
           { field: fieldName, length: String(arrayRule.length) },
         ),
       );
@@ -2522,9 +2486,8 @@ export abstract class SQLModel {
     if (arrayRule.min !== undefined && value.length < arrayRule.min) {
       throw new ValidationError(
         fieldName,
-        this.tr(
+        $tr(
           "log.validation.arrayMinLength",
-          `${fieldName} 数组长度必须大于等于 ${arrayRule.min}`,
           { field: fieldName, min: arrayRule.min },
         ),
       );
@@ -2533,9 +2496,8 @@ export abstract class SQLModel {
     if (arrayRule.max !== undefined && value.length > arrayRule.max) {
       throw new ValidationError(
         fieldName,
-        this.tr(
+        $tr(
           "log.validation.arrayMaxLength",
-          `${fieldName} 数组长度必须小于等于 ${arrayRule.max}`,
           { field: fieldName, max: arrayRule.max },
         ),
       );
@@ -2553,9 +2515,8 @@ export abstract class SQLModel {
         if (seen.has(key)) {
           throw new ValidationError(
             fieldName,
-            this.tr(
+            $tr(
               "log.validation.arrayUniqueItems",
-              `${fieldName} 数组元素必须唯一，发现重复元素`,
               { field: fieldName },
             ),
           );
@@ -2577,9 +2538,8 @@ export abstract class SQLModel {
           if (expectedType === "array" && !Array.isArray(item)) {
             throw new ValidationError(
               elemField,
-              this.tr(
+              $tr(
                 "log.validation.typeArray",
-                `${elemField} 必须是数组类型`,
                 {
                   field: elemField,
                 },
@@ -2592,9 +2552,8 @@ export abstract class SQLModel {
           ) {
             throw new ValidationError(
               elemField,
-              this.tr(
+              $tr(
                 "log.validation.arrayElementType",
-                `${elemField} 必须是 ${expectedType} 类型`,
                 { field: elemField, type: expectedType },
               ),
             );
@@ -2632,7 +2591,7 @@ export abstract class SQLModel {
 
     const tableName = (this as any).tableName;
     if (!tableName) {
-      throw new Error($tr("model.tableNameRequired", undefined, this.lang));
+      throw new Error($tr("model.tableNameRequired"));
     }
 
     // 构建查询条件
@@ -2657,9 +2616,8 @@ export abstract class SQLModel {
     if (exists) {
       throw new ValidationError(
         fieldName,
-        this.tr(
+        $tr(
           "log.validation.unique",
-          `${fieldName} 已存在，必须是唯一的`,
           { field: fieldName },
         ),
       );
@@ -2681,7 +2639,7 @@ export abstract class SQLModel {
 
     const tableName = options.table || (this as any).tableName;
     if (!tableName) {
-      throw new Error($tr("model.tableNameRequired", undefined, this.lang));
+      throw new Error($tr("model.tableNameRequired"));
     }
 
     // 构建查询条件
@@ -2707,9 +2665,8 @@ export abstract class SQLModel {
       if (!exists) {
         throw new ValidationError(
           fieldName,
-          this.tr(
+          $tr(
             "log.validation.exists",
-            `${fieldName} 在数据表中不存在`,
             { field: fieldName },
           ),
         );
@@ -2735,7 +2692,7 @@ export abstract class SQLModel {
 
     const tableName = options.table || (this as any).tableName;
     if (!tableName) {
-      throw new Error($tr("model.tableNameRequired", undefined, this.lang));
+      throw new Error($tr("model.tableNameRequired"));
     }
 
     // 构建查询条件
@@ -2749,9 +2706,8 @@ export abstract class SQLModel {
     if (exists) {
       throw new ValidationError(
         fieldName,
-        this.tr(
+        $tr(
           "log.validation.notExists",
-          `${fieldName} 在数据表中已存在`,
           { field: fieldName },
         ),
       );
@@ -2787,9 +2743,8 @@ export abstract class SQLModel {
       if (targetValue === undefined) {
         throw new ValidationError(
           fieldName,
-          this.tr(
+          $tr(
             "log.validation.compareValueNotFound",
-            `${fieldName} 验证失败：未找到目标字段 ${options.targetField}`,
             { field: fieldName, targetField: options.targetField },
           ),
         );
@@ -2814,9 +2769,8 @@ export abstract class SQLModel {
       if (!targetRecord) {
         throw new ValidationError(
           fieldName,
-          this.tr(
+          $tr(
             "log.validation.compareValueNoRecord",
-            `${fieldName} 验证失败：未找到目标记录`,
             { field: fieldName },
           ),
         );
@@ -2855,18 +2809,10 @@ export abstract class SQLModel {
         ">=": "compareValueGreaterOrEqual",
         "<=": "compareValueLessOrEqual",
       }[compare];
-      const operatorText = {
-        "=": "等于",
-        ">": "大于",
-        "<": "小于",
-        ">=": "大于等于",
-        "<=": "小于等于",
-      }[compare];
       throw new ValidationError(
         fieldName,
-        this.tr(
+        $tr(
           `log.validation.${operatorKey}`,
-          `${fieldName} 必须${operatorText} ${options.targetField} (${targetValue})`,
           {
             field: fieldName,
             targetField: options.targetField,
@@ -3835,7 +3781,7 @@ export abstract class SQLModel {
   } {
     if (!this.scopes || !this.scopes[scopeName]) {
       throw new Error(
-        $tr("model.scopeNotDefined", { scope: scopeName }, this.lang),
+        $tr("model.scopeNotDefined", { scope: scopeName }),
       );
     }
 
@@ -4619,9 +4565,8 @@ export abstract class SQLModel {
       const updated = await Model.update(id, data, true);
       if (!updated) {
         throw new Error(
-          Model.tr(
+          $tr(
             "log.model.updateNotFound",
-            `更新失败：未找到 ID 为 ${id} 的记录或记录已被删除`,
             {
               id: String(id),
             },
@@ -4660,11 +4605,7 @@ export abstract class SQLModel {
 
     if (!id) {
       throw new Error(
-        $tr(
-          "model.cannotUpdateWithoutPrimaryKey",
-          undefined,
-          (Model as typeof SQLModel).lang,
-        ),
+        $tr("model.cannotUpdateWithoutPrimaryKey"),
       );
     }
 
@@ -4672,9 +4613,8 @@ export abstract class SQLModel {
     const updated = await Model.update(id, data, true);
     if (!updated) {
       throw new Error(
-        Model.tr(
+        $tr(
           "log.model.updateNotFoundWithId",
-          `更新失败：未找到 ID 为 ${id} 的记录或记录已被删除`,
           { id: String(id) },
         ),
       );
@@ -4697,11 +4637,7 @@ export abstract class SQLModel {
 
     if (!id) {
       throw new Error(
-        $tr(
-          "model.cannotDeleteWithoutPrimaryKey",
-          undefined,
-          (Model as typeof SQLModel).lang,
-        ),
+        $tr("model.cannotDeleteWithoutPrimaryKey"),
       );
     }
 
@@ -5438,7 +5374,7 @@ export abstract class SQLModel {
 
     if (!instance) {
       throw new Error(
-        this.tr("log.model.cannotGetUpdatedRecord", "无法获取更新后的记录"),
+        $tr("log.model.cannotGetUpdatedRecord"),
       );
     }
 
@@ -6600,7 +6536,7 @@ export abstract class SQLModel {
   ): Promise<number | { count: number; ids: any[] }> {
     if (!this.softDelete) {
       throw new Error(
-        $tr("model.softDeleteNotEnabled", undefined, this.lang),
+        $tr("model.softDeleteNotEnabled"),
       );
     }
     // 自动初始化（如果未初始化）

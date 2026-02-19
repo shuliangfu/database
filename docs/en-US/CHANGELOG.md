@@ -8,6 +8,26 @@ and this project adheres to
 
 ---
 
+## [1.0.6] - 2026-02-19
+
+### Added
+
+- **MongoDB timezone**: Added `mongoOptions.timezone` (IANA timezone name, e.g.
+  `Asia/Shanghai`, `PRC`). When set, MongoModel formats all date fields in query
+  results as local time strings in that timezone; no need to add `get` on each
+  date field in schema. Adapter exposes optional `getTimezone()`. New tests:
+  `tests/mongo/timezone.test.ts` (6 cases).
+
+### Changed
+
+- **Documentation**: Test report and README updated to 2,040 tests (Mongo 523,
+  including 6 timezone tests). TEST_REPORT dependency versions updated:
+  @dreamer/test@^1.0.11, @dreamer/runtime-adapter@^1.0.15,
+  @dreamer/service@^1.0.2. API docs (en-US and zh-CN) document MongoDB timezone
+  configuration and `mongoOptions.timezone` usage.
+
+---
+
 ## [1.0.5] - 2026-02-19
 
 ### Changed

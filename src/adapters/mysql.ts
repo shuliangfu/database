@@ -13,7 +13,7 @@ import {
   createTransactionError,
   DatabaseErrorCode,
 } from "../errors.ts";
-import { $tr } from "../i18n.ts";
+import { $tr, setDatabaseLocale } from "../i18n.ts";
 import type { DatabaseAdapter, DatabaseConfig, MySQLConfig } from "../types.ts";
 import {
   BaseAdapter,
@@ -57,6 +57,10 @@ export class MySQLAdapter extends BaseAdapter {
     try {
       this.validateConfig(config);
       this.config = config;
+      // 若有 lang 配置则设置当前语言，后续 $tr 无需再传 lang
+      if (mysqlConfig.lang) {
+        setDatabaseLocale(mysqlConfig.lang);
+      }
 
       const { host, port, database, username, password } =
         mysqlConfig.connection;
@@ -97,10 +101,9 @@ export class MySQLAdapter extends BaseAdapter {
         );
         return await this.connect(config, retryCount + 1);
       }
+      const message = error instanceof Error ? error.message : String(error);
       throw createConnectionError(
-        `MySQL connection failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        $tr("error.mysqlConnectionFailed", { message }),
         {
           code: DatabaseErrorCode.CONNECTION_FAILED,
           originalError: error instanceof Error
@@ -120,7 +123,7 @@ export class MySQLAdapter extends BaseAdapter {
         await this.connect(this.config);
       } else {
         throw createConnectionError(
-          "Database not connected and no config available for reconnection",
+          $tr("error.reconnectNoConfig"),
           {
             code: DatabaseErrorCode.CONNECTION_NOT_INITIALIZED,
           },
@@ -150,7 +153,7 @@ export class MySQLAdapter extends BaseAdapter {
   async query(sql: string, params: any[] = []): Promise<any[]> {
     await this.ensureConnection();
     if (!this.pool) {
-      throw createConnectionError("Database not connected", {
+      throw createConnectionError($tr("error.databaseNotConnected"), {
         code: DatabaseErrorCode.CONNECTION_NOT_INITIALIZED,
       });
     }
@@ -184,12 +187,15 @@ export class MySQLAdapter extends BaseAdapter {
       const originalError = error instanceof Error
         ? error
         : new Error(String(error));
-      throw createQueryError(`MySQL query error: ${originalError.message}`, {
-        code: DatabaseErrorCode.QUERY_FAILED,
-        sql,
-        params,
-        originalError,
-      });
+      throw createQueryError(
+        $tr("error.mysqlQueryError", { message: originalError.message }),
+        {
+          code: DatabaseErrorCode.QUERY_FAILED,
+          sql,
+          params,
+          originalError,
+        },
+      );
     }
   }
 
@@ -199,7 +205,7 @@ export class MySQLAdapter extends BaseAdapter {
   async execute(sql: string, params: any[] = []): Promise<any> {
     await this.ensureConnection();
     if (!this.pool) {
-      throw createConnectionError("Database not connected", {
+      throw createConnectionError($tr("error.databaseNotConnected"), {
         code: DatabaseErrorCode.CONNECTION_NOT_INITIALIZED,
       });
     }
@@ -238,7 +244,7 @@ export class MySQLAdapter extends BaseAdapter {
       }
 
       throw createExecuteError(
-        `MySQL execute error: ${originalError.message}`,
+        $tr("error.mysqlExecuteError", { message: originalError.message }),
         {
           code: DatabaseErrorCode.EXECUTE_FAILED,
           sql,
@@ -256,7 +262,7 @@ export class MySQLAdapter extends BaseAdapter {
     callback: (db: DatabaseAdapter) => Promise<T>,
   ): Promise<T> {
     if (!this.pool) {
-      throw createConnectionError("Database not connected", {
+      throw createConnectionError($tr("error.databaseNotConnected"), {
         code: DatabaseErrorCode.CONNECTION_NOT_INITIALIZED,
       });
     }
@@ -281,18 +287,16 @@ export class MySQLAdapter extends BaseAdapter {
           ? rollbackError.message
           : String(rollbackError);
         this.logger.warn(
-          $tr(
-            "log.adapterMysql.rollbackFailed",
-            { error: msg },
-            (this.config as MySQLConfig).lang,
-          ),
+          $tr("log.adapterMysql.rollbackFailed", { error: msg }),
         );
       }
       const originalError = error instanceof Error
         ? error
         : new Error(String(error));
       throw createTransactionError(
-        `MySQL transaction error: ${originalError.message}`,
+        $tr("error.mysqlTransactionError", {
+          message: originalError.message,
+        }),
         {
           code: DatabaseErrorCode.TRANSACTION_FAILED,
           originalError,
@@ -348,7 +352,7 @@ export class MySQLAdapter extends BaseAdapter {
       if (!this.pool) {
         return {
           healthy: false,
-          error: "Database not connected",
+          error: $tr("error.databaseNotConnected"),
           timestamp: new Date(),
         };
       }
@@ -391,7 +395,10 @@ export class MySQLAdapter extends BaseAdapter {
         const closePromise = pool.end();
         const timeoutPromise = new Promise<void>((_, reject) => {
           setTimeout(
-            () => reject(new Error("MySQL 关闭连接超时（3秒）")),
+            () =>
+              reject(
+                new Error($tr("error.mysqlCloseTimeout", { seconds: 3 })),
+              ),
             3000,
           );
         });
@@ -400,11 +407,7 @@ export class MySQLAdapter extends BaseAdapter {
       } catch (error) {
         // 关闭失败或超时，忽略错误（状态已清理）
         const message = error instanceof Error ? error.message : String(error);
-        const msg = $tr(
-          "log.adapterMysql.closeError",
-          { error: message },
-          (this.config as MySQLConfig).lang,
-        );
+        const msg = $tr("log.adapterMysql.closeError", { error: message });
         this.logger.warn(msg, { error: message });
       }
     }
@@ -463,12 +466,15 @@ class MySQLTransactionAdapter extends MySQLAdapter {
         );
       }
 
-      throw createQueryError(`MySQL query error: ${originalError.message}`, {
-        code: DatabaseErrorCode.QUERY_FAILED,
-        sql,
-        params,
-        originalError,
-      });
+      throw createQueryError(
+        $tr("error.mysqlQueryError", { message: originalError.message }),
+        {
+          code: DatabaseErrorCode.QUERY_FAILED,
+          sql,
+          params,
+          originalError,
+        },
+      );
     }
   }
 
@@ -510,7 +516,7 @@ class MySQLTransactionAdapter extends MySQLAdapter {
       }
 
       throw createExecuteError(
-        `MySQL execute error: ${originalError.message}`,
+        $tr("error.mysqlExecuteError", { message: originalError.message }),
         {
           code: DatabaseErrorCode.EXECUTE_FAILED,
           sql,
@@ -535,7 +541,9 @@ class MySQLTransactionAdapter extends MySQLAdapter {
         ? error
         : new Error(String(error));
       throw createTransactionError(
-        `Failed to create savepoint: ${originalError.message}`,
+        $tr("error.mysqlSavepointCreateFailed", {
+          message: originalError.message,
+        }),
         {
           code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
           sql: `SAVEPOINT ${savepointName}`,
@@ -562,9 +570,10 @@ class MySQLTransactionAdapter extends MySQLAdapter {
     });
     if (matchingSavepoints.length === 0) {
       throw createTransactionError(
-        `Savepoint '${name}' not found. Available savepoints: ${
-          this.savepoints.join(", ")
-        }`,
+        $tr("error.mysqlSavepointNotFound", {
+          name,
+          list: this.savepoints.join(", "),
+        }),
         {
           code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
         },
@@ -579,7 +588,7 @@ class MySQLTransactionAdapter extends MySQLAdapter {
       const index = this.savepoints.indexOf(savepointName);
       if (index === -1) {
         throw createTransactionError(
-          `Savepoint '${savepointName}' not found in savepoints list`,
+          $tr("error.mysqlSavepointNotFoundInList", { name: savepointName }),
           {
             code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
           },
@@ -591,7 +600,9 @@ class MySQLTransactionAdapter extends MySQLAdapter {
         ? error
         : new Error(String(error));
       throw createTransactionError(
-        `Failed to rollback to savepoint: ${originalError.message}`,
+        $tr("error.mysqlSavepointRollbackFailed", {
+          message: originalError.message,
+        }),
         {
           code: DatabaseErrorCode.TRANSACTION_ROLLBACK_FAILED,
           sql: `ROLLBACK TO SAVEPOINT ${savepointName}`,
@@ -607,9 +618,12 @@ class MySQLTransactionAdapter extends MySQLAdapter {
   override async releaseSavepoint(name: string): Promise<void> {
     const savepointName = this.savepoints.find((sp) => sp.includes(name));
     if (!savepointName) {
-      throw createTransactionError(`Savepoint "${name}" not found`, {
-        code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
-      });
+      throw createTransactionError(
+        $tr("error.mysqlSavepointReleaseNotFound", { name }),
+        {
+          code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
+        },
+      );
     }
 
     try {
@@ -622,7 +636,9 @@ class MySQLTransactionAdapter extends MySQLAdapter {
         ? error
         : new Error(String(error));
       throw createTransactionError(
-        `Failed to release savepoint: ${originalError.message}`,
+        $tr("error.mysqlSavepointReleaseFailed", {
+          message: originalError.message,
+        }),
         {
           code: DatabaseErrorCode.TRANSACTION_SAVEPOINT_FAILED,
           sql: `RELEASE SAVEPOINT ${savepointName}`,
@@ -692,7 +708,7 @@ class MySQLTransactionAdapter extends MySQLAdapter {
   override close(): Promise<void> {
     return Promise.reject(
       createTransactionError(
-        "Cannot close connection in transaction adapter",
+        $tr("error.cannotCloseInTransaction"),
         {
           code: DatabaseErrorCode.TRANSACTION_FAILED,
         },
