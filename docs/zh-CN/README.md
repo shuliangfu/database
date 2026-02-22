@@ -174,9 +174,8 @@ const users = await db.query("SELECT * FROM users WHERE age > ?", [18]);
 
 ## 📋 变更日志
 
-**v1.0.7** (2026-02-22)：SQLite 回退改为使用 `npm:better-sqlite3@11.10.0`，并从
-deno.json/optionalDependencies 移除以避免 prebuild-install 警告；新增
-`docs/COMPATIBILITY.md`（Node.js 与 CF Workers 兼容性分析）。
+**v1.0.8** (2026-02-22)：移除 better-sqlite3 回退；SQLite 适配器仅支持 Deno 与
+Bun，消除 prebuild-install 弃用警告。
 
 详见 [CHANGELOG.md](./CHANGELOG.md)。
 

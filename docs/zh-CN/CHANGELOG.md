@@ -7,6 +7,17 @@
 
 ---
 
+## [1.0.8] - 2026-02-22
+
+### 移除
+
+- **SQLite**：完全移除 better-sqlite3 回退。SQLite 适配器现仅支持
+  Deno（node:sqlite， Deno 2.2+）与 Bun（bun:sqlite），从而消除使用本包时的
+  prebuild-install 弃用警告。 在 Node 或原生 SQLite
+  不可用时，适配器会抛出明确的配置错误，而不再加载 better-sqlite3。
+
+---
+
 ## [1.0.7] - 2026-02-22
 
 ### 变更

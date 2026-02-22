@@ -49,9 +49,9 @@ interface SQLiteStatement {
 
 /**
  * SQLite 适配器实现
- * - Deno: 优先使用 node:sqlite (Deno 2.2+ 内置)，低版本无内置时走 else 用 better-sqlite3
- * - Bun: 优先使用 bun:sqlite 原生 API，低版本或不可用时回退到 better-sqlite3
- * - Node 或无内置 SQLite 的运行时: 使用 better-sqlite3 做兼容（npm:better-sqlite3@11.10.0，不写进 deno.json 可避免默认安装时的 prebuild-install 警告）
+ * - Deno: 使用 node:sqlite (Deno 2.2+ 内置)
+ * - Bun: 使用 bun:sqlite 原生 API，不可用时直接抛错（不拉取 better-sqlite3，避免 prebuild-install 弃用警告）
+ * - Node 等其它运行时: 抛错，请使用 Deno 2.2+ 或 Bun 以使用 SQLite
  */
 export class SQLiteAdapter extends BaseAdapter {
   protected db: SQLiteDatabase | null = null;
@@ -200,68 +200,29 @@ export class SQLiteAdapter extends BaseAdapter {
           this.db = this.createBunNativeAdapter(nativeDb);
           this.connected = true;
         } catch (nativeError) {
-          // 低版本 Bun 或无 bun:sqlite 时，用 better-sqlite3 做兼容
-          try {
-            const Database =
-              (await import("npm:better-sqlite3@11.10.0")).default;
-            const options: any = {
-              readonly: sqliteConfig.sqliteOptions?.readonly || false,
-              fileMustExist: sqliteConfig.sqliteOptions?.fileMustExist || false,
-              timeout: sqliteConfig.sqliteOptions?.timeout || 5000,
-              verbose: sqliteConfig.sqliteOptions?.verbose
-                ? (msg: string) => this.logger.debug(msg)
-                : undefined,
-            };
-            this.db = new Database(filename, options);
-            this.connected = true;
-          } catch (betterSqliteError) {
-            const nativeMsg = nativeError instanceof Error
-              ? nativeError.message
-              : String(nativeError);
-            const betterMsg = betterSqliteError instanceof Error
-              ? betterSqliteError.message
-              : String(betterSqliteError);
-            throw createConnectionError(
-              $tr("error.sqliteConnectionFailed", {
-                nativeError: nativeMsg,
-                betterError: betterMsg,
-              }),
-              {
-                code: DatabaseErrorCode.CONNECTION_FAILED,
-                originalError: betterSqliteError instanceof Error
-                  ? betterSqliteError
-                  : new Error(String(betterSqliteError)),
-              },
-            );
-          }
-        }
-      } else {
-        // Node 或低版本 Deno/Bun 等无内置 SQLite 时，用 better-sqlite3 做兼容
-        try {
-          const Database = (await import("npm:better-sqlite3@11.10.0")).default;
-          const options: Record<string, unknown> = {
-            readonly: sqliteConfig.sqliteOptions?.readonly ?? false,
-            fileMustExist: sqliteConfig.sqliteOptions?.fileMustExist ?? false,
-            timeout: sqliteConfig.sqliteOptions?.timeout ?? 5000,
-            verbose: sqliteConfig.sqliteOptions?.verbose
-              ? (msg: string) => this.logger.debug(msg)
-              : undefined,
-          };
-          this.db = new Database(filename, options);
-          this.connected = true;
-        } catch (err) {
+          // Bun 原生 SQLite 不可用时直接抛错，不再拉取 better-sqlite3（避免 prebuild-install 弃用警告）
+          const msg = nativeError instanceof Error
+            ? nativeError.message
+            : String(nativeError);
           throw createConnectionError(
-            $tr("error.sqliteConnectionError", {
-              message: err instanceof Error ? err.message : String(err),
+            $tr("error.sqliteConnectionFailed", {
+              nativeError: msg,
+              betterError: $tr("error.sqliteUnsupportedRuntime"),
             }),
             {
               code: DatabaseErrorCode.CONNECTION_FAILED,
-              originalError: err instanceof Error
-                ? err
-                : new Error(String(err)),
+              originalError: nativeError instanceof Error
+                ? nativeError
+                : new Error(String(nativeError)),
             },
           );
         }
+      } else {
+        // Node 或其它无内置 SQLite 的运行时：不拉取 better-sqlite3，避免 prebuild-install 警告；需 SQLite 时请使用 Deno 2.2+ 或 Bun
+        throw createConfigError(
+          $tr("error.sqliteUnsupportedRuntime"),
+          { code: DatabaseErrorCode.CONFIG_INVALID },
+        );
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
