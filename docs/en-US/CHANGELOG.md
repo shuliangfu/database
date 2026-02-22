@@ -8,6 +8,23 @@ and this project adheres to
 
 ---
 
+## [1.0.7] - 2026-02-22
+
+### Changed
+
+- **SQLite**: Use `npm:better-sqlite3@11.10.0` directly for Bun/Node fallback;
+  no longer listed in `deno.json` imports to avoid prebuild-install deprecation
+  warning when using Deno. Removed `optionalDependencies` for better-sqlite3
+  from `package.json`. Comments updated to clarify Deno/Bun/Node and low-version
+  runtime compatibility.
+
+### Added
+
+- **Documentation**: Added `docs/COMPATIBILITY.md` with analysis of Node.js and
+  Cloudflare Workers compatibility (current status and options).
+
+---
+
 ## [1.0.6] - 2026-02-19
 
 ### Added

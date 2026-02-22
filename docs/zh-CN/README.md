@@ -174,8 +174,9 @@ const users = await db.query("SELECT * FROM users WHERE age > ?", [18]);
 
 ## 📋 变更日志
 
-**v1.0.6** (2026-02-19)：新增 MongoDB `mongoOptions.timezone`，查询结果 date
-自动格式化为该时区字符串。文档：2,040 条测试、依赖版本、API 时区说明。
+**v1.0.7** (2026-02-22)：SQLite 回退改为使用 `npm:better-sqlite3@11.10.0`，并从
+deno.json/optionalDependencies 移除以避免 prebuild-install 警告；新增
+`docs/COMPATIBILITY.md`（Node.js 与 CF Workers 兼容性分析）。
 
 详见 [CHANGELOG.md](./CHANGELOG.md)。
 

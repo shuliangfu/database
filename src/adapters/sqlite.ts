@@ -49,8 +49,9 @@ interface SQLiteStatement {
 
 /**
  * SQLite 适配器实现
- * - Deno: 使用 node:sqlite (Deno 2.2+ 内置)
- * - Bun: 优先使用原生 SQLite API，如果不可用则回退到 better-sqlite3
+ * - Deno: 优先使用 node:sqlite (Deno 2.2+ 内置)，低版本无内置时走 else 用 better-sqlite3
+ * - Bun: 优先使用 bun:sqlite 原生 API，低版本或不可用时回退到 better-sqlite3
+ * - Node 或无内置 SQLite 的运行时: 使用 better-sqlite3 做兼容（npm:better-sqlite3@11.10.0，不写进 deno.json 可避免默认安装时的 prebuild-install 警告）
  */
 export class SQLiteAdapter extends BaseAdapter {
   protected db: SQLiteDatabase | null = null;
@@ -187,7 +188,7 @@ export class SQLiteAdapter extends BaseAdapter {
         this.db = new DatabaseSync(filename);
         this.connected = true;
       } else if (IS_BUN) {
-        // Bun: 优先使用原生 SQLite API，如果失败则回退到 better-sqlite3
+        // Bun: 优先使用 bun:sqlite，低版本或不可用时回退到 better-sqlite3
         try {
           // 尝试使用 Bun 原生 SQLite API (bun:sqlite)
           // 使用动态导入以避免在 Deno 环境中的 linter 错误
@@ -199,9 +200,10 @@ export class SQLiteAdapter extends BaseAdapter {
           this.db = this.createBunNativeAdapter(nativeDb);
           this.connected = true;
         } catch (nativeError) {
-          // 如果原生 API 不可用，尝试使用 better-sqlite3
+          // 低版本 Bun 或无 bun:sqlite 时，用 better-sqlite3 做兼容
           try {
-            const Database = (await import("better-sqlite3")).default;
+            const Database =
+              (await import("npm:better-sqlite3@11.10.0")).default;
             const options: any = {
               readonly: sqliteConfig.sqliteOptions?.readonly || false,
               fileMustExist: sqliteConfig.sqliteOptions?.fileMustExist || false,
@@ -234,10 +236,32 @@ export class SQLiteAdapter extends BaseAdapter {
           }
         }
       } else {
-        throw createConfigError(
-          $tr("error.sqliteUnsupportedRuntime"),
-          { code: DatabaseErrorCode.CONFIG_INVALID },
-        );
+        // Node 或低版本 Deno/Bun 等无内置 SQLite 时，用 better-sqlite3 做兼容
+        try {
+          const Database = (await import("npm:better-sqlite3@11.10.0")).default;
+          const options: Record<string, unknown> = {
+            readonly: sqliteConfig.sqliteOptions?.readonly ?? false,
+            fileMustExist: sqliteConfig.sqliteOptions?.fileMustExist ?? false,
+            timeout: sqliteConfig.sqliteOptions?.timeout ?? 5000,
+            verbose: sqliteConfig.sqliteOptions?.verbose
+              ? (msg: string) => this.logger.debug(msg)
+              : undefined,
+          };
+          this.db = new Database(filename, options);
+          this.connected = true;
+        } catch (err) {
+          throw createConnectionError(
+            $tr("error.sqliteConnectionError", {
+              message: err instanceof Error ? err.message : String(err),
+            }),
+            {
+              code: DatabaseErrorCode.CONNECTION_FAILED,
+              originalError: err instanceof Error
+                ? err
+                : new Error(String(err)),
+            },
+          );
+        }
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

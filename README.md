@@ -13,13 +13,14 @@ English | [中文 (Chinese)](./docs/zh-CN/README.md)
 **Changelog**: [English](./docs/en-US/CHANGELOG.md) |
 [中文 (Chinese)](./docs/zh-CN/CHANGELOG.md)
 
-### [1.0.6] - 2026-02-19
+### [1.0.7] - 2026-02-22
 
-- **Added**: MongoDB `mongoOptions.timezone`; query result date fields formatted
-  as local time strings. Adapter `getTimezone()`. New tests:
-  `tests/mongo/timezone.test.ts` (6).
-- **Changed**: Docs updated to 2,040 tests; TEST_REPORT dependency versions; API
-  docs for MongoDB timezone.
+- **Changed**: SQLite uses `npm:better-sqlite3@11.10.0` for Bun/Node fallback;
+  removed from deno.json/optionalDependencies to avoid prebuild-install warning.
+- **Added**: `docs/COMPATIBILITY.md` (Node.js and CF Workers compatibility
+  analysis).
+- **Changelog**: [English](./docs/en-US/CHANGELOG.md) |
+  [中文](./docs/zh-CN/CHANGELOG.md)
 
 ---
 
