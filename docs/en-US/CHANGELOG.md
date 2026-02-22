@@ -8,6 +8,18 @@ and this project adheres to
 
 ---
 
+## [1.0.8] - 2026-02-22
+
+### Removed
+
+- **SQLite**: Removed better-sqlite3 fallback entirely. SQLite adapter now only
+  supports Deno (node:sqlite, Deno 2.2+) and Bun (bun:sqlite). This eliminates
+  the prebuild-install deprecation warning when using the package. On Node or
+  when native SQLite is unavailable, the adapter throws a clear config error
+  instead of loading better-sqlite3.
+
+---
+
 ## [1.0.7] - 2026-02-22
 
 ### Changed

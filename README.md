@@ -13,12 +13,11 @@ English | [中文 (Chinese)](./docs/zh-CN/README.md)
 **Changelog**: [English](./docs/en-US/CHANGELOG.md) |
 [中文 (Chinese)](./docs/zh-CN/CHANGELOG.md)
 
-### [1.0.7] - 2026-02-22
+### [1.0.8] - 2026-02-22
 
-- **Changed**: SQLite uses `npm:better-sqlite3@11.10.0` for Bun/Node fallback;
-  removed from deno.json/optionalDependencies to avoid prebuild-install warning.
-- **Added**: `docs/COMPATIBILITY.md` (Node.js and CF Workers compatibility
-  analysis).
+- **Removed**: better-sqlite3 fallback; SQLite adapter only supports Deno
+  (node:sqlite) and Bun (bun:sqlite). Eliminates prebuild-install deprecation
+  warning.
 - **Changelog**: [English](./docs/en-US/CHANGELOG.md) |
   [中文](./docs/zh-CN/CHANGELOG.md)
 
@@ -195,9 +194,8 @@ Full report: [TEST_REPORT.md](./docs/en-US/TEST_REPORT.md)
 
 ## 📋 Changelog
 
-**v1.0.6** (2026-02-19): Added MongoDB `mongoOptions.timezone`; query result
-date fields auto-formatted to that timezone. Docs: 2,040 tests, dependency
-versions, API timezone.
+**v1.0.8** (2026-02-22): Removed better-sqlite3 fallback; SQLite adapter only
+supports Deno and Bun. Eliminates prebuild-install deprecation warning.
 
 See [CHANGELOG.md](./docs/en-US/CHANGELOG.md) for full details.
 
