@@ -7,7 +7,23 @@
 
 ---
 
-01## [1.0.6] - 2026-02-19
+## [1.0.7] - 2026-02-22
+
+### 变更
+
+- **SQLite**：Bun/Node 回退改为直接使用 `npm:better-sqlite3@11.10.0`；不再写入
+  `deno.json` 的 imports，避免在 Deno 下触发 prebuild-install 弃用警告。从
+  `package.json` 移除 better-sqlite3 的 optionalDependencies。注释更新，说明
+  Deno/Bun/Node 及低版本运行时兼容策略。
+
+### 新增
+
+- **文档**：新增 `docs/COMPATIBILITY.md`，分析 Node.js 与 Cloudflare Workers
+  的兼容性（现状与可选方案）。
+
+---
+
+## [1.0.6] - 2026-02-19
 
 ### 新增
 
