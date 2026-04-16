@@ -97,14 +97,18 @@ export class MongoDBAdapter extends BaseAdapter {
       }
 
       // 连接选项（与 MongoDB 官方驱动配置对应）
+      // directConnection：未显式传入时，若配置了 replicaSet 则默认为 true（与 types 文档一致，避免 Docker 单节点副本集去解析集群内主机名）；无 replicaSet 则为 false
+      const directConnectionResolved =
+        mongoOptions?.directConnection !== undefined
+          ? mongoOptions.directConnection
+          : Boolean(mongoOptions?.replicaSet);
       const clientOptions: any = {
         // 默认选项
         serverSelectionTimeoutMS: mongoOptions?.serverSelectionTimeoutMS ||
           30000,
         connectTimeoutMS: mongoOptions?.connectTimeoutMS ?? 5000, // 连接超时 5 秒
         socketTimeoutMS: mongoOptions?.socketTimeoutMS ?? 5000, // Socket 超时 5 秒
-        // directConnection 必须手动设置为 true 才启用，默认不开启
-        directConnection: mongoOptions?.directConnection ?? false,
+        directConnection: directConnectionResolved,
       };
 
       if (mongoOptions?.authSource) {

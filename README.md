@@ -13,11 +13,11 @@ English | [中文 (Chinese)](./docs/zh-CN/README.md)
 **Changelog**: [English](./docs/en-US/CHANGELOG.md) |
 [中文 (Chinese)](./docs/zh-CN/CHANGELOG.md)
 
-### [1.0.8] - 2026-02-22
+### [1.0.9] - 2026-04-17
 
-- **Removed**: better-sqlite3 fallback; SQLite adapter only supports Deno
-  (node:sqlite) and Bun (bun:sqlite). Eliminates prebuild-install deprecation
-  warning.
+- **Changed**: MongoDB — if `replicaSet` is set and `directConnection` is
+  omitted, default `directConnection` to `true`; explicit `false` still
+  overrides.
 - **Changelog**: [English](./docs/en-US/CHANGELOG.md) |
   [中文](./docs/zh-CN/CHANGELOG.md)
 

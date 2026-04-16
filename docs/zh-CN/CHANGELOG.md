@@ -7,6 +7,17 @@
 
 ---
 
+## [1.0.9] - 2026-04-17
+
+### 变更
+
+- **MongoDB**：当配置了 `mongoOptions.replicaSet` 且未显式传入
+  `directConnection` 时，适配器默认将 `directConnection` 设为
+  `true`，与类型文档一致，减轻 Docker 单节点副本集连接问题。仍可通过显式
+  `directConnection: false` 覆盖（例如需要 完整副本集发现时）。
+
+---
+
 ## [1.0.8] - 2026-02-22
 
 ### 移除

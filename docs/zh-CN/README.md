@@ -174,8 +174,9 @@ const users = await db.query("SELECT * FROM users WHERE age > ?", [18]);
 
 ## 📋 变更日志
 
-**v1.0.8** (2026-02-22)：移除 better-sqlite3 回退；SQLite 适配器仅支持 Deno 与
-Bun，消除 prebuild-install 弃用警告。
+**v1.0.9** (2026-04-17)：MongoDB — 配置 `replicaSet` 且未显式传入
+`directConnection` 时，默认 `directConnection` 为 `true`；可显式传 `false`
+覆盖。
 
 详见 [CHANGELOG.md](./CHANGELOG.md)。
 

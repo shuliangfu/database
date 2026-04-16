@@ -8,6 +8,18 @@ and this project adheres to
 
 ---
 
+## [1.0.9] - 2026-04-17
+
+### Changed
+
+- **MongoDB**: When `mongoOptions.replicaSet` is set and `directConnection` is
+  omitted, the adapter now defaults `directConnection` to `true`, matching the
+  documented behavior and reducing Docker single-node replica set connection
+  issues. An explicit `directConnection: false` still overrides this (e.g. for
+  full replica set discovery).
+
+---
+
 ## [1.0.8] - 2026-02-22
 
 ### Removed

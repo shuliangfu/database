@@ -374,9 +374,9 @@ export interface MongoConfig {
      *   适用于真正的分布式副本集环境，可以实现高可用和负载均衡
      *   注意：需要确保所有节点地址都可以从客户端访问
      *
-     * **默认值：**
-     * - 如果配置了 `replicaSet` 则为 `true`（单节点模式，避免 Docker 环境卡住）
-     * - 否则为 `false`（自动发现模式）
+     * **默认值（由适配器在连接时解析，仅当未显式传入本字段时）：**
+     * - 若配置了 `replicaSet` 则为 `true`（单节点直连，避免 Docker 环境卡住）
+     * - 若未配置 `replicaSet` 则为 `false`
      *
      * **使用建议：**
      * - 单节点副本集（如 Docker 开发环境）：使用默认值或显式设置 `directConnection: true`
