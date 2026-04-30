@@ -1,6 +1,6 @@
 {
   "name": "@dreamer/database",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "Database utilities and adapters for Deno/Bun.",
   "type": "module",
   "license": "Apache-2.0",

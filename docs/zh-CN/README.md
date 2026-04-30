@@ -174,9 +174,9 @@ const users = await db.query("SELECT * FROM users WHERE age > ?", [18]);
 
 ## 📋 变更日志
 
-**v1.0.9** (2026-04-17)：MongoDB — 配置 `replicaSet` 且未显式传入
-`directConnection` 时，默认 `directConnection` 为 `true`；可显式传 `false`
-覆盖。
+**v1.0.10** (2026-04-30)：**修复** — MongoModel/SQLModel 局部 `update()`
+不再对未传字段套用 schema 默认值，避免覆盖已有数据；**变更** — `processFields`
+支持 `applyDefaults`； MySQL 集成测试在不可连库时跳过并补充环境说明。
 
 详见 [CHANGELOG.md](./CHANGELOG.md)。
 

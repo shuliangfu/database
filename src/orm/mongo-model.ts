@@ -2337,8 +2337,12 @@ export abstract class MongoModel {
 
   /**
    * 处理字段值（应用默认值、类型转换、getter/setter，以及可选的查询结果时区格式化）
+   *
    * @param data 原始数据
-   * @param options 可选：formatDateToTimezone 为 true 时将 date 按 mongoOptions.timezone 格式化为字符串（仅用于查询结果）；applyDefaults 为 false 时不应用默认值（用于查询结果）
+   * @param options
+   * - `applyDefaults`：**插入（create/createMany）应为 `true`（可省略，默认即 true）**，未传字段填 schema default；
+   *   **更新（update）必须为 `false`**，否则局部 patch 会把未传字段写成 default 覆盖库里已有值。
+   * - `formatDateToTimezone`：为 true 时将 date 按 mongoOptions.timezone 格式化（用于查询结果等）。
    * @returns 处理后的数据
    */
   private static processFields(
@@ -3965,8 +3969,8 @@ export abstract class MongoModel {
     this: T,
     data: Record<string, any>,
   ): Promise<InstanceType<T>> {
-    // 处理字段（应用默认值、类型转换、验证）
-    const processedData = this.processFields(data);
+    // 插入路径：允许未传字段套用 schema default（update 使用 applyDefaults: false）
+    const processedData = this.processFields(data, { applyDefaults: true });
 
     // 自动时间戳
     if (this.timestamps) {
@@ -4197,8 +4201,17 @@ export abstract class MongoModel {
       }
     }
 
-    // 处理字段（应用默认值、类型转换、验证）
-    const processedData = this.processFields(data);
+    /**
+     * 仅 update 路径：`applyDefaults: false`，与 create 的 `applyDefaults: true` 区分。
+     */
+    const processedData = this.processFields(data, { applyDefaults: false });
+    /** 仅保留调用方传入的键：`processFields` 会为全部 schema 字段占位，`Object.assign` 会用 undefined 覆盖已有实例。 */
+    const providedKeys = new Set(Object.keys(data));
+    for (const key of Object.keys(processedData)) {
+      if (!providedKeys.has(key)) {
+        delete processedData[key];
+      }
+    }
 
     // 自动时间戳
     if (this.timestamps) {
@@ -5229,7 +5242,7 @@ export abstract class MongoModel {
     // 处理每个数据项（应用默认值、类型转换、验证、时间戳与钩子）
     const processedArray: Record<string, any>[] = [];
     for (const data of dataArray) {
-      const item = this.processFields(data);
+      const item = this.processFields(data, { applyDefaults: true });
       if (this.timestamps) {
         const createdAtField = typeof this.timestamps === "object"
           ? (this.timestamps.createdAt || "createdAt")

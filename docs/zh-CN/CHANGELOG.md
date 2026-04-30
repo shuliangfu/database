@@ -7,6 +7,24 @@
 
 ---
 
+## [1.0.10] - 2026-04-30
+
+### 修复
+
+- **MongoModel.update /
+  SQLModel.update**：局部更新不再对「请求体中未出现的字段」套用 schema
+  默认值，避免覆盖已有文档/列（例如 MongoDB `$set`
+  不再用枚举默认值填齐缺省键）。 `processFields` 支持 `applyDefaults`；update
+  路径为 `false`；create / createMany / 方言 upsert 路径为 `true`。
+
+### 变更
+
+- **测试**：MySQL `access` 集成测试在不可连库时跳过；`probeMysqlAvailable()`
+  使用快速失败重试； `mysql-test-utils`
+  补充前置说明（`CREATE DATABASE`、环境变量等）。
+
+---
+
 ## [1.0.9] - 2026-04-17
 
 ### 变更

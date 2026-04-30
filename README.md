@@ -13,11 +13,14 @@ English | [中文 (Chinese)](./docs/zh-CN/README.md)
 **Changelog**: [English](./docs/en-US/CHANGELOG.md) |
 [中文 (Chinese)](./docs/zh-CN/CHANGELOG.md)
 
-### [1.0.9] - 2026-04-17
+### [1.0.10] - 2026-04-30
 
-- **Changed**: MongoDB — if `replicaSet` is set and `directConnection` is
-  omitted, default `directConnection` to `true`; explicit `false` still
-  overrides.
+- **Fixed**: MongoModel/SQLModel partial `update()` — schema defaults are not
+  applied to omitted keys; avoids overwriting existing values in MongoDB `$set`
+  and SQL updates.
+- **Changed**: `processFields` supports `applyDefaults` (off for update, on for
+  create/upsert). MySQL access tests skip when DB is unavailable; probe and env
+  docs updated.
 - **Changelog**: [English](./docs/en-US/CHANGELOG.md) |
   [中文](./docs/zh-CN/CHANGELOG.md)
 

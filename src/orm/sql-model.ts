@@ -1327,14 +1327,23 @@ export abstract class SQLModel {
 
   /**
    * 处理字段（应用默认值、类型转换、验证）
+   *
    * @param data 原始数据
-   * @returns 处理后的数据
+   * @param options
+   * - `applyDefaults`：**插入（create / createMany 中带 processFields 的路径、方言 upsert 的 INSERT 侧）应为 `true`**（可省略，默认即 true）；
+   *   **更新（update）必须为 `false`**，否则局部 UPDATE 会把未传列写成 default。
+   * - 省略 `options` 时等同 `{ applyDefaults: true }`（`options?.applyDefaults !== false`）。
    */
-  private static processFields(data: Record<string, any>): Record<string, any> {
+  private static processFields(
+    data: Record<string, any>,
+    options?: { applyDefaults?: boolean },
+  ): Record<string, any> {
     const schema = (this as any).schema;
     if (!schema) {
       return data;
     }
+
+    const applyDefaults = options?.applyDefaults !== false;
 
     const processed: Record<string, any> = { ...data };
 
@@ -1342,13 +1351,18 @@ export abstract class SQLModel {
     const schemaKeys = this.getSchemaKeys();
     for (const fieldName of schemaKeys) {
       const field = schema[fieldName] as FieldDefinition;
-      const value = processed[fieldName];
+      if (!applyDefaults && !(fieldName in data)) {
+        continue;
+      }
 
-      // 应用默认值
-      if (value === undefined && field.default !== undefined) {
+      let value = processed[fieldName];
+
+      // 应用默认值（仅创建/全量写入路径；局部 update 勿填充未传字段）
+      if (applyDefaults && value === undefined && field.default !== undefined) {
         processed[fieldName] = typeof field.default === "function"
           ? field.default()
           : field.default;
+        value = processed[fieldName];
       }
 
       // 类型转换
@@ -3841,9 +3855,9 @@ export abstract class SQLModel {
     // 自动初始化（如果未初始化）
     await this.ensureAdapter();
 
-    // 处理字段（应用默认值、类型转换、验证）
+    // 插入路径：允许未传字段套用 schema default（update 使用 applyDefaults: false）
     // 注意：这里先不序列化，因为钩子可能需要访问原始对象/数组
-    const processedData = this.processFields(data);
+    const processedData = this.processFields(data, { applyDefaults: true });
 
     // 自动时间戳
     if (this.timestamps) {
@@ -4109,8 +4123,10 @@ export abstract class SQLModel {
       }
     }
 
-    // 处理字段（应用默认值、类型转换、验证）
-    const processedData = this.processFields(data);
+    /**
+     * 仅 update 路径：`applyDefaults: false`，与 create 的 `applyDefaults: true` 区分。
+     */
+    const processedData = this.processFields(data, { applyDefaults: false });
 
     // 自动时间戳
     if (this.timestamps) {
@@ -4896,7 +4912,7 @@ export abstract class SQLModel {
 
       // 字段处理（应用默认值、类型转换）
       if (enableHooks || enableValidation) {
-        processedData = this.processFields(data);
+        processedData = this.processFields(data, { applyDefaults: true });
 
         // 自动时间戳
         if (this.timestamps) {
@@ -5594,7 +5610,8 @@ export abstract class SQLModel {
             }
           }
         }
-        const processedData = this.processFields(data);
+        // 方言 upsert：同一 payload 参与 INSERT 与 DO UPDATE，沿用插入语义（applyDefaults: true）
+        const processedData = this.processFields(data, { applyDefaults: true });
         if (this.timestamps) {
           const updatedAtField = typeof this.timestamps === "object"
             ? (this.timestamps.updatedAt || "updatedAt")
@@ -5661,7 +5678,7 @@ export abstract class SQLModel {
           }
         }
       }
-      const processedData = this.processFields(data);
+      const processedData = this.processFields(data, { applyDefaults: true });
       if (this.timestamps) {
         const updatedAtField = typeof this.timestamps === "object"
           ? (this.timestamps.updatedAt || "updatedAt")

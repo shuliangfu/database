@@ -8,6 +8,24 @@ and this project adheres to
 
 ---
 
+## [1.0.10] - 2026-04-30
+
+### Fixed
+
+- **MongoModel.update / SQLModel.update**: Partial updates no longer apply
+  schema defaults to keys omitted from the payload, so existing document/column
+  values are not overwritten (e.g. MongoDB `$set` no longer fills missing keys
+  with enum defaults). `processFields` accepts `applyDefaults`; update paths use
+  `false`; create / createMany / dialect upsert paths use `true`.
+
+### Changed
+
+- **Tests**: MySQL `access` integration tests skip when the server is
+  unreachable; `probeMysqlAvailable()` uses fast-fail retries;
+  `mysql-test-utils` documents prerequisites (`CREATE DATABASE`, env vars).
+
+---
+
 ## [1.0.9] - 2026-04-17
 
 ### Changed
