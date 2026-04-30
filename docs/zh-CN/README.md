@@ -174,11 +174,11 @@ const users = await db.query("SELECT * FROM users WHERE age > ?", [18]);
 
 ## 📋 变更日志
 
-**v1.0.10** (2026-04-30)：**修复** — MongoModel/SQLModel 局部 `update()`
-不再对未传字段套用 schema 默认值，避免覆盖已有数据；**变更** — `processFields`
-支持 `applyDefaults`； MySQL 集成测试在不可连库时跳过并补充环境说明。
-
-详见 [CHANGELOG.md](./CHANGELOG.md)。
+**v1.1.0** (2026-04-30)：**修复** — MongoModel 统一解包驱动 `{ value }` 类
+modify 返回值；静态 `findAll`
+条件规范化与链式查询一致，`update(...,
+ returnLatest)` 预查询可正确匹配
+`ObjectId` `_id`。详见 [CHANGELOG.md](./CHANGELOG.md)。
 
 ---
 

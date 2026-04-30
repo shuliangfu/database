@@ -7,6 +7,22 @@
 
 ---
 
+## [1.1.0] - 2026-04-30
+
+### 修复
+
+- **MongoModel**：对 Node 驱动返回 `{ value: Document | null }` 的类
+  `findOneAndUpdate`
+  返回值在各消费路径统一解包，`update(..., returnLatest: true)`、增减字段需返回最新文档、软删相关
+  modify、等场景不再误判「未匹配」或错误组装实例。
+- **MongoModel.findAll**（静态）：在套用软删过滤前，条件与链式 `executeFindAll`
+  一致地做规范化（字符串 / `ObjectId` / 对象经 `normalizeCondition`），修复
+  `update(...,
+  returnLatest: true)` 预查询中 `{ _id: "十六进制字符串" }`
+  与库内 `ObjectId` `_id` 对不上的问题。
+
+---
+
 ## [1.0.10] - 2026-04-30
 
 ### 修复
