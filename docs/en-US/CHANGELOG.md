@@ -8,6 +8,23 @@ and this project adheres to
 
 ---
 
+## [1.1.0] - 2026-04-30
+
+### Fixed
+
+- **MongoModel**: `findOneAndUpdate`-style driver responses that wrap the
+  document in `{ value }` are now unwrapped everywhere they are consumed, so
+  `update(..., returnLatest: true)`, increment/decrement return-latest paths,
+  soft-delete modify helpers, and related flows no longer mis-handle results or
+  report zero rows incorrectly.
+- **MongoModel.findAll** (static): Query filters are normalized the same way as
+  chained `executeFindAll` (string / `ObjectId` / object via
+  `normalizeCondition`) before applying soft-delete scopes. This fixes
+  pre-queries inside `update(..., returnLatest: true)` when callers pass
+  `{ _id: "<hex>" }` against documents stored with `ObjectId` `_id`.
+
+---
+
 ## [1.0.10] - 2026-04-30
 
 ### Fixed

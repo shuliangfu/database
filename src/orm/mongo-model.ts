@@ -2758,6 +2758,23 @@ export abstract class MongoModel {
   }
 
   /**
+   * MongoDB Node 驱动 4+ 起 `findOneAndUpdate` / 部分 modify 类 API 返回 `{ value: Document | null }`，
+   * 旧逻辑若把返回值整体当文档，会误判「未匹配」或把 `{ value, ok }` 错赋给模型实例。
+   *
+   * @param raw 驱动原始返回值。
+   * @returns 文档对象；未匹配或 `value` 为 null 时返回 null。
+   */
+  private static unwrapModifyResult(raw: unknown): unknown {
+    if (raw == null) {
+      return null;
+    }
+    if (typeof raw === "object" && raw !== null && "value" in raw) {
+      return (raw as { value: unknown }).value ?? null;
+    }
+    return raw;
+  }
+
+  /**
    * 规范化排序参数（支持字符串 asc/desc）
    */
   private static normalizeSort(
@@ -3843,9 +3860,18 @@ export abstract class MongoModel {
       queryOptions.limit = options.limit;
     }
 
-    // 软删除：自动过滤已删除的记录（默认排除软删除）
+    /** 与链式 `executeFindAll` 一致：对象条件需 `normalizeCondition`，否则 `{ _id: 字符串 }` 无法匹配库内 ObjectId。 */
+    let filter: Record<string, any> = {};
+    if (typeof condition === "string") {
+      filter._id = this.normalizeId(condition);
+    } else if (condition instanceof ObjectId) {
+      filter._id = condition;
+    } else {
+      filter = this.normalizeCondition(condition);
+    }
+
     const queryFilter = this.applySoftDeleteFilter(
-      condition,
+      filter,
       includeTrashed,
       onlyTrashed,
     );
@@ -4438,12 +4464,13 @@ export abstract class MongoModel {
           updateData[key] = processedData[key];
         }
       }
-      const result = await db.collection(this.collectionName).findOneAndUpdate(
+      const raw = await db.collection(this.collectionName).findOneAndUpdate(
         filter,
         { $set: updateData },
         opts,
       );
-      if (!result) {
+      const result = this.unwrapModifyResult(raw);
+      if (result == null || typeof result !== "object") {
         return 0;
       }
       const updatedInstance = new (this as any)();
@@ -5532,13 +5559,14 @@ export abstract class MongoModel {
     try {
       if (shouldReturnLatest) {
         const opts: any = { returnDocument: "after" };
-        const result = await db.collection(this.collectionName)
+        const raw = await db.collection(this.collectionName)
           .findOneAndUpdate(
             filter,
             { $inc: incUpdate },
             opts,
           );
-        if (!result) {
+        const result = this.unwrapModifyResult(raw);
+        if (result == null || typeof result !== "object") {
           return 0;
         }
         const instance = new (this as any)();
@@ -5683,13 +5711,14 @@ export abstract class MongoModel {
       if (Object.keys(projection).length > 0) {
         opts.projection = projection;
       }
-      const result = await db.collection(this.collectionName).findOneAndUpdate(
+      const raw = await db.collection(this.collectionName).findOneAndUpdate(
         filter,
         { $set: data },
         opts,
       );
 
-      if (!result) {
+      const result = this.unwrapModifyResult(raw);
+      if (result == null || typeof result !== "object") {
         return null;
       }
 
@@ -5751,13 +5780,14 @@ export abstract class MongoModel {
         optsDelete.projection = projection;
       }
       if (this.softDelete) {
-        const result = await db.collection(this.collectionName)
+        const raw = await db.collection(this.collectionName)
           .findOneAndUpdate(
             filter,
             { $set: { [this.deletedAtField]: new Date() } },
             optsUpdate,
           );
-        if (!result) {
+        const result = this.unwrapModifyResult(raw);
+        if (result == null || typeof result !== "object") {
           return null;
         }
         const instance = new (this as any)();
@@ -5770,12 +5800,13 @@ export abstract class MongoModel {
 
         return instance as InstanceType<T>;
       } else {
-        const result = await db.collection(this.collectionName)
+        const raw = await db.collection(this.collectionName)
           .findOneAndDelete(
             filter,
             optsDelete,
           );
-        if (!result) {
+        const result = this.unwrapModifyResult(raw);
+        if (result == null || typeof result !== "object") {
           return null;
         }
         const instance = new (this as any)();
@@ -5842,7 +5873,7 @@ export abstract class MongoModel {
         upsert: true,
         returnDocument: returnLatest ? "after" : "before",
       };
-      const result = await db.collection(this.collectionName).findOneAndUpdate(
+      const raw = await db.collection(this.collectionName).findOneAndUpdate(
         filter,
         {
           $set: data,
@@ -5852,6 +5883,13 @@ export abstract class MongoModel {
         },
         opts,
       );
+
+      const result = this.unwrapModifyResult(raw);
+      if (result == null || typeof result !== "object") {
+        throw new Error(
+          $tr("model.mongoUpsertError", { message: "empty_result" }),
+        );
+      }
 
       const instance = new (this as any)();
       Object.assign(instance, this.processQueryResultRow(result));

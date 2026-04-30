@@ -197,10 +197,10 @@ Full report: [TEST_REPORT.md](./docs/en-US/TEST_REPORT.md)
 
 ## 📋 Changelog
 
-**v1.0.8** (2026-02-22): Removed better-sqlite3 fallback; SQLite adapter only
-supports Deno and Bun. Eliminates prebuild-install deprecation warning.
-
-See [CHANGELOG.md](./docs/en-US/CHANGELOG.md) for full details.
+**v1.1.0** (2026-04-30): **Fixed** — MongoModel unwraps `{ value }` modify
+results across update/increment/soft-delete paths; static `findAll` normalizes
+filters like chained queries so `returnLatest` pre-queries match `ObjectId`
+`_id` rows. See [CHANGELOG.md](./docs/en-US/CHANGELOG.md) for full details.
 
 ---
 
