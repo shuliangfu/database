@@ -3,7 +3,6 @@
  * 负责迁移文件的生成、执行和回滚
  */
 
-import { $tr } from "../i18n.ts";
 import { createLogger } from "@dreamer/logger";
 import {
   basename,
@@ -15,6 +14,7 @@ import {
   stat,
   writeTextFile,
 } from "@dreamer/runtime-adapter";
+import { $tr } from "../i18n.ts";
 import type { DatabaseType } from "../types.ts";
 import type { Migration, MigrationConfig, MigrationStatus } from "./types.ts";
 import {
@@ -277,20 +277,30 @@ export class MigrationManager {
       const resolvedPath = await realPath(filepath);
 
       if (IS_BUN) {
-        // Bun 可以直接使用绝对路径（不带 file:// 协议）
-        // 确保路径格式正确（处理 Windows 路径）
+        // Bun 模块路径处理：
+        // - Unix 绝对路径（/xxx）：Bun 可直接用裸路径 import()
+        // - Windows 绝对路径（D:\xxx）：必须转为 file:/// URL，裸路径会报 Cannot find module
         let normalizedPath = resolvedPath;
-        if (normalizedPath.startsWith("file://")) {
+        if (normalizedPath.startsWith("file:///")) {
+          normalizedPath = normalizedPath.slice(8);
+        } else if (normalizedPath.startsWith("file://")) {
           normalizedPath = normalizedPath.slice(7);
         }
-        // Windows 路径需要特殊处理（C:\ -> C:/）
+        normalizedPath = normalizedPath.replace(/\\/g, "/");
         if (normalizedPath.match(/^[A-Za-z]:/)) {
-          normalizedPath = normalizedPath.replace(/\\/g, "/");
+          // Windows：import() 需要 file:/// URL（三斜杠，盘符前补 /）
+          moduleUrl = `file:///${normalizedPath}`;
+        } else if (normalizedPath.startsWith("/")) {
+          // Unix：Bun 可直接用裸绝对路径
+          moduleUrl = normalizedPath;
+        } else {
+          // 相对路径
+          moduleUrl = `${cwd()}/${normalizedPath}`;
         }
-        // Bun 可以直接使用绝对路径
-        moduleUrl = normalizedPath;
-        // Bun 中 stat 和 import 都使用相同的路径
-        statPath = moduleUrl;
+        // stat 需要文件系统路径（去掉 file:/// 协议前缀）
+        statPath = moduleUrl.startsWith("file:///")
+          ? moduleUrl.slice(8)
+          : moduleUrl;
       } else {
         // Deno 使用 file:// URL
         if (resolvedPath.startsWith("file://")) {
@@ -312,18 +322,30 @@ export class MigrationManager {
     } catch {
       // 如果 realPath 失败，直接使用原始路径
       if (IS_BUN) {
-        // Bun: 直接使用绝对路径（不带 file:// 协议）
+        // Bun 模块路径处理（与 try 块一致）：
+        // - Unix 绝对路径（/xxx）：Bun 可直接用裸路径 import()
+        // - Windows 绝对路径（D:\xxx）：必须转为 file:/// URL
         let normalizedPath = filepath;
-        if (normalizedPath.startsWith("file://")) {
+        if (normalizedPath.startsWith("file:///")) {
+          normalizedPath = normalizedPath.slice(8);
+        } else if (normalizedPath.startsWith("file://")) {
           normalizedPath = normalizedPath.slice(7);
         }
-        // Windows 路径需要特殊处理
+        normalizedPath = normalizedPath.replace(/\\/g, "/");
         if (normalizedPath.match(/^[A-Za-z]:/)) {
-          normalizedPath = normalizedPath.replace(/\\/g, "/");
+          // Windows：import() 需要 file:/// URL（三斜杠）
+          moduleUrl = `file:///${normalizedPath}`;
+        } else if (normalizedPath.startsWith("/")) {
+          // Unix：Bun 可直接用裸绝对路径
+          moduleUrl = normalizedPath;
+        } else {
+          // 相对路径
+          moduleUrl = `${cwd()}/${normalizedPath}`;
         }
-        // Bun 可以直接使用绝对路径
-        moduleUrl = normalizedPath;
-        statPath = moduleUrl;
+        // stat 需要文件系统路径（去掉 file:/// 协议前缀）
+        statPath = moduleUrl.startsWith("file:///")
+          ? moduleUrl.slice(8)
+          : moduleUrl;
       } else {
         // Deno: 使用 file:// URL
         if (filepath.startsWith("file://")) {
