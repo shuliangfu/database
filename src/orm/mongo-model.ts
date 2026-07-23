@@ -7488,6 +7488,9 @@ export abstract class MongoModel {
           if (textIndex.defaultLanguage) {
             indexOptions.default_language = textIndex.defaultLanguage;
           }
+          if (textIndex.languageOverride) {
+            indexOptions.language_override = textIndex.languageOverride;
+          }
           if (textIndex.name) {
             indexOptions.name = textIndex.name;
           }
