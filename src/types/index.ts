@@ -93,6 +93,12 @@ export interface TextIndex {
    */
   defaultLanguage?: string;
   /**
+   * MongoDB 文本索引的 `language_override`：指定「用于声明分词语言」的文档字段名（驱动层键名为 `language_override`）。
+   * 默认为 `language`；若业务文档已有同名字段（如创作语言 `zh-CN`），会与文本索引冲突并导致写入失败，
+   * 此时应改为极少占用的字段名（如 `_mongoTextSearchLang`），且文档中可不填该字段以使用 `defaultLanguage`。
+   */
+  languageOverride?: string;
+  /**
    * 索引名称（可选，自动生成）
    */
   name?: string;
