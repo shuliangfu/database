@@ -5,7 +5,7 @@
  */
 
 import { createLogger } from "@dreamer/logger";
-import { IS_BUN, IS_DENO } from "@dreamer/runtime-adapter";
+import { IS_BUN, IS_DENO, IS_NODE } from "@dreamer/runtime-adapter";
 import {
   createConfigError,
   createConnectionError,
@@ -178,8 +178,8 @@ export class SQLiteAdapter extends BaseAdapter {
       }
 
       // 根据运行时环境选择不同的 SQLite 实现
-      if (IS_DENO) {
-        // Deno: 使用内置的 node:sqlite 模块
+      if (IS_DENO || IS_NODE) {
+        // Deno 2.2+ / Node 22+：使用内置的 node:sqlite 模块（Node 22.x 需 --experimental-sqlite 标志）
         const { DatabaseSync } = await import("node:sqlite");
         // 注意：node:sqlite 的 DatabaseSync 可能不支持 readonly 选项
         // 如果配置了 readonly 且不是内存数据库，尝试以只读模式打开
@@ -218,7 +218,7 @@ export class SQLiteAdapter extends BaseAdapter {
           );
         }
       } else {
-        // Node 或其它无内置 SQLite 的运行时：不拉取 better-sqlite3，避免 prebuild-install 警告；需 SQLite 时请使用 Deno 2.2+ 或 Bun
+        // 其它无内置 SQLite 的运行时：不拉取 better-sqlite3，避免 prebuild-install 警告；需 SQLite 时请使用 Deno 2.2+ / Node 22+ / Bun
         throw createConfigError(
           $tr("error.sqliteUnsupportedRuntime"),
           { code: DatabaseErrorCode.CONFIG_INVALID },

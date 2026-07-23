@@ -70,6 +70,27 @@
 - **Test environment**:
   - Deno version requirement: 2.5.0+
   - Bun version requirement: 1.3.0+
+  - Node.js version requirement: 22.0+
+
+---
+
+## Cross-Runtime CI Results (Node.js 22+ Compatibility)
+
+The full 2,040-test suite (below) requires external database servers
+(PostgreSQL, MySQL, MongoDB) and is run locally. For continuous integration the
+package ships a 9-job GitHub Actions matrix — **Deno / Bun / Node.js 22** ×
+**Linux / macOS / Windows** — that runs the self-contained `tests/sqlite/` suite
+(19 files, no external services).
+
+| Runtime | SQLite suite result | Notes |
+| ------- | ------------------- | ----- |
+| **Deno 2.9** | 503 passed, 0 failed | `deno test -A --minimum-dependency-age=0` |
+| **Bun** | 468 passed, 0 failed | `bun test tests/sqlite/` |
+| **Node.js 22** | 19/19 files passed | `node test-node.mjs` (in-process, `--experimental-sqlite --test-force-exit`) |
+
+All 9 CI jobs (3 runtimes × 3 OSes) pass green. The PostgreSQL / MySQL / MongoDB
+/ integration suites are available via `npm run test:integration` for local runs
+with the corresponding servers.
 
 ---
 

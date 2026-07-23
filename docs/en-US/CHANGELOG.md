@@ -8,6 +8,51 @@ and this project adheres to
 
 ---
 
+## [1.2.0] - 2026-07-23
+
+### Added
+
+- **Node.js 22+ compatibility**: The package now runs on Node.js 22+ alongside
+  Deno and Bun. SQLite uses the built-in `node:sqlite` module (pass
+  `--experimental-sqlite` on Node 22.x; unflagged in 23.4+). The MongoDB, MySQL,
+  and PostgreSQL drivers (`mongodb`, `mysql2`, `pg`) are consumed via npm and
+  resolved lazily — see below.
+
+### Changed
+
+- **Lazy-loading adapters**: `MongoClient` (mongodb), `Pool` (pg), and
+  `createPool` (mysql2) are now imported dynamically inside each adapter's
+  `connect()` method, while only type-only imports remain at the top of the
+  module. This prevents eager loading of driver packages (and their transitive
+  deps, e.g. `bson`) when importing `@dreamer/database`, which previously
+  triggered `NotImplementedError: node:v8 isBuildingSnapshot` on Bun. Drivers
+  are now resolved only when the corresponding adapter actually connects.
+- **SQLiteAdapter**: The `node:sqlite` branch now covers both Deno and Node
+  (`IS_DENO || IS_NODE`); the unsupported-runtime error is only raised for
+  runtimes without a built-in SQLite.
+- **Dependencies**: Bumped to Node-compatible versions —
+  `@dreamer/runtime-adapter@^1.2.2`, `@dreamer/service@^1.1.0`,
+  `@dreamer/cache@^1.1.0`, `@dreamer/logger@^1.1.0`, `@dreamer/i18n@^1.1.2`,
+  `@dreamer/test@^1.2.3`. `deno.json` gains `compilerOptions.lib`
+  (`deno.ns`, `deno.window`, `esnext`) so `import.meta.main` is retained under
+  `nodeModulesDir: "auto"`.
+
+### Infrastructure
+
+- **CI**: 9-job matrix (Deno / Bun / Node.js 22) × (Linux / macOS / Windows).
+  CI runs the self-contained `tests/sqlite/` suite (19 files); the
+  PostgreSQL / MySQL / MongoDB / integration suites (which require external
+  servers) are split into `test:integration` and run locally. Deno jobs use
+  `--minimum-dependency-age=0`; Node jobs use a custom `test-node.mjs` runner
+  that executes each file in-process (no `--test` fork) with
+  `--experimental-sqlite --test-force-exit`.
+- **Node tooling**: Added `package.json` (`engines.node>=22`, `test:node`,
+  `test:integration` scripts), `tsconfig.json` (Bundler mode), `.npmrc`.
+- **Documentation**: README (en + zh-CN) documents Node.js 22+ compatibility
+  (tagline, install via `npx jsr add`, environment table, lazy-loading note).
+
+---
+
 ## [1.1.0] - 2026-04-30
 
 ### Fixed

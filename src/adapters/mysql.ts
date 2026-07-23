@@ -5,7 +5,7 @@
  */
 
 import { createLogger } from "@dreamer/logger";
-import { createPool, type Pool, type PoolConnection } from "mysql2/promise";
+import type { Pool, PoolConnection } from "mysql2/promise";
 import {
   createConnectionError,
   createExecuteError,
@@ -66,6 +66,8 @@ export class MySQLAdapter extends BaseAdapter {
         mysqlConfig.connection;
 
       // 创建连接池
+      // 懒加载 mysql2 运行时（避免 import { Database } 时 eager 加载 mysql2）
+      const { createPool } = await import("mysql2/promise");
       this.pool = createPool({
         host: host || "localhost",
         port: port || 3306,

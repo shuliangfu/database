@@ -5,7 +5,7 @@
  */
 
 import { createLogger } from "@dreamer/logger";
-import { type ClientSession, type Db, MongoClient } from "mongodb";
+import type { ClientSession, Db, MongoClient } from "mongodb";
 import {
   createConnectionError,
   createExecuteError,
@@ -127,6 +127,8 @@ export class MongoDBAdapter extends BaseAdapter {
         clientOptions.minPoolSize = mongoOptions.minPoolSize;
       }
 
+      // 懒加载 mongodb 运行时（避免 import { Database } 时 eager 加载 bson，触发 Bun 的 node:v8.isBuildingSnapshot NotImplementedError）
+      const { MongoClient } = await import("mongodb");
       this.client = new MongoClient(url, clientOptions);
 
       // 使用 Promise.race 确保连接不会无限等待
