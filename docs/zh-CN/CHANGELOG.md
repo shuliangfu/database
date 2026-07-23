@@ -7,6 +7,47 @@
 
 ---
 
+## [1.2.0] - 2026-07-23
+
+### 新增
+
+- **Node.js 22+ 兼容**：本包现可在 Node.js 22+ 上运行，与 Deno、Bun 三端齐备。
+  SQLite 使用内置的 `node:sqlite` 模块（Node 22.x 需传 `--experimental-sqlite`
+  标志，23.4+ 起无需标志）。MongoDB / MySQL / PostgreSQL 驱动
+  （`mongodb`、`mysql2`、`pg`）经 npm 消费，并采用懒加载——见下。
+
+### 变更
+
+- **适配器懒加载**：`MongoClient`（mongodb）、`Pool`（pg）、`createPool`
+  （mysql2）改为在各适配器 `connect()` 方法内动态 `import()`，模块顶部仅保留
+  type-only 导入。此举避免 `import @dreamer/database` 时 eager 拉入驱动包
+  （及其传递依赖，如 `bson`），此前在 Bun 上会触发
+  `NotImplementedError: node:v8 isBuildingSnapshot`。驱动现仅在对应适配器实际
+  连接时才解析。
+- **SQLiteAdapter**：`node:sqlite` 分支现同时覆盖 Deno 与 Node
+  （`IS_DENO || IS_NODE`）；仅对无内置 SQLite 的运行时抛「不支持」错误。
+- **依赖**：升级至 Node 兼容版本 ——
+  `@dreamer/runtime-adapter@^1.2.2`、`@dreamer/service@^1.1.0`、
+  `@dreamer/cache@^1.1.0`、`@dreamer/logger@^1.1.0`、`@dreamer/i18n@^1.1.2`、
+  `@dreamer/test@^1.2.3`。`deno.json` 增加 `compilerOptions.lib`
+  （`deno.ns`、`deno.window`、`esnext`），以在 `nodeModulesDir: "auto"` 下保留
+  `import.meta.main`。
+
+### 基础设施
+
+- **CI**：9 作业矩阵（Deno / Bun / Node.js 22）×（Linux / macOS / Windows）。
+  CI 仅运行自包含的 `tests/sqlite/` 套件（19 个文件）；PostgreSQL / MySQL /
+  MongoDB / integration 套件（需外部服务）拆分为 `test:integration`，在本地
+  运行。Deno 作业使用 `--minimum-dependency-age=0`；Node 作业使用自定义
+  `test-node.mjs` 运行器，在主进程内逐文件执行（无 `--test` fork），并传
+  `--experimental-sqlite --test-force-exit`。
+- **Node 工具链**：新增 `package.json`（`engines.node>=22`、`test:node`、
+  `test:integration` 脚本）、`tsconfig.json`（Bundler 模式）、`.npmrc`。
+- **文档**：README（中英文）补充 Node.js 22+ 兼容说明（标语、`npx jsr add`
+  安装、环境表、懒加载说明）。
+
+---
+
 ## [1.1.0] - 2026-04-30
 
 ### 修复

@@ -1,0 +1,91 @@
+# CI: 三端跨平台测试（Deno / Bun / Node.js 22+），验证跨运行时兼容性
+# 注意：CI 仅跑 tests/sqlite/（19 文件，自包含，无外部 DB 服务、无 locale 断言）。
+#       postgresql/mysql/mongo/integration 需真实 DB 服务，拆为 test:integration 本地运行。
+# 注意：Deno 解析依赖图时需 --minimum-dependency-age=0 绕过 JSR 最小依赖日期约束。
+# 注意：Node 22.x 的 node:sqlite 为实验特性，test-node.mjs 内传 --experimental-sqlite 标志。
+name: CI
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [dev]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────
+  # Deno（Linux / macOS / Windows）
+  # ─────────────────────────────────────────────────────────────────────────
+  test-deno:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.9
+
+      - name: Cache dependencies
+        continue-on-error: true
+        run: deno cache --minimum-dependency-age=0 src/mod.ts
+
+      - name: Check
+        run: deno check --minimum-dependency-age=0 src/mod.ts
+
+      - name: Lint
+        run: deno lint src/
+
+      - name: Test (Deno)
+        env:
+          CI: "true"
+        run: deno test -A --minimum-dependency-age=0 --no-check tests/sqlite/
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Bun（Linux / macOS / Windows）
+  # ─────────────────────────────────────────────────────────────────────────
+  test-bun:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Test (Bun)
+        env:
+          CI: "true"
+        run: bun test tests/sqlite/
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Node.js 22（Linux / macOS / Windows）
+  # ─────────────────────────────────────────────────────────────────────────
+  test-node:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Test (Node)
+        run: npm run test:node

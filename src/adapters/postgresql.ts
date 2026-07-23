@@ -5,7 +5,7 @@
  */
 
 import { createLogger } from "@dreamer/logger";
-import { Pool, type PoolClient } from "pg";
+import type { Pool, PoolClient } from "pg";
 import {
   createConnectionError,
   createExecuteError,
@@ -13,12 +13,12 @@ import {
   createTransactionError,
   DatabaseErrorCode,
 } from "../errors.ts";
+import { $tr, setDatabaseLocale } from "../i18n.ts";
 import type {
   DatabaseAdapter,
   DatabaseConfig,
   PostgreSQLConfig,
 } from "../types.ts";
-import { $tr, setDatabaseLocale } from "../i18n.ts";
 import {
   BaseAdapter,
   type HealthCheckResult,
@@ -84,6 +84,8 @@ export class PostgreSQLAdapter extends BaseAdapter {
 
       // 创建连接池
       // 减少最大连接数，避免连接泄漏
+      // 懒加载 pg 运行时（避免 import { Database } 时 eager 加载 pg 原生绑定）
+      const { Pool } = await import("pg");
       this.pool = new Pool({
         host: host || "localhost",
         port: port || 5432,

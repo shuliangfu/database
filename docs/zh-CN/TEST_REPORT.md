@@ -37,7 +37,25 @@
 - **测试框架**：@dreamer/test（兼容 Deno 与 Bun）
 - **测试日期**：2026-02-19
 - **服务容器**：@dreamer/service@^1.0.2
-- **测试环境**：Deno 2.5.0+，Bun 1.3.0+
+- **测试环境**：Deno 2.5.0+，Bun 1.3.0+，Node.js 22.0+
+
+---
+
+## 跨运行时 CI 结果（Node.js 22+ 兼容）
+
+下方完整的 2,040 条测试需要外部数据库服务（PostgreSQL、MySQL、MongoDB），在
+本地执行。持续集成采用 9 作业 GitHub Actions 矩阵 —— **Deno / Bun / Node.js 22**
+× **Linux / macOS / Windows** —— 运行自包含的 `tests/sqlite/` 套件（19 个文件，
+无需外部服务）。
+
+| 运行时 | SQLite 套件结果 | 说明 |
+| ------ | --------------- | ---- |
+| **Deno 2.9** | 503 通过，0 失败 | `deno test -A --minimum-dependency-age=0` |
+| **Bun** | 468 通过，0 失败 | `bun test tests/sqlite/` |
+| **Node.js 22** | 19/19 文件通过 | `node test-node.mjs`（主进程内执行，`--experimental-sqlite --test-force-exit`） |
+
+9 个 CI 作业（3 运行时 × 3 系统）全部 green。PostgreSQL / MySQL / MongoDB /
+integration 套件可通过 `npm run test:integration` 在本地配合对应服务运行。
 
 ---
 
