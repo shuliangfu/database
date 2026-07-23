@@ -252,9 +252,13 @@ describe("QueryLogger", () => {
 
       expect(calls.length).toBe(1);
       expect(calls[0].method).toBe("debug");
-      expect(calls[0].msg).toContain("数据库");
-      expect(calls[0].msg).toContain("查询");
+      // 默认 fallback 文案随运行环境语言变化：zh-CN="数据库查询: SELECT 1"，en-US="Database query: SELECT 1"
+      // 两种语言下均含"查询"/"query"前缀，证明默认 fallback 生效（非裸 SQL），且不依赖 CI 环境语言
       expect(calls[0].msg).toContain("SELECT 1");
+      expect(
+        calls[0].msg.includes("查询") ||
+          calls[0].msg.toLowerCase().includes("query"),
+      ).toBe(true);
     });
 
     it("传入 lang 时能打出含 sql 的日志", () => {

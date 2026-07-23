@@ -1,5 +1,6 @@
 # CI: 三端跨平台测试（Deno / Bun / Node.js 22+），验证跨运行时兼容性
-# 注意：CI 仅跑 tests/sqlite/（19 文件，自包含，无外部 DB 服务、无 locale 断言）。
+# 注意：CI 仅跑 tests/sqlite/（19 文件，自包含，无外部 DB 服务）。
+#       query-logger.test.ts 的默认 fallback 断言为 locale-tolerant（接受 zh-CN"查询"/en-US"query"），不依赖 CI 环境语言。
 #       postgresql/mysql/mongo/integration 需真实 DB 服务，拆为 test:integration 本地运行。
 # 注意：Deno 解析依赖图时需 --minimum-dependency-age=0 绕过 JSR 最小依赖日期约束。
 # 注意：Node 22.x 的 node:sqlite 为实验特性，test-node.mjs 内传 --experimental-sqlite 标志。
