@@ -10,8 +10,10 @@
  * 标志启用（Node 23.4+ / 24 已免标志但仍发实验警告，传该标志无害）。SQLiteAdapter.connect()
  * 经 `IS_DENO || IS_NODE` 分支走 `node:sqlite` 的 DatabaseSync。
  *
- * 【范围】仅跑 tests/sqlite/（19 文件，自包含，无外部 DB 服务、无 locale 断言）。
- * postgresql/mysql/mongo/integration 需真实 DB 服务，拆为 `test:integration` 本地运行。
+ * 【范围】默认仅跑 tests/sqlite/（自包含，无外部 DB 服务、无 locale 断言）。
+ * 传入 `integration`（或显式目录）时跑 postgresql / mysql / mongo / integration，
+ * 需真实 DB 服务；调用方式与默认 sqlite 相同（--experimental-sqlite --import tsx
+ * --test-force-exit，一文件一进程）。
  *
  * 【Invariant】One file per process invocation; exit code is the single source of truth.
  */
@@ -22,13 +24,37 @@ import { join, resolve } from "node:path";
 // 显式置 CI=true：使脚本自包含，不依赖 Unix shell 前缀语法（Windows 不支持）。
 process.env.CI = "true";
 
-const testDir = resolve("tests", "sqlite");
-const files = readdirSync(testDir)
-  .filter((f) => f.endsWith(".test.ts"))
-  .sort()
-  .map((f) => join(testDir, f));
+const INTEGRATION_DIRS = [
+  "tests/postgresql",
+  "tests/mysql",
+  "tests/mongo",
+  "tests/integration",
+];
 
-console.log(`Found ${files.length} SQLite test files\n`);
+function collectTestFiles(dir) {
+  const abs = resolve(dir);
+  return readdirSync(abs)
+    .filter((f) => f.endsWith(".test.ts"))
+    .sort()
+    .map((f) => join(abs, f));
+}
+
+const args = process.argv.slice(2);
+let dirs;
+if (args.length === 0) {
+  dirs = ["tests/sqlite"];
+} else if (args.length === 1 && args[0] === "integration") {
+  dirs = INTEGRATION_DIRS;
+} else {
+  dirs = args;
+}
+
+const files = dirs.flatMap(collectTestFiles);
+const label = dirs.length === 1 && dirs[0] === "tests/sqlite"
+  ? "SQLite test files"
+  : `test files (${dirs.join(", ")})`;
+
+console.log(`Found ${files.length} ${label}\n`);
 
 let failed = 0;
 for (const file of files) {

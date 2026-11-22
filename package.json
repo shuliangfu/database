@@ -10,6 +10,7 @@
   "scripts": {
     "test": "bun test tests/sqlite/",
     "test:node": "node test-node.mjs",
+    "test:node:integration": "node test-node.mjs integration",
     "test:integration": "deno test -A --minimum-dependency-age=0 tests/postgresql/ tests/mysql/ tests/mongo/ tests/integration/",
     "check": "deno check --minimum-dependency-age=0 src/mod.ts",
     "lint": "deno lint src/",
