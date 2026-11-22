@@ -8,6 +8,49 @@ and this project adheres to
 
 ---
 
+## [1.3.0] - 2026-11-22
+
+### Added
+
+- **Lazy query builders**: Creating `Model.query()` or `Model.find(...)` no
+  longer issues a database query. The builder is thenable, so
+  `await Model.find(id)` still behaves as find-one, and further chaining
+  (`findAll`, `count`, `with`, etc.) runs only when executed.
+- **Association preload**: `find()` / `asArray()` honor `with()` (including
+  `belongsTo`, `hasOne`, `hasMany`, and `belongsToMany`). Cache keys include the
+  preload and field selection so a narrower query cannot poison a later `with()`
+  hit.
+- **SQL aggregates**: `groupBy`, `having`, and `aggregate` on the SQL query
+  builder (COUNT / SUM / AVG / MIN / MAX only; HAVING is parameterized; grouped
+  `count()` uses a subquery).
+- **Safety**: SQL identifier checks, Mongo condition sanitization (rejects
+  `$where` / `$function` / `$accumulator` / `$js` and prototype-polluting keys;
+  allows operators such as `$gt` / `$in` / `$or` / `$set`), query-log and
+  connection-error redaction, and `assignData` prototype-pollution guards.
+
+### Changed
+
+- Shared ORM internals: hooks, validation, relations, soft-delete, and SQL
+  dialect helpers are extracted and reused by SQL and Mongo models.
+- SQLite prepared-statement cache is capped (LRU, 256).
+- Mongo `$like` conditions are translated to case-insensitive `$regex`
+  (including `%` / `_`). Soft-delete resurrect sets the timestamp column to
+  `null` instead of `$unset`. Chained `query().update()` without `returnLatest`
+  updates all matching documents, matching SQL.
+- Cache types are exported directly from `src/cache/mod.ts`; index definition
+  types live only in `src/types/indexes.ts`.
+
+### Infrastructure
+
+- Cross-engine tests for validation, model, cache, access, and similar suites
+  are shared through a test factory; SQLite gains coverage for aggregates,
+  preload, lazy queries, and security.
+- **CI**: In addition to the existing 9-job sqlite matrix, Linux jobs run Deno,
+  Bun, and Node against PostgreSQL, MySQL, MongoDB (replica set `rs0`), and
+  integration tests.
+
+---
+
 ## [1.2.0] - 2026-07-23
 
 ### Added
@@ -33,16 +76,16 @@ and this project adheres to
 - **Dependencies**: Bumped to Node-compatible versions —
   `@dreamer/runtime-adapter@^1.2.2`, `@dreamer/service@^1.1.0`,
   `@dreamer/cache@^1.1.0`, `@dreamer/logger@^1.1.0`, `@dreamer/i18n@^1.1.2`,
-  `@dreamer/test@^1.2.3`. `deno.json` gains `compilerOptions.lib`
-  (`deno.ns`, `deno.window`, `esnext`) so `import.meta.main` is retained under
+  `@dreamer/test@^1.2.3`. `deno.json` gains `compilerOptions.lib` (`deno.ns`,
+  `deno.window`, `esnext`) so `import.meta.main` is retained under
   `nodeModulesDir: "auto"`.
 
 ### Infrastructure
 
-- **CI**: 9-job matrix (Deno / Bun / Node.js 22) × (Linux / macOS / Windows).
-  CI runs the self-contained `tests/sqlite/` suite (19 files); the
-  PostgreSQL / MySQL / MongoDB / integration suites (which require external
-  servers) are split into `test:integration` and run locally. Deno jobs use
+- **CI**: 9-job matrix (Deno / Bun / Node.js 22) × (Linux / macOS / Windows). CI
+  runs the self-contained `tests/sqlite/` suite (19 files); the PostgreSQL /
+  MySQL / MongoDB / integration suites (which require external servers) are
+  split into `test:integration` and run locally. Deno jobs use
   `--minimum-dependency-age=0`; Node jobs use a custom `test-node.mjs` runner
   that executes each file in-process (no `--test` fork) with
   `--experimental-sqlite --test-force-exit`.

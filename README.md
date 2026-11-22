@@ -58,14 +58,14 @@ npx jsr add @dreamer/database
 
 ## 🌍 Environment Compatibility
 
-| Environment      | Version Requirement | Status                                                                                  |
-| ---------------- | ------------------- | --------------------------------------------------------------------------------------- |
-| **Deno**         | 2.5+                | ✅ Fully supported                                                                      |
-| **Bun**          | 1.3+                | ✅ Fully supported                                                                      |
-| **Node.js**      | 22.0+               | ✅ Fully supported (SQLite via `node:sqlite` with `--experimental-sqlite` on 22.x)      |
-| **Server**       | -                   | ✅ Supported (compatible with Deno, Bun, and Node.js runtimes, requires database driver)|
-| **Client**       | -                   | ❌ Not supported (browser cannot connect to database directly)                          |
-| **Dependencies** | -                   | 📦 Requires corresponding database drivers (PostgreSQL, MySQL, SQLite, MongoDB)         |
+| Environment      | Version Requirement | Status                                                                                   |
+| ---------------- | ------------------- | ---------------------------------------------------------------------------------------- |
+| **Deno**         | 2.5+                | ✅ Fully supported                                                                       |
+| **Bun**          | 1.3+                | ✅ Fully supported                                                                       |
+| **Node.js**      | 22.0+               | ✅ Fully supported (SQLite via `node:sqlite` with `--experimental-sqlite` on 22.x)       |
+| **Server**       | -                   | ✅ Supported (compatible with Deno, Bun, and Node.js runtimes, requires database driver) |
+| **Client**       | -                   | ❌ Not supported (browser cannot connect to database directly)                           |
+| **Dependencies** | -                   | 📦 Requires corresponding database drivers (PostgreSQL, MySQL, SQLite, MongoDB)          |
 
 > **Note**: Database adapters (mongodb/pg/mysql2) are lazily loaded — importing
 > `@dreamer/database` does not eagerly pull in driver packages. Drivers are only
@@ -198,7 +198,8 @@ Full report: [TEST_REPORT.md](./docs/en-US/TEST_REPORT.md)
 - **Unified interface**: Adapter pattern, multiple backends
 - **Type-safe**: Full TypeScript support
 - **Dependencies**: Requires DB drivers (PostgreSQL, MySQL, SQLite, MongoDB)
-- **Cross-runtime**: Deno 2.5.0+, Bun 1.3.0+, and Node.js 22.0+, tested in all three
+- **Cross-runtime**: Deno 2.5.0+, Bun 1.3.0+, and Node.js 22.0+, tested in all
+  three
 - **Bun native**: SQLiteAdapter prefers Bun native SQLite API for better
   performance
 - **Test coverage**: 2,040 tests, 100% core coverage
@@ -208,10 +209,17 @@ Full report: [TEST_REPORT.md](./docs/en-US/TEST_REPORT.md)
 
 ## 📋 Changelog
 
+**v1.3.0** (2026-11-22): **Added** — lazy thenable query builders, association
+preload on `find()` / `asArray()`, SQL `groupBy` / `having` / `aggregate`, and
+query/identifier safety. Mongo `$like`, resurrect, and multi-row `update()`
+aligned with SQL. Linux CI now runs Postgres, MySQL, Mongo, and integration on
+Deno / Bun / Node. See [CHANGELOG.md](./docs/en-US/CHANGELOG.md) for full
+details.
+
 **v1.2.0** (2026-07-23): **Added** — Node.js 22+ compatibility (SQLite via
-`node:sqlite` with `--experimental-sqlite` on 22.x). Adapters for MongoDB / MySQL
-/ PostgreSQL now lazy-load their drivers inside `connect()` to avoid eager bson
-load on Bun. 9-job CI (Deno / Bun / Node 22 × Linux / macOS / Windows). See
+`node:sqlite` with `--experimental-sqlite` on 22.x). Adapters for MongoDB /
+MySQL / PostgreSQL now lazy-load their drivers inside `connect()` to avoid eager
+bson load on Bun. 9-job CI (Deno / Bun / Node 22 × Linux / macOS / Windows). See
 [CHANGELOG.md](./docs/en-US/CHANGELOG.md) for full details.
 
 **v1.1.0** (2026-04-30): **Fixed** — MongoModel unwraps `{ value }` modify

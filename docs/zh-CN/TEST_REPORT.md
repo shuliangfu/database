@@ -43,19 +43,21 @@
 
 ## 跨运行时 CI 结果（Node.js 22+ 兼容）
 
-下方完整的 2,040 条测试需要外部数据库服务（PostgreSQL、MySQL、MongoDB），在
-本地执行。持续集成采用 9 作业 GitHub Actions 矩阵 —— **Deno / Bun / Node.js 22**
-× **Linux / macOS / Windows** —— 运行自包含的 `tests/sqlite/` 套件（19 个文件，
-无需外部服务）。
+完整 Deno 套件（2,093 条：sqlite 552 + mongo 523 + mysql 504 + postgresql 509
 
-| 运行时 | SQLite 套件结果 | 说明 |
-| ------ | --------------- | ---- |
-| **Deno 2.9** | 503 通过，0 失败 | `deno test -A --minimum-dependency-age=0` |
-| **Bun** | 468 通过，0 失败 | `bun test tests/sqlite/` |
-| **Node.js 22** | 19/19 文件通过 | `node test-node.mjs`（主进程内执行，`--experimental-sqlite --test-force-exit`） |
+- integration 5）可在本地或 CI 运行。GitHub Actions 仍保留 9 作业 sqlite 矩阵 ——
+  **Deno / Bun / Node.js 22** × **Linux / macOS / Windows** —— 并另加仅 Linux
+  作业，用三端跑 PostgreSQL、MySQL、MongoDB（副本集 `rs0`）和 integration。
 
-9 个 CI 作业（3 运行时 × 3 系统）全部 green。PostgreSQL / MySQL / MongoDB /
-integration 套件可通过 `npm run test:integration` 在本地配合对应服务运行。
+| 运行时         | SQLite 套件结果  | 说明                                                                            |
+| -------------- | ---------------- | ------------------------------------------------------------------------------- |
+| **Deno 2.9**   | 552 通过，0 失败 | `deno test -A --minimum-dependency-age=0 --no-check tests/sqlite/`              |
+| **Bun**        | 507 通过，0 失败 | `bun test tests/sqlite/`                                                        |
+| **Node.js 22** | 24/24 文件通过   | `node test-node.mjs`（主进程内执行，`--experimental-sqlite --test-force-exit`） |
+
+9 个 sqlite 作业和 Linux 真实库作业全部 green。本地可用
+`npm run test:integration`（或 `node test-node.mjs integration`）跑同样的
+Postgres / MySQL / Mongo / integration 套件。
 
 ---
 

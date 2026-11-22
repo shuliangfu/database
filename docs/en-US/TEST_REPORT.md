@@ -76,21 +76,21 @@
 
 ## Cross-Runtime CI Results (Node.js 22+ Compatibility)
 
-The full 2,040-test suite (below) requires external database servers
-(PostgreSQL, MySQL, MongoDB) and is run locally. For continuous integration the
-package ships a 9-job GitHub Actions matrix — **Deno / Bun / Node.js 22** ×
-**Linux / macOS / Windows** — that runs the self-contained `tests/sqlite/` suite
-(19 files, no external services).
+The full Deno suite (2,093 tests: sqlite 552 + mongo 523 + mysql 504 +
+postgresql 509 + integration 5) can run locally or in CI. GitHub Actions still
+ships a 9-job sqlite matrix — **Deno / Bun / Node.js 22** × **Linux / macOS /
+Windows** — plus Linux-only jobs that run PostgreSQL, MySQL, MongoDB (replica
+set `rs0`), and integration on all three runtimes.
 
-| Runtime | SQLite suite result | Notes |
-| ------- | ------------------- | ----- |
-| **Deno 2.9** | 503 passed, 0 failed | `deno test -A --minimum-dependency-age=0` |
-| **Bun** | 468 passed, 0 failed | `bun test tests/sqlite/` |
-| **Node.js 22** | 19/19 files passed | `node test-node.mjs` (in-process, `--experimental-sqlite --test-force-exit`) |
+| Runtime        | SQLite suite result  | Notes                                                                        |
+| -------------- | -------------------- | ---------------------------------------------------------------------------- |
+| **Deno 2.9**   | 552 passed, 0 failed | `deno test -A --minimum-dependency-age=0 --no-check tests/sqlite/`           |
+| **Bun**        | 507 passed, 0 failed | `bun test tests/sqlite/`                                                     |
+| **Node.js 22** | 24/24 files passed   | `node test-node.mjs` (in-process, `--experimental-sqlite --test-force-exit`) |
 
-All 9 CI jobs (3 runtimes × 3 OSes) pass green. The PostgreSQL / MySQL / MongoDB
-/ integration suites are available via `npm run test:integration` for local runs
-with the corresponding servers.
+The 9 sqlite jobs and the Linux real-database jobs all pass green. Locally,
+`npm run test:integration` (or `node test-node.mjs integration`) runs the same
+Postgres / MySQL / Mongo / integration suites.
 
 ---
 

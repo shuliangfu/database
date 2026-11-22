@@ -7,6 +7,41 @@
 
 ---
 
+## [1.3.0] - 2026-11-22
+
+### 新增
+
+- **惰性查询构建器**：创建 `Model.query()` 或 `Model.find(...)` 时不再立刻发
+  查询。构建器是 thenable，因此 `await Model.find(id)` 仍等价于 findOne，继续
+  链式调用（`findAll`、`count`、`with` 等）只在真正执行时才访问数据库。
+- **关联预加载**：`find()` / `asArray()` 会执行 `with()`（含 `belongsTo`、
+  `hasOne`、`hasMany`、`belongsToMany`）。缓存键纳入预加载和字段选择，避免
+  先窄查询再 `with()` 命中缺关联的缓存。
+- **SQL 聚合**：查询构建器支持 `groupBy`、`having`、`aggregate`（仅 COUNT / SUM
+  / AVG / MIN / MAX；HAVING 参数化；分组后的 `count()` 走子查询）。
+- **安全**：SQL 标识符校验；Mongo 条件净化（拒绝 `$where` / `$function` /
+  `$accumulator` / `$js` 以及污染键，允许 `$gt` / `$in` / `$or` / `$set` 等）；
+  查询日志与连接错误脱敏；`assignData` 防止原型污染。
+
+### 变更
+
+- 抽取并复用 SQL / Mongo 模型的公共钩子、校验、关联、软删除和 SQL 方言辅助。
+- SQLite 预处理语句缓存设上限（LRU，256）。
+- Mongo 的 `$like` 转为大小写不敏感的 `$regex`（处理 `%` / `_`）。软删恢复把
+  时间戳字段设为 `null`，不再 `$unset`。无 `returnLatest` 时，链式
+  `query().update()` 会更新所有匹配文档，与 SQL 对齐。
+- 缓存类型改由 `src/cache/mod.ts` 直接导出；索引定义类型只保留在
+  `src/types/indexes.ts`。
+
+### 基础设施
+
+- 校验、模型、缓存、权限等跨引擎用例抽到共享测试工厂；SQLite 增补聚合、
+  预加载、惰性查询和安全覆盖。
+- **CI**：在原有 9 作业 sqlite 矩阵之外，Linux 作业会用 Deno、Bun、Node 跑
+  PostgreSQL、MySQL、MongoDB（副本集 `rs0`）和 integration。
+
+---
+
 ## [1.2.0] - 2026-07-23
 
 ### 新增
@@ -35,11 +70,11 @@
 
 ### 基础设施
 
-- **CI**：9 作业矩阵（Deno / Bun / Node.js 22）×（Linux / macOS / Windows）。
-  CI 仅运行自包含的 `tests/sqlite/` 套件（19 个文件）；PostgreSQL / MySQL /
-  MongoDB / integration 套件（需外部服务）拆分为 `test:integration`，在本地
-  运行。Deno 作业使用 `--minimum-dependency-age=0`；Node 作业使用自定义
-  `test-node.mjs` 运行器，在主进程内逐文件执行（无 `--test` fork），并传
+- **CI**：9 作业矩阵（Deno / Bun / Node.js 22）×（Linux / macOS / Windows）。 CI
+  仅运行自包含的 `tests/sqlite/` 套件（19 个文件）；PostgreSQL / MySQL / MongoDB
+  / integration 套件（需外部服务）拆分为 `test:integration`，在本地 运行。Deno
+  作业使用 `--minimum-dependency-age=0`；Node 作业使用自定义 `test-node.mjs`
+  运行器，在主进程内逐文件执行（无 `--test` fork），并传
   `--experimental-sqlite --test-force-exit`。
 - **Node 工具链**：新增 `package.json`（`engines.node>=22`、`test:node`、
   `test:integration` 脚本）、`tsconfig.json`（Bundler 模式）、`.npmrc`。

@@ -44,17 +44,18 @@ npx jsr add @dreamer/database
 
 ## 🌍 环境兼容性
 
-| 环境          | 版本要求 | 状态                                                              |
-| ------------- | -------- | ----------------------------------------------------------------- |
-| **Deno**      | 2.5+     | ✅ 完全支持                                                       |
-| **Bun**       | 1.3+     | ✅ 完全支持                                                       |
-| **Node.js**   | 22.0+    | ✅ 完全支持（SQLite 经 `node:sqlite`，22.x 需 `--experimental-sqlite`）|
-| **服务端**    | -        | ✅ 支持（兼容 Deno、Bun、Node.js 运行时，需要数据库驱动）         |
-| **客户端**    | -        | ❌ 不支持（浏览器环境无法直接连接数据库）                         |
-| **依赖**      | -        | 📦 需要相应的数据库驱动（PostgreSQL、MySQL、SQLite、MongoDB）     |
+| 环境        | 版本要求 | 状态                                                                    |
+| ----------- | -------- | ----------------------------------------------------------------------- |
+| **Deno**    | 2.5+     | ✅ 完全支持                                                             |
+| **Bun**     | 1.3+     | ✅ 完全支持                                                             |
+| **Node.js** | 22.0+    | ✅ 完全支持（SQLite 经 `node:sqlite`，22.x 需 `--experimental-sqlite`） |
+| **服务端**  | -        | ✅ 支持（兼容 Deno、Bun、Node.js 运行时，需要数据库驱动）               |
+| **客户端**  | -        | ❌ 不支持（浏览器环境无法直接连接数据库）                               |
+| **依赖**    | -        | 📦 需要相应的数据库驱动（PostgreSQL、MySQL、SQLite、MongoDB）           |
 
-> **说明**：数据库适配器（mongodb/pg/mysql2）为懒加载——import `@dreamer/database`
-> 不会 eager 拉入驱动包，仅在对应适配器的 `connect()` 被调用时才解析驱动。
+> **说明**：数据库适配器（mongodb/pg/mysql2）为懒加载——import
+> `@dreamer/database` 不会 eager 拉入驱动包，仅在对应适配器的 `connect()`
+> 被调用时才解析驱动。
 
 ---
 
@@ -175,7 +176,8 @@ const users = await db.query("SELECT * FROM users WHERE age > ?", [18]);
 - **统一接口**：使用适配器模式，提供统一的数据库接口，支持多种数据库后端
 - **类型安全**：完整的 TypeScript 类型支持
 - **依赖**：需要相应的数据库驱动（PostgreSQL、MySQL、SQLite、MongoDB）
-- **跨运行时**：支持 Deno 2.5.0+、Bun 1.3.0+ 和 Node.js 22.0+，代码在三端都经过测试
+- **跨运行时**：支持 Deno 2.5.0+、Bun 1.3.0+ 和 Node.js
+  22.0+，代码在三端都经过测试
 - **Bun 原生支持**：SQLiteAdapter 优先使用 Bun 原生 SQLite API，提供更好的性能
 - **测试覆盖**：1,954 个测试用例，核心功能覆盖率 100%
 - **真实数据库测试**：所有测试使用真实数据库实例，确保测试的真实性和可靠性
@@ -183,6 +185,12 @@ const users = await db.query("SELECT * FROM users WHERE age > ?", [18]);
 ---
 
 ## 📋 变更日志
+
+**v1.3.0** (2026-11-22)：**新增** — 惰性 thenable 查询构建器，`find()` /
+`asArray()` 关联预加载，SQL `groupBy` / `having` / `aggregate`，以及查询与
+标识符安全加固。Mongo 的 `$like`、软删恢复和多行 `update()` 与 SQL 对齐。 Linux
+CI 现用 Deno / Bun / Node 跑 Postgres、MySQL、Mongo 和 integration。 详见
+[CHANGELOG.md](./CHANGELOG.md)。
 
 **v1.2.0** (2026-07-23)：**新增** — Node.js 22+ 兼容（SQLite 经 `node:sqlite`，
 22.x 需 `--experimental-sqlite`）。MongoDB / MySQL / PostgreSQL 适配器改为在
