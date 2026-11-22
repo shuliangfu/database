@@ -14,6 +14,7 @@ import {
   DatabaseErrorCode,
 } from "../errors.ts";
 import { $tr, setDatabaseLocale } from "../i18n.ts";
+import { redactSensitiveText } from "../logger/redact.ts";
 import type { DatabaseAdapter, DatabaseConfig, MongoConfig } from "../types.ts";
 import {
   BaseAdapter,
@@ -163,7 +164,9 @@ export class MongoDBAdapter extends BaseAdapter {
         );
         return await this.connect(config, retryCount + 1);
       }
-      const message = error instanceof Error ? error.message : String(error);
+      const message = redactSensitiveText(
+        error instanceof Error ? error.message : String(error),
+      );
       throw createConnectionError(
         $tr("error.mongoConnectionFailed", { message }),
         {

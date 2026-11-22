@@ -3,274 +3,106 @@
  * 提供 ORM 功能，支持对象条件查询和字段选择
  */
 
-import type { CacheAdapter } from "../cache/cache-adapter.ts";
+import type { CacheAdapter } from "../cache/mod.ts";
 import type { DatabaseAdapter } from "../types.ts";
-import type { IndexDefinitions } from "../types/index.ts";
+import type {
+  ReturningOperation,
+  SqlAdapter,
+} from "../adapters/sql-dialect.ts";
+import {
+  assertSafeSqlIdentifier,
+  formatSqlDateTime,
+  isSqlAdapter,
+} from "../adapters/sql-dialect.ts";
+import type { IndexDefinitions } from "../types/indexes.ts";
 import type { Locale } from "../i18n.ts";
 import { $tr, setDatabaseLocale } from "../i18n.ts";
+
+import type {
+  FieldDefinition,
+  FieldType,
+  LifecycleHook,
+  ModelSchema,
+  PreloadRelations,
+  ValidationHost,
+} from "./shared/mod.ts";
+import type {
+  CacheQueryOptions,
+  SqlAggregates,
+  SqlHaving,
+} from "./shared/mod.ts";
+import {
+  appendGroupByHaving,
+  appendSqlSoftDeleteCondition,
+  applyCreateTimestamps,
+  applyPreloads,
+  applyUpdateTimestamp,
+  applyVirtuals as applyVirtualsShared,
+  asModelId,
+  assignData,
+  assignHookChangesIfChanged,
+  belongsToManyRelated,
+  belongsToRelated,
+  clearModelCache,
+  formatAggregateSelect,
+  generateModelCacheKey,
+  getRecordValue,
+  getSchemaKeys as getSchemaKeysShared,
+  getVirtuals as getVirtualsShared,
+  hasManyRelated,
+  hasObjectChanged as hasObjectChangedShared,
+  hasOneRelated,
+  lazyThenable,
+  mergeCreateManyHookFields,
+  mergePreloadFields,
+  mergeUpdateHookFields,
+  normalizeGroupBy,
+  readAffectedRows,
+  readInsertId,
+  readResultRows,
+  runHookAndMergeIfChanged,
+  serializeCacheKeyParams as serializeCacheKeyParamsShared,
+  serializePreloadSignature,
+  setRecordValue,
+  validateFieldAsync as validateFieldAsyncShared,
+  validateRecord,
+  validateSqlField,
+  ValidationError,
+} from "./shared/mod.ts";
 
 /**
  * 查询条件类型
  * 支持对象形式的查询条件，包括操作符
  */
 export type WhereCondition = {
-  [key: string]: any | {
-    $gt?: any;
-    $lt?: any;
-    $gte?: any;
-    $lte?: any;
-    $ne?: any;
-    $in?: any[];
+  [key: string]: unknown | {
+    $gt?: unknown;
+    $lt?: unknown;
+    $gte?: unknown;
+    $lte?: unknown;
+    $ne?: unknown;
+    $in?: unknown[];
     $like?: string;
   };
 };
 
-/**
- * 字段类型
- *
- * - string: 字符串类型
- * - number: 数字类型（整数或浮点数）
- * - bigint: 大整数类型
- * - decimal: 精确小数类型（用于货币等需要精确计算的场景）
- * - boolean: 布尔类型
- * - date: 日期时间类型
- * - timestamp: 时间戳类型（数字）
- * - array: 数组类型
- * - object: 对象类型
- * - json: JSON 类型（与 object 类似，但更明确）
- * - enum: 枚举类型
- * - uuid: UUID 类型
- * - text: 长文本类型
- * - binary: 二进制数据类型
- * - any: 任意类型
- */
-export type FieldType =
-  | "string"
-  | "number"
-  | "bigint"
-  | "decimal"
-  | "boolean"
-  | "date"
-  | "timestamp"
-  | "array"
-  | "object"
-  | "json"
-  | "enum"
-  | "uuid"
-  | "text"
-  | "binary"
-  | "any";
-
-/**
- * 验证规则
- */
-export interface ValidationRule {
-  required?: boolean; // 必填
-  type?: FieldType; // 类型
-  min?: number; // 最小值（数字）或最小长度（字符串）
-  max?: number; // 最大值（数字）或最大长度（字符串）
-  length?: number; // 固定长度（字符串）
-  pattern?: RegExp | string; // 正则表达式
-  enum?: any[]; // 枚举值
-  custom?: (value: any) => boolean | string; // 自定义验证函数，返回 true 或错误信息
-  message?: string; // 自定义错误信息
-
-  // 跨字段验证
-  /** 与另一个字段值相等 */
-  equals?: string; // 另一个字段的名称
-  /** 与另一个字段值不相等 */
-  notEquals?: string; // 另一个字段的名称
-  /** 自定义字段比较函数，可以访问所有字段值 */
-  compare?: (value: any, allValues: Record<string, any>) => boolean | string; // 返回 true 或错误信息
-  /** 跨表/跨字段值比较验证（异步） */
-  compareValue?: {
-    /** 目标字段名 */
-    targetField: string;
-    /** 目标模型（可选，不指定则默认当前表） */
-    targetModel?: typeof SQLModel;
-    /** 比较操作符：'=' | '>' | '<' | '>=' | '<='，默认为 '=' */
-    compare?: "=" | ">" | "<" | ">=" | "<=";
-    /** 额外的查询条件（可选） */
-    where?: Record<string, any>;
-  };
-
-  // 数据库查询验证（异步）
-  /** 在数据表中唯一（不能重复） */
-  unique?: boolean | {
-    /** 查询条件（可选，用于排除当前记录） */
-    exclude?: Record<string, any>;
-    /** 自定义查询条件（可选） */
-    where?: Record<string, any>;
-  };
-  /** 在数据表中存在（必须已存在） */
-  exists?: boolean | {
-    /** 查询的表名（可选，默认当前表） */
-    table?: string;
-    /** 查询条件（可选） */
-    where?: Record<string, any>;
-  };
-  /** 在数据表中不存在（必须不存在） */
-  notExists?: boolean | {
-    /** 查询的表名（可选，默认当前表） */
-    table?: string;
-    /** 查询条件（可选） */
-    where?: Record<string, any>;
-  };
-
-  // 高级验证功能
-  /** 条件验证 - 根据其他字段值决定是否验证此字段 */
-  when?: {
-    /** 条件字段名 */
-    field: string;
-    /** 条件值（如果条件字段等于此值，则验证） */
-    is?: any;
-    /** 条件值（如果条件字段不等于此值，则验证） */
-    isNot?: any;
-    /** 条件函数（返回 true 则验证） */
-    check?: (value: any, allValues: Record<string, any>) => boolean;
-  };
-  /** 条件必填 - 根据条件决定字段是否必填 */
-  requiredWhen?: {
-    /** 条件字段名 */
-    field: string;
-    /** 条件值（如果条件字段等于此值，则必填） */
-    is?: any;
-    /** 条件值（如果条件字段不等于此值，则必填） */
-    isNot?: any;
-    /** 条件函数（返回 true 则必填） */
-    check?: (value: any, allValues: Record<string, any>) => boolean;
-  };
-  /** 异步自定义验证函数 - 可以访问数据库和所有字段值 */
-  asyncCustom?: (
-    value: any,
-    allValues: Record<string, any>,
-    context: {
-      fieldName: string;
-      instanceId?: any;
-      model: typeof SQLModel;
-    },
-  ) => Promise<boolean | string>; // 返回 true 或错误信息
-  /** 验证组 - 只在指定组中验证 */
-  groups?: string[];
-  /** 数组验证 - 验证数组元素 */
-  array?: {
-    /** 数组元素类型 */
-    type?: FieldType;
-    /** 最小长度 */
-    min?: number;
-    /** 最大长度 */
-    max?: number;
-    /** 固定长度 */
-    length?: number;
-    /** 元素验证规则 */
-    items?: ValidationRule;
-    /** 数组元素唯一性 */
-    uniqueItems?: boolean;
-  };
-  /** 内置格式验证器 */
-  format?:
-    | "email"
-    | "url"
-    | "ip"
-    | "ipv4"
-    | "ipv6"
-    | "uuid"
-    | "date"
-    | "datetime"
-    | "time";
-
-  // 数值验证增强
-  /** 整数验证 */
-  integer?: boolean;
-  /** 正数验证 */
-  positive?: boolean;
-  /** 负数验证 */
-  negative?: boolean;
-  /** 倍数验证 */
-  multipleOf?: number;
-  /** 范围验证 [min, max] */
-  range?: [number, number];
-
-  // 字符串验证增强
-  /** 只能包含字母和数字 */
-  alphanumeric?: boolean;
-  /** 只能包含数字 */
-  numeric?: boolean;
-  /** 只能包含字母 */
-  alpha?: boolean;
-  /** 必须是小写 */
-  lowercase?: boolean;
-  /** 必须是大写 */
-  uppercase?: boolean;
-  /** 必须以某个字符串开头 */
-  startsWith?: string;
-  /** 必须以某个字符串结尾 */
-  endsWith?: string;
-  /** 必须包含某个字符串 */
-  contains?: string;
-  /** 自动去除首尾空格 */
-  trim?: boolean;
-  /** 自动转换为小写 */
-  toLowerCase?: boolean;
-  /** 自动转换为大写 */
-  toUpperCase?: boolean;
-
-  // 日期/时间验证增强
-  /** 必须早于某个日期 */
-  before?: string | Date;
-  /** 必须晚于某个日期 */
-  after?: string | Date;
-  /** 必须早于某个时间 */
-  beforeTime?: string;
-  /** 必须晚于某个时间 */
-  afterTime?: string;
-  /** 时区验证 */
-  timezone?: string;
-
-  /** 密码强度验证 */
-  passwordStrength?: {
-    minLength?: number;
-    requireUppercase?: boolean;
-    requireLowercase?: boolean;
-    requireNumbers?: boolean;
-    requireSymbols?: boolean;
-  };
-}
-
-/**
- * 字段定义
- */
-export interface FieldDefinition {
-  type: FieldType;
-  enum?: any[]; // 枚举值（当 type 为 'enum' 时使用）
-  default?: any; // 默认值
-  validate?: ValidationRule; // 验证规则
-  get?: (value: any) => any; // Getter 函数
-  set?: (value: any) => any; // Setter 函数
-}
-
-/**
- * 模型字段定义
- */
-export type ModelSchema = {
-  [fieldName: string]: FieldDefinition;
+export type CombinedWhere = {
+  __combined: Array<{
+    type: "where" | "or" | "and";
+    condition: WhereCondition | number | string;
+  }>;
 };
 
-/**
- * 验证错误
- */
-export class ValidationError extends Error {
-  field: string;
+export type FindCondition = WhereCondition | CombinedWhere | number | string;
 
-  constructor(
-    field: string,
-    message: string,
-  ) {
-    super(`Validation failed for field "${field}": ${message}`);
-    this.name = "ValidationError";
-    this.field = field;
-  }
-}
+export { ValidationError } from "./shared/mod.ts";
+export type {
+  FieldDefinition,
+  FieldType,
+  LifecycleHook,
+  ModelSchema,
+  ValidationRule,
+} from "./shared/mod.ts";
 
 /**
  * 生命周期钩子函数类型
@@ -290,6 +122,11 @@ export type SQLArrayQueryBuilder<T extends typeof SQLModel> = {
   fields: (fields: string[]) => SQLArrayQueryBuilder<T>;
   includeTrashed: () => SQLArrayQueryBuilder<T>;
   onlyTrashed: () => SQLArrayQueryBuilder<T>;
+  with: (relations: PreloadRelations) => SQLArrayQueryBuilder<T>;
+  preload: (relations: PreloadRelations) => SQLArrayQueryBuilder<T>;
+  groupBy: (columns: string | string[]) => SQLArrayQueryBuilder<T>;
+  having: (condition: string, params?: unknown[]) => SQLArrayQueryBuilder<T>;
+  aggregate: (aggregates: SqlAggregates) => SQLArrayQueryBuilder<T>;
   findAll: () => Promise<Record<string, any>[]>;
   findOne: () => Promise<Record<string, any> | null>;
   one: () => Promise<Record<string, any> | null>;
@@ -311,10 +148,10 @@ export type SQLArrayQueryBuilder<T extends typeof SQLModel> = {
 
 export type SQLFindQueryBuilder<T extends typeof SQLModel> = {
   orWhere: (
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
   ) => SQLFindQueryBuilder<T>;
   andWhere: (
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
   ) => SQLFindQueryBuilder<T>;
   orLike: (condition: WhereCondition) => SQLFindQueryBuilder<T>;
   andLike: (condition: WhereCondition) => SQLFindQueryBuilder<T>;
@@ -326,6 +163,11 @@ export type SQLFindQueryBuilder<T extends typeof SQLModel> = {
   fields: (fields: string[]) => SQLFindQueryBuilder<T>;
   includeTrashed: () => SQLFindQueryBuilder<T>;
   onlyTrashed: () => SQLFindQueryBuilder<T>;
+  with: (relations: PreloadRelations) => SQLFindQueryBuilder<T>;
+  preload: (relations: PreloadRelations) => SQLFindQueryBuilder<T>;
+  groupBy: (columns: string | string[]) => SQLFindQueryBuilder<T>;
+  having: (condition: string, params?: unknown[]) => SQLFindQueryBuilder<T>;
+  aggregate: (aggregates: SqlAggregates) => SQLFindQueryBuilder<T>;
   findAll: () => Promise<InstanceType<T>[]>;
   findOne: () => Promise<InstanceType<T> | null>;
   one: () => Promise<InstanceType<T> | null>;
@@ -352,10 +194,7 @@ export type SQLFindQueryBuilder<T extends typeof SQLModel> = {
   finally: (onfinally?: () => void) => Promise<any>;
 };
 
-export type LifecycleHook<T = any> = (
-  instance: T,
-  options?: any,
-) => Promise<void> | void;
+/* LifecycleHook 由 ./shared/mod.ts 再导出 */
 
 /**
  * SQL 链式查询构建器类型
@@ -363,13 +202,13 @@ export type LifecycleHook<T = any> = (
  */
 export type SQLQueryBuilder<T extends typeof SQLModel> = {
   where: (
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
   ) => SQLQueryBuilder<T>;
   orWhere: (
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
   ) => SQLQueryBuilder<T>;
   andWhere: (
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
   ) => SQLQueryBuilder<T>;
   like: (condition: WhereCondition) => SQLQueryBuilder<T>;
   orLike: (condition: WhereCondition) => SQLQueryBuilder<T>;
@@ -382,6 +221,11 @@ export type SQLQueryBuilder<T extends typeof SQLModel> = {
   limit: (n: number) => SQLQueryBuilder<T>;
   includeTrashed: () => SQLQueryBuilder<T>;
   onlyTrashed: () => SQLQueryBuilder<T>;
+  with: (relations: PreloadRelations) => SQLQueryBuilder<T>;
+  preload: (relations: PreloadRelations) => SQLQueryBuilder<T>;
+  groupBy: (columns: string | string[]) => SQLQueryBuilder<T>;
+  having: (condition: string, params?: unknown[]) => SQLQueryBuilder<T>;
+  aggregate: (aggregates: SqlAggregates) => SQLQueryBuilder<T>;
   findAll: () => Promise<InstanceType<T>[]>;
   findOne: () => Promise<InstanceType<T> | null>;
   one: () => Promise<InstanceType<T> | null>;
@@ -477,6 +321,15 @@ export abstract class SQLModel {
    */
   static primaryKey: string = "id";
 
+  /** 子类可选的字段定义 */
+  static schema?: ModelSchema;
+
+  /** 子类可选：create/update 走方言 upsert */
+  static useDialectUpsert?: boolean;
+
+  /** 子类可选：方言 upsert 冲突列 */
+  static upsertConflictKeys?: string[];
+
   /**
    * 数据库适配器实例（子类需要设置）
    * 注意：访问此属性时会自动初始化（通过 getter）
@@ -506,11 +359,43 @@ export abstract class SQLModel {
     this._adapter = value;
   }
 
-  /**
-   * Schema 键缓存（性能优化：减少 Object.entries() 开销）
-   * 每个子类独立缓存自己的 schema 键
-   */
-  private static _schemaKeysCache: Map<typeof SQLModel, string[]> = new Map();
+  /** 抽象基类不能直接 new，子类构造器用这一处收窄。 */
+  private static createInstance<T extends typeof SQLModel>(
+    this: T,
+  ): InstanceType<T> {
+    const Ctor = this as unknown as { new (): InstanceType<T> };
+    return new Ctor();
+  }
+
+  private static validationHost(): ValidationHost {
+    return this.makeValidationHost(this);
+  }
+
+  private static makeValidationHost(model: typeof SQLModel): ValidationHost {
+    return {
+      dialect: "sql",
+      model,
+      get storeName() {
+        return model.tableName;
+      },
+      setStoreName: (name: string) => {
+        model.tableName = name;
+      },
+      get primaryKey() {
+        return model.primaryKey;
+      },
+      existsNullKey: "id",
+      missingStoreMessageKey: "model.tableNameRequired",
+      defaultPrimaryKey: "id",
+      ensureAdapter: () => model.ensureAdapter(),
+      queryExists: (where: Record<string, any>) =>
+        model.query().where(where).exists(),
+      queryFindOne: (where: Record<string, any>, fields: string[]) =>
+        model.query().where(where).fields(fields).findOne(),
+      getSchema: () => model.schema,
+      getSchemaKeys: () => model.getSchemaKeys(),
+    };
+  }
 
   /**
    * 获取 Schema 键（带缓存）
@@ -518,30 +403,8 @@ export abstract class SQLModel {
    * @returns Schema 字段名数组
    */
   private static getSchemaKeys(): string[] {
-    const schema = (this as any).schema;
-    if (!schema) {
-      return [];
-    }
-
-    // 检查缓存
-    let keys = this._schemaKeysCache.get(this as typeof SQLModel);
-    if (!keys) {
-      // 计算并缓存
-      keys = Object.keys(schema);
-      this._schemaKeysCache.set(this as typeof SQLModel, keys);
-    }
-
-    return keys;
+    return getSchemaKeysShared(this, this.schema);
   }
-
-  /**
-   * 虚拟字段定义缓存（性能优化：避免重复遍历虚拟字段定义）
-   * 键：模型类，值：虚拟字段定义数组 [name, getter][]
-   */
-  private static _virtualsCache = new WeakMap<
-    typeof SQLModel,
-    Array<[string, (instance: any) => any]>
-  >();
 
   /**
    * 获取虚拟字段定义（带缓存）
@@ -549,22 +412,7 @@ export abstract class SQLModel {
    * @returns 虚拟字段定义数组 [name, getter][]
    */
   private static getVirtuals(): Array<[string, (instance: any) => any]> {
-    const virtuals = (this as any).virtuals;
-    if (!virtuals) {
-      return [];
-    }
-
-    // 检查缓存
-    let cached = this._virtualsCache.get(this as typeof SQLModel);
-    if (!cached) {
-      // 计算并缓存
-      cached = Object.entries(virtuals) as Array<
-        [string, (instance: any) => any]
-      >;
-      this._virtualsCache.set(this as typeof SQLModel, cached);
-    }
-
-    return cached;
+    return getVirtualsShared(this, this.virtuals);
   }
 
   /**
@@ -572,19 +420,7 @@ export abstract class SQLModel {
    * @param instance 模型实例
    */
   private static applyVirtuals(instance: any): void {
-    const virtuals = this.getVirtuals();
-    if (virtuals.length === 0) {
-      return;
-    }
-
-    // 使用缓存的虚拟字段定义，避免重复 Object.entries()
-    for (const [name, getter] of virtuals) {
-      Object.defineProperty(instance, name, {
-        get: () => getter(instance),
-        enumerable: true,
-        configurable: true,
-      });
-    }
+    applyVirtualsShared(this, instance, this.virtuals);
   }
 
   /**
@@ -698,15 +534,6 @@ export abstract class SQLModel {
   static cacheTTL: number = 3600;
 
   /**
-   * 缓存键缓存（性能优化：避免重复生成相同的缓存键）
-   * 键：序列化的参数，值：生成的缓存键
-   */
-  private static _cacheKeyCache = new WeakMap<
-    typeof SQLModel,
-    Map<string, string>
-  >();
-
-  /**
    * 生成缓存键（带缓存优化）
    * 性能优化：
    * 1. 条件生成：只在有缓存适配器时才生成缓存键
@@ -719,89 +546,22 @@ export abstract class SQLModel {
    * @returns 缓存键（如果无缓存适配器，返回空字符串）
    */
   private static generateCacheKey(
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
     fields?: string[],
-    options?: {
-      sort?: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc";
-      skip?: number;
-      limit?: number;
-    },
+    options?: CacheQueryOptions,
     includeTrashed?: boolean,
     onlyTrashed?: boolean,
   ): string {
-    // 性能优化：条件生成 - 只在有缓存适配器时才生成缓存键
-    if (!this.cacheAdapter) {
-      return "";
-    }
-
-    // 性能优化：缓存键缓存 - 生成参数序列化键用于缓存查找
-    const paramKey = this.serializeCacheKeyParams(
+    return generateModelCacheKey(
+      this,
+      this.tableName,
+      !!this.cacheAdapter,
       condition,
       fields,
       options,
       includeTrashed,
       onlyTrashed,
     );
-
-    // 检查缓存
-    let cacheMap = this._cacheKeyCache.get(this as typeof SQLModel);
-    if (!cacheMap) {
-      cacheMap = new Map();
-      this._cacheKeyCache.set(this as typeof SQLModel, cacheMap);
-    }
-
-    const cached = cacheMap.get(paramKey);
-    if (cached !== undefined) {
-      return cached;
-    }
-
-    // 快速字符串化条件（避免 JSON.stringify 开销）
-    let conditionStr: string;
-    if (typeof condition === "number" || typeof condition === "string") {
-      conditionStr = String(condition);
-    } else if (typeof condition === "object" && condition !== null) {
-      // 使用简单的键值对拼接，比 JSON.stringify 快
-      const keys = Object.keys(condition).sort();
-      conditionStr = keys.map((k) => {
-        const v = (condition as any)[k];
-        if (typeof v === "object" && v !== null && !Array.isArray(v)) {
-          return `${k}:${
-            Object.keys(v).sort().map((op) => `${op}:${v[op]}`).join(",")
-          }`;
-        }
-        return `${k}:${v}`;
-      }).join("|");
-    } else {
-      conditionStr = String(condition);
-    }
-
-    const parts = [
-      this.tableName,
-      conditionStr,
-      fields ? fields.sort().join(",") : "*",
-      options?.sort
-        ? (typeof options.sort === "string"
-          ? options.sort
-          : Object.keys(options.sort as Record<string, 1 | -1 | "asc" | "desc">)
-            .sort().map((k) =>
-              `${k}:${
-                (options.sort as Record<string, 1 | -1 | "asc" | "desc">)[k]
-              }`
-            ).join(","))
-        : "",
-      options?.skip !== undefined ? `skip:${options.skip}` : "",
-      options?.limit !== undefined ? `limit:${options.limit}` : "",
-      includeTrashed ? "includeTrashed" : "",
-      onlyTrashed ? "onlyTrashed" : "",
-    ];
-    const cacheKey = `model:${this.tableName}:query:${parts.join(":")}`;
-
-    // 缓存生成的缓存键（限制缓存大小，避免内存泄漏）
-    if (cacheMap.size < 1000) {
-      cacheMap.set(paramKey, cacheKey);
-    }
-
-    return cacheKey;
   }
 
   /**
@@ -814,7 +574,7 @@ export abstract class SQLModel {
    * @returns 序列化的参数键
    */
   private static serializeCacheKeyParams(
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
     fields?: string[],
     options?: {
       sort?: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc";
@@ -824,53 +584,13 @@ export abstract class SQLModel {
     includeTrashed?: boolean,
     onlyTrashed?: boolean,
   ): string {
-    // 快速序列化参数（用于缓存键查找）
-    const parts: string[] = [];
-
-    // 条件
-    if (typeof condition === "number" || typeof condition === "string") {
-      parts.push(`c:${condition}`);
-    } else if (typeof condition === "object" && condition !== null) {
-      const keys = Object.keys(condition).sort();
-      parts.push(
-        `c:${keys.map((k) => `${k}:${(condition as any)[k]}`).join(",")}`,
-      );
-    } else {
-      parts.push(`c:${String(condition)}`);
-    }
-
-    // 字段
-    parts.push(`f:${fields ? fields.sort().join(",") : "*"}`);
-
-    // 选项
-    if (options) {
-      if (options.sort) {
-        const sortStr = typeof options.sort === "string"
-          ? options.sort
-          : Object.keys(options.sort).sort().map((k) =>
-            `${k}:${
-              (options.sort as Record<string, 1 | -1 | "asc" | "desc">)[k]
-            }`
-          ).join(",");
-        parts.push(`s:${sortStr}`);
-      }
-      if (options.skip !== undefined) {
-        parts.push(`sk:${options.skip}`);
-      }
-      if (options.limit !== undefined) {
-        parts.push(`l:${options.limit}`);
-      }
-    }
-
-    // 软删除选项
-    if (includeTrashed) {
-      parts.push("it:1");
-    }
-    if (onlyTrashed) {
-      parts.push("ot:1");
-    }
-
-    return parts.join("|");
+    return serializeCacheKeyParamsShared(
+      condition,
+      fields,
+      options,
+      includeTrashed,
+      onlyTrashed,
+    );
   }
 
   /**
@@ -878,14 +598,7 @@ export abstract class SQLModel {
    * @returns Promise<void>
    */
   private static async clearCache(): Promise<void> {
-    if (this.cacheAdapter) {
-      const result = this.cacheAdapter.deleteByTags([
-        `model:${this.tableName}`,
-      ]);
-      if (result instanceof Promise) {
-        await result;
-      }
-    }
+    await clearModelCache(this.cacheAdapter, this.tableName);
   }
 
   /**
@@ -982,7 +695,7 @@ export abstract class SQLModel {
    * @returns SQL WHERE 子句和参数数组
    */
   private static buildWhereClause(
-    condition: WhereCondition | number | string | any,
+    condition: FindCondition,
     includeTrashed: boolean = false,
     onlyTrashed: boolean = false,
   ): { where: string; params: any[] } {
@@ -1078,7 +791,7 @@ export abstract class SQLModel {
 
         // 处理软删除
         if (this.softDelete) {
-          const adapter = (this as any).adapter as
+          const adapter = this._adapter as
             | DatabaseAdapter
             | null
             | undefined;
@@ -1087,11 +800,13 @@ export abstract class SQLModel {
             this.deletedAtField,
             adapter,
           );
-          if (onlyTrashed) {
-            conditions.push(`${escapedDeletedAtField} IS NOT NULL`);
-          } else if (!includeTrashed) {
-            conditions.push(`${escapedDeletedAtField} IS NULL`);
-          }
+          appendSqlSoftDeleteCondition(
+            conditions,
+            escapedDeletedAtField,
+            this.softDelete,
+            includeTrashed,
+            onlyTrashed,
+          );
         }
 
         return {
@@ -1111,7 +826,7 @@ export abstract class SQLModel {
 
         // 处理软删除
         if (this.softDelete) {
-          const adapter = (this as any).adapter as
+          const adapter = this._adapter as
             | DatabaseAdapter
             | null
             | undefined;
@@ -1120,11 +835,13 @@ export abstract class SQLModel {
             this.deletedAtField,
             adapter,
           );
-          if (onlyTrashed) {
-            conditions.push(`${escapedDeletedAtField} IS NOT NULL`);
-          } else if (!includeTrashed) {
-            conditions.push(`${escapedDeletedAtField} IS NULL`);
-          }
+          appendSqlSoftDeleteCondition(
+            conditions,
+            escapedDeletedAtField,
+            this.softDelete,
+            includeTrashed,
+            onlyTrashed,
+          );
         }
 
         return {
@@ -1137,7 +854,7 @@ export abstract class SQLModel {
 
         // 处理软删除
         if (this.softDelete) {
-          const adapter = (this as any).adapter as
+          const adapter = this._adapter as
             | DatabaseAdapter
             | null
             | undefined;
@@ -1146,11 +863,13 @@ export abstract class SQLModel {
             this.deletedAtField,
             adapter,
           );
-          if (onlyTrashed) {
-            conditions.push(`${escapedDeletedAtField} IS NOT NULL`);
-          } else if (!includeTrashed) {
-            conditions.push(`${escapedDeletedAtField} IS NULL`);
-          }
+          appendSqlSoftDeleteCondition(
+            conditions,
+            escapedDeletedAtField,
+            this.softDelete,
+            includeTrashed,
+            onlyTrashed,
+          );
         }
 
         return {
@@ -1163,7 +882,7 @@ export abstract class SQLModel {
     // 原有的单个条件处理逻辑
     // 如果是数字或字符串，作为主键查询
     if (typeof condition === "number" || typeof condition === "string") {
-      const adapter = (this as any).adapter as
+      const adapter = this._adapter as
         | DatabaseAdapter
         | null
         | undefined;
@@ -1182,11 +901,13 @@ export abstract class SQLModel {
           this.deletedAtField,
           adapter,
         );
-        if (onlyTrashed) {
-          conditions.push(`${escapedDeletedAtField} IS NOT NULL`);
-        } else if (!includeTrashed) {
-          conditions.push(`${escapedDeletedAtField} IS NULL`);
-        }
+        appendSqlSoftDeleteCondition(
+          conditions,
+          escapedDeletedAtField,
+          this.softDelete,
+          includeTrashed,
+          onlyTrashed,
+        );
       }
 
       return {
@@ -1209,7 +930,7 @@ export abstract class SQLModel {
     const conditions: string[] = [];
     const params: any[] = [];
 
-    const adapter = (this as any).adapter as DatabaseAdapter | null | undefined;
+    const adapter = this._adapter as DatabaseAdapter | null | undefined;
     for (const [key, value] of Object.entries(condition)) {
       const escapedKey = SQLModel.escapeFieldName.call(this, key, adapter);
       if (value === null || value === undefined) {
@@ -1273,11 +994,13 @@ export abstract class SQLModel {
         this.deletedAtField,
         adapter,
       );
-      if (onlyTrashed) {
-        conditions.push(`${escapedDeletedAtField} IS NOT NULL`);
-      } else if (!includeTrashed) {
-        conditions.push(`${escapedDeletedAtField} IS NULL`);
-      }
+      appendSqlSoftDeleteCondition(
+        conditions,
+        escapedDeletedAtField,
+        this.softDelete,
+        includeTrashed,
+        onlyTrashed,
+      );
     }
 
     return {
@@ -1316,7 +1039,7 @@ export abstract class SQLModel {
   ): string | undefined {
     const normalized = this.normalizeSort(sort);
     if (!normalized) return undefined;
-    const adapter = (this as any).adapter as DatabaseAdapter | null | undefined;
+    const adapter = this._adapter as DatabaseAdapter | null | undefined;
     const parts: string[] = [];
     for (const [field, dir] of Object.entries(normalized)) {
       const escapedField = SQLModel.escapeFieldName.call(this, field, adapter);
@@ -1338,14 +1061,14 @@ export abstract class SQLModel {
     data: Record<string, any>,
     options?: { applyDefaults?: boolean },
   ): Record<string, any> {
-    const schema = (this as any).schema;
+    const schema = this.schema;
     if (!schema) {
       return data;
     }
 
     const applyDefaults = options?.applyDefaults !== false;
 
-    const processed: Record<string, any> = { ...data };
+    const processed: Record<string, any> = assignData({}, data);
 
     // 遍历 schema 中定义的字段（使用缓存的键，减少 Object.entries() 开销）
     const schemaKeys = this.getSchemaKeys();
@@ -1397,30 +1120,7 @@ export abstract class SQLModel {
     before: Record<string, any>,
     after: Record<string, any>,
   ): boolean {
-    // 快速检查：键的数量是否变化
-    const beforeKeys = Object.keys(before);
-    const afterKeys = Object.keys(after);
-    if (beforeKeys.length !== afterKeys.length) {
-      return true;
-    }
-
-    // 浅比较：只比较第一层属性（使用引用相等，快速比较）
-    // 注意：对于对象和数组，只比较引用，不进行深度比较（性能考虑）
-    for (const key of beforeKeys) {
-      if (before[key] !== after[key]) {
-        return true;
-      }
-    }
-
-    // 检查是否有新增的键（如果键数量相同，通常不会有新增）
-    // 但为了安全起见，仍然检查
-    for (const key of afterKeys) {
-      if (!(key in before)) {
-        return true;
-      }
-    }
-
-    return false;
+    return hasObjectChangedShared(before, after);
   }
 
   /**
@@ -1433,16 +1133,117 @@ export abstract class SQLModel {
     fieldName: string,
     adapter?: DatabaseAdapter | null,
   ): string {
-    const dbAdapter = (adapter as any)?.config?.adapter;
-    // 根据数据库适配器转义字段名
-    if (dbAdapter === "postgresql" && /[A-Z]/.test(fieldName)) {
-      // PostgreSQL 需要为包含大写字母的字段名加双引号
-      return `"${fieldName}"`;
-    } else if (dbAdapter === "mysql") {
-      // MySQL/MariaDB 使用反引号包裹字段名（避免保留字和特殊字符问题）
-      return `\`${fieldName}\``;
+    if (isSqlAdapter(adapter)) {
+      return adapter.quoteIdentifier(fieldName);
     }
-    return fieldName;
+    return assertSafeSqlIdentifier(fieldName);
+  }
+
+  /** 拼进 SQL 的表名（校验并按方言引用） */
+  private static quotedTable(): string {
+    return this.escapeFieldName(this.tableName, this._adapter);
+  }
+
+  private static buildSelectColumnList(state: {
+    _fields?: string[];
+    _aggregates?: SqlAggregates;
+    _groupBy?: string[];
+    _with?: PreloadRelations;
+  }): string {
+    const escape = (name: string) => this.escapeFieldName(name, this._adapter);
+    const grouped = !!(state._groupBy?.length ||
+      (state._aggregates && Object.keys(state._aggregates).length > 0));
+    const fields = grouped
+      ? state._fields
+      : mergePreloadFields(state._fields, this.primaryKey, state._with);
+    const parts: string[] = [];
+    if (fields && fields.length > 0) {
+      parts.push(fields.map(escape).join(", "));
+    } else if (state._groupBy && state._groupBy.length > 0) {
+      parts.push(state._groupBy.map(escape).join(", "));
+    } else if (
+      !state._aggregates || Object.keys(state._aggregates).length === 0
+    ) {
+      parts.push("*");
+    }
+    if (state._aggregates && Object.keys(state._aggregates).length > 0) {
+      parts.push(formatAggregateSelect(state._aggregates, escape));
+    }
+    return parts.filter(Boolean).join(", ") || "*";
+  }
+
+  private static applyGroupHaving(
+    sql: string,
+    params: unknown[],
+    state: { _groupBy?: string[]; _having?: SqlHaving },
+  ): { sql: string; params: unknown[] } {
+    return appendGroupByHaving(
+      sql,
+      params,
+      state._groupBy,
+      state._having,
+      (name) => this.escapeFieldName(name, this._adapter),
+    );
+  }
+
+  private static isAggregateQuery(state: {
+    _groupBy?: string[];
+    _aggregates?: SqlAggregates;
+    _having?: SqlHaving;
+  }): boolean {
+    return !!(state._groupBy?.length ||
+      (state._aggregates && Object.keys(state._aggregates).length > 0));
+  }
+
+  private static async countFromState(
+    state: {
+      _groupBy?: string[];
+      _aggregates?: SqlAggregates;
+      _having?: SqlHaving;
+    },
+    where: string,
+    params: unknown[],
+  ): Promise<number> {
+    if (this.isAggregateQuery(state) || state._having) {
+      const grouped = this.applyGroupHaving(
+        `SELECT 1 FROM ${this.quotedTable()} WHERE ${where}`,
+        params,
+        state,
+      );
+      const sql = `SELECT COUNT(*) as count FROM (${grouped.sql}) AS _grp`;
+      const results = await this.adapter.query(sql, grouped.params);
+      return results.length > 0
+        ? (parseInt(String(results[0].count), 10) || 0)
+        : 0;
+    }
+    const sql =
+      `SELECT COUNT(*) as count FROM ${this.quotedTable()} WHERE ${where}`;
+    const results = await this.adapter.query(sql, params);
+    return results.length > 0
+      ? (parseInt(String(results[0].count), 10) || 0)
+      : 0;
+  }
+
+  private static asSqlAdapter(
+    adapter?: DatabaseAdapter | null,
+  ): SqlAdapter | null {
+    const a = adapter ?? this.adapter;
+    return isSqlAdapter(a) ? a : null;
+  }
+
+  private static applyReturning(
+    sql: string,
+    adapter: DatabaseAdapter | null | undefined,
+    operation: ReturningOperation,
+    returning: string,
+    options?: { returnLatest?: boolean },
+  ): string {
+    if (
+      isSqlAdapter(adapter) && adapter.shouldUseReturning(operation, options)
+    ) {
+      return adapter.appendReturning(sql, returning);
+    }
+    return sql;
   }
 
   /**
@@ -1457,28 +1258,10 @@ export abstract class SQLModel {
     date: Date,
     adapter?: DatabaseAdapter | null,
   ): string {
-    // 检测数据库类型
-    const dbAdapter = (adapter as any)?.config?.adapter;
-
-    // MySQL/MariaDB 的 DATETIME 类型默认不支持毫秒，使用 YYYY-MM-DD HH:MM:SS 格式
-    if (dbAdapter === "mysql") {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      const hours = String(date.getHours()).padStart(2, "0");
-      const minutes = String(date.getMinutes()).padStart(2, "0");
-      const seconds = String(date.getSeconds()).padStart(2, "0");
-      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    if (isSqlAdapter(adapter)) {
+      return adapter.formatDateForDatabase(date);
     }
-
-    // PostgreSQL 和 SQLite 也使用相同格式以保持一致性
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    const seconds = String(date.getSeconds()).padStart(2, "0");
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    return formatSqlDateTime(date);
   }
 
   /**
@@ -1492,11 +1275,11 @@ export abstract class SQLModel {
     data: Record<string, any>,
     skipProcessing: boolean = false,
   ): Record<string, any> {
-    const schema = (this as any).schema;
-    const processed: Record<string, any> = { ...data };
+    const schema = this.schema;
+    const processed: Record<string, any> = assignData({}, data);
 
     // 获取适配器以确定数据库类型
-    const adapter = (this as any).adapter as DatabaseAdapter | null | undefined;
+    const adapter = this._adapter as DatabaseAdapter | null | undefined;
 
     // 如果没有 schema，只序列化 Date 对象
     if (!schema) {
@@ -1590,7 +1373,7 @@ export abstract class SQLModel {
   static serializeFields(
     data: Record<string, any>,
   ): Record<string, any> {
-    const schema = (this as any).schema;
+    const schema = this.schema;
     const serialized = { ...data };
 
     // 先处理 schema 中定义的字段（使用缓存的键，减少 Object.entries() 开销）
@@ -1612,7 +1395,7 @@ export abstract class SQLModel {
             serialized[fieldName] = JSON.stringify(value);
           } // Date 对象需要转换为数据库兼容的字符串格式
           else if (value instanceof Date) {
-            const adapter = (this as any).adapter as
+            const adapter = this._adapter as
               | DatabaseAdapter
               | null
               | undefined;
@@ -1626,7 +1409,7 @@ export abstract class SQLModel {
     }
 
     // 处理不在 schema 中的 Date 对象（如时间戳字段）
-    const adapter = (this as any).adapter as DatabaseAdapter | null | undefined;
+    const adapter = this._adapter as DatabaseAdapter | null | undefined;
     for (const [fieldName, value] of Object.entries(serialized)) {
       if (value instanceof Date) {
         serialized[fieldName] = this.formatDateForDatabase(value, adapter);
@@ -1648,51 +1431,7 @@ export abstract class SQLModel {
     instanceId?: any,
     groups?: string[],
   ): Promise<void> {
-    const schema = (this as any).schema;
-    if (!schema) {
-      return;
-    }
-
-    // 合并验证循环：在一次遍历中完成同步和异步验证
-    // 收集异步验证任务，最后并行执行
-    const asyncValidations: Promise<void>[] = [];
-
-    // 使用缓存的键，减少 Object.entries() 开销
-    const schemaKeys = this.getSchemaKeys();
-    for (const fieldName of schemaKeys) {
-      const field = schema[fieldName] as FieldDefinition;
-      const value = data[fieldName];
-
-      // 检查验证组
-      if (groups && field.validate?.groups) {
-        const hasGroup = field.validate.groups.some((g) => groups.includes(g));
-        if (!hasGroup) {
-          continue; // 跳过不在指定组中的字段
-        }
-      }
-
-      // 同步验证（字段级别的验证）
-      SQLModel.validateField.call(this, fieldName, value, field, data);
-
-      // 收集异步验证任务
-      if (value !== null && value !== undefined && value !== "") {
-        asyncValidations.push(
-          SQLModel.validateFieldAsync.call(
-            this,
-            fieldName,
-            value,
-            field,
-            data,
-            instanceId,
-          ),
-        );
-      }
-    }
-
-    // 并行执行所有异步验证（如果可能）
-    if (asyncValidations.length > 0) {
-      await Promise.all(asyncValidations);
-    }
+    await validateRecord(this.validationHost(), data, instanceId, groups);
   }
 
   /**
@@ -1704,582 +1443,7 @@ export abstract class SQLModel {
     fieldDef: FieldDefinition,
     allValues: Record<string, any>,
   ): void {
-    const rule = fieldDef.validate;
-    if (!rule) {
-      return;
-    }
-
-    // 条件验证：检查是否应该验证此字段
-    if (rule.when) {
-      const shouldValidate = this.checkWhenCondition(rule.when, allValues);
-      if (!shouldValidate) {
-        return; // 条件不满足，跳过验证
-      }
-    }
-
-    // 条件必填验证
-    let isRequired = rule.required || false;
-    if (rule.requiredWhen) {
-      const shouldBeRequired = this.checkWhenCondition(
-        rule.requiredWhen,
-        allValues,
-      );
-      if (shouldBeRequired) {
-        isRequired = true;
-      }
-    }
-
-    // 必填验证
-    if (isRequired && (value === null || value === undefined || value === "")) {
-      throw new ValidationError(
-        fieldName,
-        rule.message ||
-          $tr("log.validation.required", {
-            field: fieldName,
-          }),
-      );
-    }
-
-    // 如果值为空且不是必填，跳过其他验证
-    if (value === null || value === undefined || value === "") {
-      return;
-    }
-
-    // 格式验证（内置格式验证器）
-    if (rule.format) {
-      this.validateFormat(fieldName, value, rule.format, rule.message);
-    }
-
-    // 类型验证
-    if (rule.type) {
-      const expectedType = rule.type;
-      const actualType = typeof value;
-      if (expectedType === "array" && !Array.isArray(value)) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            $tr("log.validation.typeArray", {
-              field: fieldName,
-            }),
-        );
-      }
-      if (
-        expectedType === "object" &&
-        (actualType !== "object" || Array.isArray(value) || value === null)
-      ) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            $tr(
-              "log.validation.typeObject",
-              {
-                field: fieldName,
-              },
-            ),
-        );
-      }
-      if (
-        expectedType !== "array" && expectedType !== "object" &&
-        actualType !== expectedType
-      ) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            $tr(
-              "log.validation.typeExpected",
-              { field: fieldName, type: expectedType },
-            ),
-        );
-      }
-    }
-
-    // 长度验证（字符串或数组）
-    if (rule.length !== undefined) {
-      const len = Array.isArray(value) ? value.length : String(value).length;
-      if (len !== rule.length) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            $tr(
-              "log.validation.lengthRequired",
-              { field: fieldName, length: String(rule.length) },
-            ),
-        );
-      }
-    }
-
-    // 最小值/最大长度验证
-    if (rule.min !== undefined) {
-      if (typeof value === "number") {
-        if (value < rule.min) {
-          throw new ValidationError(
-            fieldName,
-            rule.message ||
-              $tr(
-                "log.validation.minNumber",
-                {
-                  field: fieldName,
-                  min: rule.min,
-                },
-              ),
-          );
-        }
-      } else {
-        const len = Array.isArray(value) ? value.length : String(value).length;
-        if (len < rule.min) {
-          throw new ValidationError(
-            fieldName,
-            rule.message ||
-              $tr(
-                "log.validation.minLength",
-                { field: fieldName, min: rule.min },
-              ),
-          );
-        }
-      }
-    }
-
-    // 最大值/最大长度验证
-    if (rule.max !== undefined) {
-      if (typeof value === "number") {
-        if (value > rule.max) {
-          throw new ValidationError(
-            fieldName,
-            rule.message ||
-              $tr(
-                "log.validation.maxNumber",
-                {
-                  field: fieldName,
-                  max: rule.max,
-                },
-              ),
-          );
-        }
-      } else {
-        const len = Array.isArray(value) ? value.length : String(value).length;
-        if (len > rule.max) {
-          throw new ValidationError(
-            fieldName,
-            rule.message ||
-              $tr(
-                "log.validation.maxLength",
-                { field: fieldName, max: rule.max },
-              ),
-          );
-        }
-      }
-    }
-
-    // 正则表达式验证
-    if (rule.pattern) {
-      const regex = rule.pattern instanceof RegExp
-        ? rule.pattern
-        : new RegExp(rule.pattern);
-      if (!regex.test(String(value))) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            $tr("log.validation.pattern", {
-              field: fieldName,
-            }),
-        );
-      }
-    }
-
-    // 数值验证增强
-    if (typeof value === "number") {
-      // 整数验证
-      if (rule.integer && !Number.isInteger(value)) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            $tr("log.validation.integer", {
-              field: fieldName,
-            }),
-        );
-      }
-
-      // 正数验证
-      if (rule.positive && value <= 0) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            $tr("log.validation.positive", {
-              field: fieldName,
-            }),
-        );
-      }
-
-      // 负数验证
-      if (rule.negative && value >= 0) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            $tr("log.validation.negative", {
-              field: fieldName,
-            }),
-        );
-      }
-
-      // 倍数验证
-      if (rule.multipleOf !== undefined) {
-        if (value % rule.multipleOf !== 0) {
-          throw new ValidationError(
-            fieldName,
-            rule.message ||
-              $tr(
-                "log.validation.multipleOf",
-                { field: fieldName, multipleOf: rule.multipleOf },
-              ),
-          );
-        }
-      }
-
-      // 范围验证
-      if (rule.range) {
-        const [min, max] = rule.range;
-        if (value < min || value > max) {
-          throw new ValidationError(
-            fieldName,
-            rule.message ||
-              $tr(
-                "log.validation.range",
-                { field: fieldName, min, max },
-              ),
-          );
-        }
-      }
-    }
-
-    // 字符串验证增强
-    if (typeof value === "string") {
-      // 字符类型验证
-      if (rule.alphanumeric && !/^[a-zA-Z0-9]+$/.test(value)) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            $tr(
-              "log.validation.alphaNum",
-              {
-                field: fieldName,
-              },
-            ),
-        );
-      }
-
-      if (rule.numeric && !/^[0-9]+$/.test(value)) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            $tr("log.validation.numeric", {
-              field: fieldName,
-            }),
-        );
-      }
-
-      if (rule.alpha && !/^[a-zA-Z]+$/.test(value)) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            $tr("log.validation.alpha", {
-              field: fieldName,
-            }),
-        );
-      }
-
-      // 大小写验证
-      if (rule.lowercase && value !== value.toLowerCase()) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            $tr("log.validation.lowercase", {
-              field: fieldName,
-            }),
-        );
-      }
-
-      if (rule.uppercase && value !== value.toUpperCase()) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            $tr("log.validation.uppercase", {
-              field: fieldName,
-            }),
-        );
-      }
-
-      // 字符串包含验证
-      if (rule.startsWith !== undefined && !value.startsWith(rule.startsWith)) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            $tr(
-              "log.validation.startsWith",
-              { field: fieldName, value: rule.startsWith },
-            ),
-        );
-      }
-
-      if (rule.endsWith !== undefined && !value.endsWith(rule.endsWith)) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            $tr(
-              "log.validation.endsWith",
-              { field: fieldName, value: rule.endsWith },
-            ),
-        );
-      }
-
-      if (rule.contains !== undefined && !value.includes(rule.contains)) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            $tr(
-              "log.validation.contains",
-              { field: fieldName, value: rule.contains },
-            ),
-        );
-      }
-
-      // 字符串处理（自动转换，修改 allValues）
-      if (rule.trim) {
-        allValues[fieldName] = value.trim();
-      }
-      if (rule.toLowerCase) {
-        allValues[fieldName] = value.toLowerCase();
-      }
-      if (rule.toUpperCase) {
-        allValues[fieldName] = value.toUpperCase();
-      }
-    }
-
-    // 日期/时间验证增强
-    if (value instanceof Date || typeof value === "string") {
-      let dateValue: Date | null = null;
-      if (value instanceof Date) {
-        dateValue = value;
-      } else if (typeof value === "string") {
-        // 尝试解析日期字符串
-        const parsed = new Date(value);
-        if (!isNaN(parsed.getTime())) {
-          dateValue = parsed;
-        }
-      }
-
-      if (dateValue) {
-        // 日期比较
-        if (rule.before !== undefined) {
-          const beforeDate = rule.before instanceof Date
-            ? rule.before
-            : new Date(rule.before);
-          if (dateValue >= beforeDate) {
-            throw new ValidationError(
-              fieldName,
-              rule.message ||
-                $tr(
-                  "log.validation.before",
-                  {
-                    field: fieldName,
-                    value: String(rule.before),
-                  },
-                ),
-            );
-          }
-        }
-
-        if (rule.after !== undefined) {
-          const afterDate = rule.after instanceof Date
-            ? rule.after
-            : new Date(rule.after);
-          if (dateValue <= afterDate) {
-            throw new ValidationError(
-              fieldName,
-              rule.message ||
-                $tr(
-                  "log.validation.after",
-                  {
-                    field: fieldName,
-                    value: String(rule.after),
-                  },
-                ),
-            );
-          }
-        }
-
-        // 时间比较（只比较时间部分，忽略日期）
-        if (rule.beforeTime !== undefined) {
-          const timeValue = dateValue.getHours() * 3600 +
-            dateValue.getMinutes() * 60 +
-            dateValue.getSeconds();
-          const [hours, minutes, seconds] = rule.beforeTime.split(":").map(
-            Number,
-          );
-          const beforeTimeValue = (hours || 0) * 3600 + (minutes || 0) * 60 +
-            (seconds || 0);
-          if (timeValue >= beforeTimeValue) {
-            throw new ValidationError(
-              fieldName,
-              rule.message ||
-                $tr(
-                  "log.validation.beforeTime",
-                  { field: fieldName, value: rule.beforeTime },
-                ),
-            );
-          }
-        }
-
-        if (rule.afterTime !== undefined) {
-          const timeValue = dateValue.getHours() * 3600 +
-            dateValue.getMinutes() * 60 +
-            dateValue.getSeconds();
-          const [hours, minutes, seconds] = rule.afterTime.split(":").map(
-            Number,
-          );
-          const afterTimeValue = (hours || 0) * 3600 + (minutes || 0) * 60 +
-            (seconds || 0);
-          if (timeValue <= afterTimeValue) {
-            throw new ValidationError(
-              fieldName,
-              rule.message ||
-                $tr(
-                  "log.validation.afterTime",
-                  { field: fieldName, value: rule.afterTime },
-                ),
-            );
-          }
-        }
-      }
-    }
-
-    // 密码强度验证
-    if (rule.passwordStrength && typeof value === "string") {
-      const options = rule.passwordStrength;
-      if (options.minLength && value.length < options.minLength) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            $tr(
-              "log.validation.passwordMinLength",
-              { field: fieldName, min: options.minLength },
-            ),
-        );
-      }
-      if (options.requireUppercase && !/[A-Z]/.test(value)) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            $tr(
-              "log.validation.passwordUppercase",
-              { field: fieldName },
-            ),
-        );
-      }
-      if (options.requireLowercase && !/[a-z]/.test(value)) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            $tr(
-              "log.validation.passwordLowercase",
-              { field: fieldName },
-            ),
-        );
-      }
-      if (options.requireNumbers && !/[0-9]/.test(value)) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            $tr(
-              "log.validation.passwordNumber",
-              { field: fieldName },
-            ),
-        );
-      }
-      if (options.requireSymbols && !/[^a-zA-Z0-9]/.test(value)) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            $tr(
-              "log.validation.passwordSpecial",
-              { field: fieldName },
-            ),
-        );
-      }
-    }
-
-    // 枚举验证
-    if (rule.enum && !rule.enum.includes(value)) {
-      throw new ValidationError(
-        fieldName,
-        rule.message ||
-          $tr(
-            "log.validation.enum",
-            { field: fieldName, values: rule.enum.join(", ") },
-          ),
-      );
-    }
-
-    // 数组验证
-    if (rule.array) {
-      this.validateArray(fieldName, value, rule.array, allValues);
-    }
-
-    // 跨字段验证：equals（与另一个字段值相等）
-    if (rule.equals) {
-      const otherValue = allValues[rule.equals];
-      if (value !== otherValue) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            $tr(
-              "log.validation.equals",
-              {
-                field: fieldName,
-                other: rule.equals,
-              },
-            ),
-        );
-      }
-    }
-
-    // 跨字段验证：notEquals（与另一个字段值不相等）
-    if (rule.notEquals) {
-      const otherValue = allValues[rule.notEquals];
-      if (value === otherValue) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            $tr(
-              "log.validation.notEquals",
-              { field: fieldName, other: rule.notEquals },
-            ),
-        );
-      }
-    }
-
-    // 跨字段验证：compare（自定义比较函数）
-    if (rule.compare) {
-      const result = rule.compare(value, allValues);
-      if (result !== true) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            (typeof result === "string" ? result : `${fieldName} 验证失败`),
-        );
-      }
-    }
-
-    // 自定义验证
-    if (rule.custom) {
-      const result = rule.custom(value);
-      if (result !== true) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            (typeof result === "string" ? result : `${fieldName} 验证失败`),
-        );
-      }
-    }
+    validateSqlField(fieldName, value, fieldDef, allValues);
   }
 
   /**
@@ -2289,552 +1453,17 @@ export abstract class SQLModel {
     fieldName: string,
     value: any,
     fieldDef: FieldDefinition,
-    _allValues: Record<string, any>,
-    instanceId?: any,
-  ): Promise<void> {
-    const rule = fieldDef.validate;
-    if (!rule) {
-      return;
-    }
-
-    // 如果值为空，跳过数据库查询验证
-    if (value === null || value === undefined || value === "") {
-      return;
-    }
-
-    // 唯一性验证（unique）
-    if (rule.unique) {
-      await this.validateUnique(
-        fieldName,
-        value,
-        rule.unique === true ? {} : rule.unique,
-        instanceId,
-      );
-    }
-
-    // 存在性验证（exists）
-    if (rule.exists) {
-      await this.validateExists(
-        fieldName,
-        value,
-        rule.exists === true ? {} : rule.exists,
-      );
-    }
-
-    // 不存在性验证（notExists）
-    if (rule.notExists) {
-      await this.validateNotExists(
-        fieldName,
-        value,
-        rule.notExists === true ? {} : rule.notExists,
-      );
-    }
-
-    // 跨表/跨字段值比较验证（compareValue）
-    if (rule.compareValue) {
-      await this.validateCompareValue(
-        fieldName,
-        value,
-        rule.compareValue,
-        instanceId,
-        _allValues,
-      );
-    }
-
-    // 异步自定义验证
-    if (rule.asyncCustom) {
-      const result = await rule.asyncCustom(value, _allValues, {
-        fieldName,
-        instanceId,
-        model: this as typeof SQLModel,
-      });
-      if (result !== true) {
-        throw new ValidationError(
-          fieldName,
-          rule.message ||
-            (typeof result === "string" ? result : `${fieldName} 验证失败`),
-        );
-      }
-    }
-  }
-
-  /**
-   * 检查条件验证条件
-   */
-  private static checkWhenCondition(
-    when: {
-      field: string;
-      is?: any;
-      isNot?: any;
-      check?: (value: any, allValues: Record<string, any>) => boolean;
-    },
     allValues: Record<string, any>,
-  ): boolean {
-    const conditionValue = allValues[when.field];
-
-    if (when.check) {
-      return when.check(conditionValue, allValues);
-    }
-
-    if (when.is !== undefined) {
-      return conditionValue === when.is;
-    }
-
-    if (when.isNot !== undefined) {
-      return conditionValue !== when.isNot;
-    }
-
-    return false;
-  }
-
-  /**
-   * 验证格式
-   */
-  private static validateFormat(
-    fieldName: string,
-    value: any,
-    format:
-      | "email"
-      | "url"
-      | "ip"
-      | "ipv4"
-      | "ipv6"
-      | "uuid"
-      | "date"
-      | "datetime"
-      | "time",
-    message?: string,
-  ): void {
-    const strValue = String(value);
-    let isValid = false;
-
-    switch (format) {
-      case "email":
-        isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(strValue);
-        break;
-      case "url":
-        try {
-          new URL(strValue);
-          isValid = true;
-        } catch {
-          isValid = false;
-        }
-        break;
-      case "ip":
-      case "ipv4":
-        isValid = /^(\d{1,3}\.){3}\d{1,3}$/.test(strValue) &&
-          strValue.split(".").every((n) => {
-            const num = parseInt(n, 10);
-            return num >= 0 && num <= 255;
-          });
-        break;
-      case "ipv6":
-        isValid = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/.test(strValue) ||
-          /^::1$/.test(strValue) ||
-          /^::$/.test(strValue);
-        break;
-      case "uuid":
-        isValid =
-          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-            .test(strValue);
-        break;
-      case "date":
-        isValid = !isNaN(Date.parse(strValue));
-        break;
-      case "datetime":
-        isValid = !isNaN(Date.parse(strValue));
-        break;
-      case "time":
-        isValid = /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/.test(strValue);
-        break;
-    }
-
-    if (!isValid) {
-      throw new ValidationError(
-        fieldName,
-        message ||
-          $tr(
-            "log.validation.formatExpected",
-            { field: fieldName, format },
-          ),
-      );
-    }
-  }
-
-  /**
-   * 验证数组
-   */
-  private static validateArray(
-    fieldName: string,
-    value: any,
-    arrayRule: {
-      type?: FieldType;
-      min?: number;
-      max?: number;
-      length?: number;
-      items?: ValidationRule;
-      uniqueItems?: boolean;
-    },
-    allValues: Record<string, any>,
-  ): void {
-    if (!Array.isArray(value)) {
-      throw new ValidationError(
-        fieldName,
-        $tr("log.validation.typeArray", {
-          field: fieldName,
-        }),
-      );
-    }
-
-    // 数组长度验证
-    if (arrayRule.length !== undefined && value.length !== arrayRule.length) {
-      throw new ValidationError(
-        fieldName,
-        $tr(
-          "log.validation.arrayLength",
-          { field: fieldName, length: String(arrayRule.length) },
-        ),
-      );
-    }
-
-    if (arrayRule.min !== undefined && value.length < arrayRule.min) {
-      throw new ValidationError(
-        fieldName,
-        $tr(
-          "log.validation.arrayMinLength",
-          { field: fieldName, min: arrayRule.min },
-        ),
-      );
-    }
-
-    if (arrayRule.max !== undefined && value.length > arrayRule.max) {
-      throw new ValidationError(
-        fieldName,
-        $tr(
-          "log.validation.arrayMaxLength",
-          { field: fieldName, max: arrayRule.max },
-        ),
-      );
-    }
-
-    // 数组元素唯一性验证
-    if (arrayRule.uniqueItems) {
-      const seen = new Set();
-      for (let i = 0; i < value.length; i++) {
-        const item = value[i];
-        // 使用 JSON.stringify 来比较对象和数组
-        const key = typeof item === "object" && item !== null
-          ? JSON.stringify(item)
-          : String(item);
-        if (seen.has(key)) {
-          throw new ValidationError(
-            fieldName,
-            $tr(
-              "log.validation.arrayUniqueItems",
-              { field: fieldName },
-            ),
-          );
-        }
-        seen.add(key);
-      }
-    }
-
-    // 数组元素验证
-    if (arrayRule.items || arrayRule.type) {
-      for (let i = 0; i < value.length; i++) {
-        const item = value[i];
-        const elemField = `${fieldName}[${i}]`;
-
-        // 类型验证
-        if (arrayRule.type) {
-          const expectedType = arrayRule.type;
-          const actualType = typeof item;
-          if (expectedType === "array" && !Array.isArray(item)) {
-            throw new ValidationError(
-              elemField,
-              $tr(
-                "log.validation.typeArray",
-                {
-                  field: elemField,
-                },
-              ),
-            );
-          }
-          if (
-            expectedType !== "array" && expectedType !== "object" &&
-            actualType !== expectedType
-          ) {
-            throw new ValidationError(
-              elemField,
-              $tr(
-                "log.validation.arrayElementType",
-                { field: elemField, type: expectedType },
-              ),
-            );
-          }
-        }
-
-        // 元素验证规则
-        if (arrayRule.items) {
-          const itemFieldDef: FieldDefinition = {
-            type: arrayRule.type || "any",
-            validate: arrayRule.items,
-          };
-          this.validateField(`${fieldName}[${i}]`, item, itemFieldDef, {
-            ...allValues,
-            [fieldName]: value,
-          });
-        }
-      }
-    }
-  }
-
-  /**
-   * 验证字段唯一性
-   */
-  private static async validateUnique(
-    fieldName: string,
-    value: any,
-    options: {
-      exclude?: Record<string, any>;
-      where?: Record<string, any>;
-    },
     instanceId?: any,
   ): Promise<void> {
-    await this.ensureAdapter();
-
-    const tableName = (this as any).tableName;
-    if (!tableName) {
-      throw new Error($tr("model.tableNameRequired"));
-    }
-
-    // 构建查询条件
-    const where: Record<string, any> = {
-      [fieldName]: value,
-      ...(options.where || {}),
-    };
-
-    // 排除当前记录（用于更新操作）
-    if (instanceId !== undefined) {
-      const primaryKey = (this as any).primaryKey || "id";
-      where[primaryKey] = { $ne: instanceId };
-    }
-
-    // 如果有额外的排除条件，合并到 where 中
-    if (options.exclude) {
-      Object.assign(where, options.exclude);
-    }
-
-    // 查询是否存在
-    const exists = await (this as any).query().where(where).exists();
-    if (exists) {
-      throw new ValidationError(
-        fieldName,
-        $tr(
-          "log.validation.unique",
-          { field: fieldName },
-        ),
-      );
-    }
-  }
-
-  /**
-   * 验证字段在数据表中存在
-   */
-  private static async validateExists(
-    fieldName: string,
-    value: any,
-    options: {
-      table?: string;
-      where?: Record<string, any>;
-    },
-  ): Promise<void> {
-    await this.ensureAdapter();
-
-    const tableName = options.table || (this as any).tableName;
-    if (!tableName) {
-      throw new Error($tr("model.tableNameRequired"));
-    }
-
-    // 构建查询条件
-    // 如果 where 条件中包含 id 且值为 null，表示需要替换为实际值
-    const where: Record<string, any> = {
-      ...(options.where || {}),
-    };
-    // 如果 where 中没有指定字段，使用 fieldName: value
-    // 但如果 where 中指定了主键字段（id），则使用主键字段
-    if (where.id === null) {
-      // 如果 where.id 为 null，表示需要替换为实际值
-      where.id = value;
-    } else if (!where.id && !where[fieldName]) {
-      where[fieldName] = value;
-    }
-
-    // 查询是否存在（需要切换到目标表）
-    const ModelClass = this as any;
-    const originalTable = ModelClass.tableName;
-    ModelClass.tableName = tableName;
-    try {
-      const exists = await ModelClass.query().where(where).exists();
-      if (!exists) {
-        throw new ValidationError(
-          fieldName,
-          $tr(
-            "log.validation.exists",
-            { field: fieldName },
-          ),
-        );
-      }
-    } finally {
-      // 恢复原始表名
-      ModelClass.tableName = originalTable;
-    }
-  }
-
-  /**
-   * 验证字段在数据表中不存在
-   */
-  private static async validateNotExists(
-    fieldName: string,
-    value: any,
-    options: {
-      table?: string;
-      where?: Record<string, any>;
-    },
-  ): Promise<void> {
-    await this.ensureAdapter();
-
-    const tableName = options.table || (this as any).tableName;
-    if (!tableName) {
-      throw new Error($tr("model.tableNameRequired"));
-    }
-
-    // 构建查询条件
-    const where: Record<string, any> = {
-      [fieldName]: value,
-      ...(options.where || {}),
-    };
-
-    // 查询是否存在
-    const exists = await (this as any).query().where(where).exists();
-    if (exists) {
-      throw new ValidationError(
-        fieldName,
-        $tr(
-          "log.validation.notExists",
-          { field: fieldName },
-        ),
-      );
-    }
-  }
-
-  /**
-   * 验证跨表/跨字段值比较
-   */
-  private static async validateCompareValue(
-    fieldName: string,
-    value: any,
-    options: {
-      targetField: string;
-      targetModel?: typeof SQLModel;
-      compare?: "=" | ">" | "<" | ">=" | "<=";
-      where?: Record<string, any>;
-    },
-    instanceId?: any,
-    allValues?: Record<string, any>,
-  ): Promise<void> {
-    await this.ensureAdapter();
-
-    // 确定目标模型（如果未指定，使用当前模型）
-    const TargetModel = (options.targetModel || this) as typeof SQLModel;
-    await TargetModel.ensureAdapter();
-
-    let targetValue: any;
-
-    // 如果是同表比较（未指定 targetModel）且是创建新记录（instanceId 为空），从 allValues 中获取
-    if (!options.targetModel && !instanceId && allValues) {
-      targetValue = allValues[options.targetField];
-      if (targetValue === undefined) {
-        throw new ValidationError(
-          fieldName,
-          $tr(
-            "log.validation.compareValueNotFound",
-            { field: fieldName, targetField: options.targetField },
-          ),
-        );
-      }
-    } else {
-      // 构建查询条件
-      const where: Record<string, any> = {
-        ...(options.where || {}),
-      };
-
-      // 如果是同表比较且是更新记录，使用 instanceId 作为查询条件
-      if (!options.targetModel && instanceId) {
-        where[this.primaryKey] = instanceId;
-      }
-
-      // 查询目标字段的值
-      const targetRecord = await TargetModel.query()
-        .where(where)
-        .fields([options.targetField])
-        .findOne();
-
-      if (!targetRecord) {
-        throw new ValidationError(
-          fieldName,
-          $tr(
-            "log.validation.compareValueNoRecord",
-            { field: fieldName },
-          ),
-        );
-      }
-
-      targetValue = (targetRecord as any)[options.targetField];
-    }
-
-    // 根据比较操作符进行验证
-    const compare = options.compare || "=";
-    let isValid = false;
-
-    switch (compare) {
-      case "=":
-        isValid = value === targetValue;
-        break;
-      case ">":
-        isValid = value > targetValue;
-        break;
-      case "<":
-        isValid = value < targetValue;
-        break;
-      case ">=":
-        isValid = value >= targetValue;
-        break;
-      case "<=":
-        isValid = value <= targetValue;
-        break;
-    }
-
-    if (!isValid) {
-      const operatorKey = {
-        "=": "compareValueEqual",
-        ">": "compareValueGreater",
-        "<": "compareValueLess",
-        ">=": "compareValueGreaterOrEqual",
-        "<=": "compareValueLessOrEqual",
-      }[compare];
-      throw new ValidationError(
-        fieldName,
-        $tr(
-          `log.validation.${operatorKey}`,
-          {
-            field: fieldName,
-            targetField: options.targetField,
-            targetValue: String(targetValue),
-          },
-        ),
-      );
-    }
+    await validateFieldAsyncShared(
+      this.validationHost(),
+      fieldName,
+      value,
+      fieldDef,
+      allValues,
+      instanceId,
+    );
   }
 
   /**
@@ -2951,6 +1580,10 @@ export abstract class SQLModel {
       _limit: number | undefined;
       _includeTrashed: boolean;
       _onlyTrashed: boolean;
+      _with?: PreloadRelations;
+      _groupBy?: string[];
+      _having?: SqlHaving;
+      _aggregates?: SqlAggregates;
     },
   ): SQLArrayQueryBuilder<T> {
     /**
@@ -2972,7 +1605,7 @@ export abstract class SQLModel {
             type: item.type,
             condition: item.condition,
           })),
-        } as any;
+        };
       }
       // 向后兼容：使用旧的 _condition
       return state._condition || {};
@@ -3012,29 +1645,46 @@ export abstract class SQLModel {
         state._includeTrashed = false;
         return arrayBuilder;
       },
+      with: (relations: PreloadRelations) => {
+        const state = getState();
+        state._with = { ...(state._with || {}), ...relations };
+        return arrayBuilder;
+      },
+      preload: (relations: PreloadRelations) => {
+        return arrayBuilder.with(relations);
+      },
+      groupBy: (columns: string | string[]) => {
+        const state = getState();
+        state._groupBy = normalizeGroupBy(columns);
+        return arrayBuilder;
+      },
+      having: (condition: string, params?: unknown[]) => {
+        const state = getState();
+        state._having = { sql: condition, params: params ?? [] };
+        return arrayBuilder;
+      },
+      aggregate: (aggregates: SqlAggregates) => {
+        const state = getState();
+        state._aggregates = aggregates;
+        return arrayBuilder;
+      },
       findAll: async (): Promise<Record<string, any>[]> => {
         await this.ensureAdapter();
         const state = getState();
         const finalCondition = buildFinalCondition();
         const { where, params } = this.buildWhereClause(
-          finalCondition as any,
+          finalCondition,
           state._includeTrashed,
           state._onlyTrashed,
         );
-        const adapter = (this as any).adapter as
-          | DatabaseAdapter
-          | null
-          | undefined;
-        const columns = state._fields && state._fields.length > 0
-          ? state._fields.map((f) =>
-            SQLModel.escapeFieldName.call(this, f, adapter)
-          )
-            .join(", ")
-          : "*";
+        const columns = this.buildSelectColumnList(state);
         const orderBy = this.buildOrderByClause(state._sort);
         const useLimit = typeof state._limit === "number";
         const useSkip = typeof state._skip === "number";
-        let sql = `SELECT ${columns} FROM ${this.tableName} WHERE ${where}`;
+        let sql = `SELECT ${columns} FROM ${this.quotedTable()} WHERE ${where}`;
+        const grouped = this.applyGroupHaving(sql, params, state);
+        sql = grouped.sql;
+        const queryParams = grouped.params;
         if (orderBy) {
           sql = `${sql} ORDER BY ${orderBy}`;
         }
@@ -3049,46 +1699,48 @@ export abstract class SQLModel {
         }
         // ensureAdapter() 已确保 adapter 不为 null
         const results = await this.adapter.query(sql, [
-          ...params,
+          ...queryParams,
           ...extraParams,
         ]);
         // 返回纯 JSON 对象数组，不创建模型实例
         // 使用展开运算符创建新对象，移除原型链，性能优于 JSON.parse(JSON.stringify())
-        return results.map((row: any) => ({ ...row }));
+        const rows = results.map((row) => assignData({}, row));
+        if (!this.isAggregateQuery(getState())) {
+          await applyPreloads(rows, this.primaryKey, getState()._with);
+        }
+        return rows;
       },
       findOne: async (): Promise<Record<string, any> | null> => {
         await this.ensureAdapter();
         const state = getState();
         const finalCondition = buildFinalCondition();
         const { where, params } = this.buildWhereClause(
-          finalCondition as any,
+          finalCondition,
           state._includeTrashed,
           state._onlyTrashed,
         );
-        const adapter = (this as any).adapter as
-          | DatabaseAdapter
-          | null
-          | undefined;
-        const columns = state._fields && state._fields.length > 0
-          ? state._fields.map((f) =>
-            SQLModel.escapeFieldName.call(this, f, adapter)
-          )
-            .join(", ")
-          : "*";
+        const columns = this.buildSelectColumnList(state);
         const orderBy = this.buildOrderByClause(state._sort);
-        let sql = `SELECT ${columns} FROM ${this.tableName} WHERE ${where}`;
+        let sql = `SELECT ${columns} FROM ${this.quotedTable()} WHERE ${where}`;
+        const grouped = this.applyGroupHaving(sql, params, state);
+        sql = grouped.sql;
+        const queryParams = grouped.params;
         if (orderBy) {
           sql = `${sql} ORDER BY ${orderBy}`;
         }
         sql = `${sql} LIMIT 1`;
         // ensureAdapter() 已确保 adapter 不为 null
-        const results = await this.adapter.query(sql, params);
+        const results = await this.adapter.query(sql, queryParams);
         if (results.length === 0) {
           return null;
         }
         // 返回纯 JSON 对象，不创建模型实例
         // 使用展开运算符创建新对象，移除原型链，性能优于 JSON.parse(JSON.stringify())
-        return { ...results[0] };
+        const row = assignData({}, results[0]);
+        if (!this.isAggregateQuery(getState())) {
+          await applyPreloads(row, this.primaryKey, getState()._with);
+        }
+        return row;
       },
       one: async (): Promise<Record<string, any> | null> => {
         return await arrayBuilder.findOne();
@@ -3101,22 +1753,18 @@ export abstract class SQLModel {
         const state = getState();
         const finalCondition = buildFinalCondition();
         const { where, params } = this.buildWhereClause(
-          finalCondition as any,
+          finalCondition,
           state._includeTrashed,
           state._onlyTrashed,
         );
-        const sql =
-          `SELECT COUNT(*) as count FROM ${this.tableName} WHERE ${where}`;
-        // ensureAdapter() 已确保 adapter 不为 null
-        const results = await this.adapter.query(sql, params);
-        return results.length > 0 ? (parseInt(results[0].count) || 0) : 0;
+        return await this.countFromState(state, where, params);
       },
       exists: async (): Promise<boolean> => {
         await this.ensureAdapter();
         const state = getState();
         const finalCondition = buildFinalCondition();
         return await this.exists(
-          finalCondition as any,
+          finalCondition,
           state._includeTrashed,
           state._onlyTrashed,
         );
@@ -3127,7 +1775,7 @@ export abstract class SQLModel {
         const cond = typeof finalCondition === "number" ||
             typeof finalCondition === "string"
           ? { [this.primaryKey]: finalCondition }
-          : (finalCondition as any);
+          : finalCondition;
         return await this.distinct(
           field,
           cond,
@@ -3149,19 +1797,25 @@ export abstract class SQLModel {
         const finalCondition = buildFinalCondition();
         // 使用链式查询构建器中已有的条件、排序、字段等设置
         const paginateResult = await this.paginate(
-          finalCondition as any,
+          finalCondition,
           page,
           pageSize,
           state._sort || { [this.primaryKey]: -1 },
-          state._fields,
+          mergePreloadFields(
+            state._fields,
+            this.primaryKey,
+            getState()._with,
+          ),
           state._includeTrashed,
           state._onlyTrashed,
         );
         // 将数据转换为纯 JSON 对象数组
         // 使用展开运算符创建新对象，移除原型链，性能优于 JSON.parse(JSON.stringify())
+        const data = paginateResult.data.map((item) => assignData({}, item));
+        await applyPreloads(data, this.primaryKey, getState()._with);
         return {
           ...paginateResult,
-          data: paginateResult.data.map((item: any) => ({ ...item })),
+          data,
         };
       },
     };
@@ -3188,7 +1842,7 @@ export abstract class SQLModel {
    */
   static find<T extends typeof SQLModel>(
     this: T,
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
     fields?: string[],
     includeTrashed: boolean = false,
     onlyTrashed: boolean = false,
@@ -3221,6 +1875,10 @@ export abstract class SQLModel {
       _limit: undefined as number | undefined,
       _includeTrashed: includeTrashed,
       _onlyTrashed: onlyTrashed,
+      _with: undefined as PreloadRelations | undefined,
+      _groupBy: undefined as string[] | undefined,
+      _having: undefined as SqlHaving | undefined,
+      _aggregates: undefined as SqlAggregates | undefined,
     };
 
     /**
@@ -3243,7 +1901,7 @@ export abstract class SQLModel {
             type: item.type,
             condition: item.condition,
           })),
-        } as any;
+        };
       }
       // 向后兼容：使用旧的 _condition
       return state._condition || {};
@@ -3315,6 +1973,9 @@ export abstract class SQLModel {
       return result;
     };
 
+    const resolveFields = (): string[] | undefined =>
+      mergePreloadFields(state._fields, this.primaryKey, state._with);
+
     // 执行查询单条记录的函数
     const executeFindOne = async (): Promise<InstanceType<T> | null> => {
       // 自动初始化（如果未初始化）
@@ -3325,8 +1986,13 @@ export abstract class SQLModel {
       // 生成缓存键（条件生成：只在有缓存适配器时才生成）
       const cacheKey = this.generateCacheKey(
         finalCondition,
-        state._fields,
-        { sort: state._sort, skip: state._skip, limit: state._limit },
+        resolveFields(),
+        {
+          sort: state._sort,
+          skip: state._skip,
+          limit: state._limit,
+          with: serializePreloadSignature(state._with),
+        },
         state._includeTrashed,
         state._onlyTrashed,
       );
@@ -3336,10 +2002,11 @@ export abstract class SQLModel {
         const cached = this.cacheAdapter.get(cacheKey);
         const cachedValue = cached instanceof Promise ? await cached : cached;
         if (cachedValue !== undefined) {
-          const instance = new (this as any)();
-          Object.assign(instance, cachedValue);
+          const instance = this.createInstance();
+          assignData(instance, cachedValue);
           // 应用虚拟字段
           this.applyVirtuals(instance);
+          await applyPreloads(instance, this.primaryKey, state._with);
           return instance as InstanceType<T>;
         }
       }
@@ -3349,18 +2016,12 @@ export abstract class SQLModel {
         state._includeTrashed,
         state._onlyTrashed,
       );
-      const adapter = (this as any).adapter as
-        | DatabaseAdapter
-        | null
-        | undefined;
-      const columns = state._fields && state._fields.length > 0
-        ? state._fields.map((f) =>
-          SQLModel.escapeFieldName.call(this, f, adapter)
-        )
-          .join(", ")
-        : "*";
+      const columns = this.buildSelectColumnList(state);
       const orderBy = this.buildOrderByClause(state._sort);
-      let sql = `SELECT ${columns} FROM ${this.tableName} WHERE ${where}`;
+      let sql = `SELECT ${columns} FROM ${this.quotedTable()} WHERE ${where}`;
+      const grouped = this.applyGroupHaving(sql, params, state);
+      sql = grouped.sql;
+      const queryParams = grouped.params;
       if (orderBy) {
         sql = `${sql} ORDER BY ${orderBy}`;
       }
@@ -3377,7 +2038,7 @@ export abstract class SQLModel {
       }
       // ensureAdapter() 已确保 adapter 不为 null
       const results = await this.adapter.query(sql, [
-        ...params,
+        ...queryParams,
         ...extraParams,
       ]);
 
@@ -3385,8 +2046,8 @@ export abstract class SQLModel {
         return null;
       }
 
-      const instance = new (this as any)();
-      Object.assign(instance, results[0]);
+      const instance = this.createInstance();
+      assignData(instance, results[0]);
 
       // 应用虚拟字段
       this.applyVirtuals(instance);
@@ -3404,6 +2065,9 @@ export abstract class SQLModel {
         }
       }
 
+      if (!this.isAggregateQuery(state)) {
+        await applyPreloads(instance, this.primaryKey, state._with);
+      }
       return instance as InstanceType<T>;
     };
 
@@ -3416,8 +2080,13 @@ export abstract class SQLModel {
       // 生成缓存键（条件生成：只在有缓存适配器时才生成）
       const cacheKey = this.generateCacheKey(
         finalCondition,
-        state._fields,
-        { sort: state._sort, skip: state._skip, limit: state._limit },
+        resolveFields(),
+        {
+          sort: state._sort,
+          skip: state._skip,
+          limit: state._limit,
+          with: serializePreloadSignature(state._with),
+        },
         state._includeTrashed,
         state._onlyTrashed,
       );
@@ -3427,13 +2096,15 @@ export abstract class SQLModel {
         const cached = this.cacheAdapter.get(cacheKey);
         const cachedValue = cached instanceof Promise ? await cached : cached;
         if (cachedValue !== undefined && Array.isArray(cachedValue)) {
-          return cachedValue.map((row: any) => {
-            const instance = new (this as any)();
-            Object.assign(instance, row);
+          const instances = cachedValue.map((row: any) => {
+            const instance = this.createInstance();
+            assignData(instance, row);
             // 应用虚拟字段
             this.applyVirtuals(instance);
             return instance as InstanceType<T>;
           });
+          await applyPreloads(instances, this.primaryKey, state._with);
+          return instances;
         }
       }
 
@@ -3442,20 +2113,14 @@ export abstract class SQLModel {
         state._includeTrashed,
         state._onlyTrashed,
       );
-      const adapter = (this as any).adapter as
-        | DatabaseAdapter
-        | null
-        | undefined;
-      const columns = state._fields && state._fields.length > 0
-        ? state._fields.map((f) =>
-          SQLModel.escapeFieldName.call(this, f, adapter)
-        )
-          .join(", ")
-        : "*";
+      const columns = this.buildSelectColumnList(state);
       const orderBy = this.buildOrderByClause(state._sort);
       const useLimit = typeof state._limit === "number";
       const useSkip = typeof state._skip === "number";
-      let sql = `SELECT ${columns} FROM ${this.tableName} WHERE ${where}`;
+      let sql = `SELECT ${columns} FROM ${this.quotedTable()} WHERE ${where}`;
+      const grouped = this.applyGroupHaving(sql, params, state);
+      sql = grouped.sql;
+      const queryParams = grouped.params;
       if (orderBy) {
         sql = `${sql} ORDER BY ${orderBy}`;
       }
@@ -3470,13 +2135,13 @@ export abstract class SQLModel {
       }
       // ensureAdapter() 已确保 adapter 不为 null
       const results = await this.adapter.query(sql, [
-        ...params,
+        ...queryParams,
         ...extraParams,
       ]);
 
       const instances = results.map((row: any) => {
-        const instance = new (this as any)();
-        Object.assign(instance, row);
+        const instance = this.createInstance();
+        assignData(instance, row);
         // 应用虚拟字段
         this.applyVirtuals(instance);
         return instance as InstanceType<T>;
@@ -3495,11 +2160,14 @@ export abstract class SQLModel {
         }
       }
 
+      if (!this.isAggregateQuery(state)) {
+        await applyPreloads(instances, this.primaryKey, state._with);
+      }
       return instances;
     };
 
-    // 创建 Promise（用于直接 await）
-    const queryPromise = executeFindOne();
+    // 仅在 then/catch/finally（如直接 await 构建器）时才执行 findOne
+    const queryPromise = lazyThenable(() => executeFindOne());
 
     // 构建查询构建器对象
     const builder: SQLFindQueryBuilder<T> = {
@@ -3509,7 +2177,7 @@ export abstract class SQLModel {
        * @returns 查询构建器
        */
       orWhere: (
-        condition: WhereCondition | number | string,
+        condition: FindCondition,
       ) => {
         state._conditions.push({ type: "or", condition });
         return builder;
@@ -3520,7 +2188,7 @@ export abstract class SQLModel {
        * @returns 查询构建器
        */
       andWhere: (
-        condition: WhereCondition | number | string,
+        condition: FindCondition,
       ) => {
         state._conditions.push({ type: "and", condition });
         return builder;
@@ -3573,6 +2241,25 @@ export abstract class SQLModel {
         state._includeTrashed = false;
         return builder;
       },
+      with: (relations: PreloadRelations) => {
+        state._with = { ...(state._with || {}), ...relations };
+        return builder;
+      },
+      preload: (relations: PreloadRelations) => {
+        return builder.with(relations);
+      },
+      groupBy: (columns: string | string[]) => {
+        state._groupBy = normalizeGroupBy(columns);
+        return builder;
+      },
+      having: (condition: string, params?: unknown[]) => {
+        state._having = { sql: condition, params: params ?? [] };
+        return builder;
+      },
+      aggregate: (aggregates: SqlAggregates) => {
+        state._aggregates = aggregates;
+        return builder;
+      },
       findAll: () => executeFindAll(),
       findOne: () => executeFindOne(),
       one: () => executeFindOne(),
@@ -3598,14 +2285,7 @@ export abstract class SQLModel {
           state._includeTrashed,
           state._onlyTrashed,
         );
-        const sql =
-          `SELECT COUNT(*) as count FROM ${this.tableName} WHERE ${where}`;
-        // ensureAdapter() 已确保 adapter 不为 null
-        const results = await this.adapter.query(sql, params);
-        if (results.length > 0) {
-          return parseInt(results[0].count) || 0;
-        }
-        return 0;
+        return await this.countFromState(state, where, params);
       },
       exists: async (): Promise<boolean> => {
         await this.ensureAdapter();
@@ -3621,7 +2301,7 @@ export abstract class SQLModel {
         const cond = typeof finalCondition === "number" ||
             typeof finalCondition === "string"
           ? { [this.primaryKey]: finalCondition }
-          : (finalCondition as any);
+          : finalCondition;
         return await this.distinct(
           field,
           cond,
@@ -3641,15 +2321,17 @@ export abstract class SQLModel {
       }> => {
         const finalCondition = buildFinalCondition();
         // 使用链式查询构建器中已有的条件、排序、字段等设置
-        return await this.paginate(
-          finalCondition as any,
+        const result = await this.paginate(
+          finalCondition,
           page,
           pageSize,
           state._sort || { [this.primaryKey]: -1 },
-          state._fields,
+          resolveFields(),
           state._includeTrashed,
           state._onlyTrashed,
         );
+        await applyPreloads(result.data, this.primaryKey, state._with);
+        return result;
       },
       // Promise 接口方法（用于直接 await）
       then: (
@@ -3661,7 +2343,7 @@ export abstract class SQLModel {
       finally: (onfinally?: () => void) => queryPromise.finally(onfinally),
     };
 
-    return builder as any;
+    return builder;
   }
 
   /**
@@ -3678,7 +2360,7 @@ export abstract class SQLModel {
    */
   static async findAll<T extends typeof SQLModel>(
     this: T,
-    condition: WhereCondition = {},
+    condition: FindCondition = {},
     fields?: string[],
     options?: {
       sort?: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc";
@@ -3706,8 +2388,8 @@ export abstract class SQLModel {
       const cachedValue = cached instanceof Promise ? await cached : cached;
       if (cachedValue !== undefined && Array.isArray(cachedValue)) {
         return cachedValue.map((row: any) => {
-          const instance = new (this as any)();
-          Object.assign(instance, row);
+          const instance = this.createInstance();
+          assignData(instance, row);
           // 应用虚拟字段
           this.applyVirtuals(instance);
           return instance as InstanceType<T>;
@@ -3725,7 +2407,7 @@ export abstract class SQLModel {
     const orderBy = this.buildOrderByClause(options?.sort);
     const useLimit = typeof options?.limit === "number";
     const useSkip = typeof options?.skip === "number";
-    let sql = `SELECT ${columns} FROM ${this.tableName} WHERE ${where}`;
+    let sql = `SELECT ${columns} FROM ${this.quotedTable()} WHERE ${where}`;
     if (orderBy) {
       sql = `${sql} ORDER BY ${orderBy}`;
     }
@@ -3744,8 +2426,8 @@ export abstract class SQLModel {
     const results = await this.adapter.query(sql, [...params, ...extraParams]);
 
     const instances = results.map((row: any) => {
-      const instance = new (this as any)();
-      Object.assign(instance, row);
+      const instance = this.createInstance();
+      assignData(instance, row);
       // 应用虚拟字段
       this.applyVirtuals(instance);
       return instance as InstanceType<T>;
@@ -3861,36 +2543,23 @@ export abstract class SQLModel {
 
     // 自动时间戳
     if (this.timestamps) {
-      const createdAtField = typeof this.timestamps === "object"
-        ? (this.timestamps.createdAt || "createdAt")
-        : "createdAt";
-      const updatedAtField = typeof this.timestamps === "object"
-        ? (this.timestamps.updatedAt || "updatedAt")
-        : "updatedAt";
-
-      if (!processedData[createdAtField]) {
-        processedData[createdAtField] = new Date();
-      }
-      if (!processedData[updatedAtField]) {
-        processedData[updatedAtField] = new Date();
-      }
+      applyCreateTimestamps(processedData, this.timestamps);
 
       // 将 Date 对象转换为 ISO 字符串（SQLite 需要字符串格式）
       // 注意：这里先不转换，让 serializeFields 统一处理
     }
 
     // 创建临时实例用于钩子
-    const tempInstance = new (this as any)();
-    Object.assign(tempInstance, processedData);
+    const tempInstance = this.createInstance();
+    assignData(tempInstance, processedData);
 
     // beforeValidate 钩子
     if (this.beforeValidate) {
-      // 性能优化：检测钩子是否修改了数据，只在有变化时合并
-      const beforeSnapshot = { ...tempInstance };
-      await this.beforeValidate(tempInstance);
-      if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
-        Object.assign(processedData, tempInstance);
-      }
+      await assignHookChangesIfChanged(
+        this.beforeValidate,
+        tempInstance,
+        processedData,
+      );
     }
 
     // 验证数据（包括跨字段验证和数据库查询验证）
@@ -3898,32 +2567,29 @@ export abstract class SQLModel {
 
     // afterValidate 钩子
     if (this.afterValidate) {
-      // 性能优化：检测钩子是否修改了数据，只在有变化时合并
-      const beforeSnapshot = { ...tempInstance };
-      await this.afterValidate(tempInstance);
-      if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
-        Object.assign(processedData, tempInstance);
-      }
+      await assignHookChangesIfChanged(
+        this.afterValidate,
+        tempInstance,
+        processedData,
+      );
     }
 
     // beforeCreate 钩子
     if (this.beforeCreate) {
-      // 性能优化：检测钩子是否修改了数据，只在有变化时合并
-      const beforeSnapshot = { ...tempInstance };
-      await this.beforeCreate(tempInstance);
-      if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
-        Object.assign(processedData, tempInstance);
-      }
+      await assignHookChangesIfChanged(
+        this.beforeCreate,
+        tempInstance,
+        processedData,
+      );
     }
 
     // beforeSave 钩子
     if (this.beforeSave) {
-      // 性能优化：检测钩子是否修改了数据，只在有变化时合并
-      const beforeSnapshot = { ...tempInstance };
-      await this.beforeSave(tempInstance);
-      if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
-        Object.assign(processedData, tempInstance);
-      }
+      await assignHookChangesIfChanged(
+        this.beforeSave,
+        tempInstance,
+        processedData,
+      );
     }
 
     // 序列化数组和对象字段为 JSON 字符串（SQLite 需要）
@@ -3942,17 +2608,15 @@ export abstract class SQLModel {
       SQLModel.escapeFieldName.call(this, key, this.adapter)
     );
 
-    let sql = `INSERT INTO ${this.tableName} (${
+    let sql = `INSERT INTO ${this.quotedTable()} (${
       escapedKeys.join(", ")
     }) VALUES (${placeholders})`;
-    if ((this.adapter as any)?.config?.adapter === "postgresql") {
-      const escapedPrimaryKey = SQLModel.escapeFieldName.call(
-        this,
-        this.primaryKey,
-        this.adapter,
-      );
-      sql = `${sql} RETURNING ${escapedPrimaryKey}`;
-    }
+    const escapedPrimaryKey = SQLModel.escapeFieldName.call(
+      this,
+      this.primaryKey,
+      this.adapter,
+    );
+    sql = this.applyReturning(sql, this.adapter, "insert", escapedPrimaryKey);
     // ensureAdapter() 已确保 adapter 不为 null
     const execResult = await this.adapter.execute(sql, values);
 
@@ -3960,13 +2624,13 @@ export abstract class SQLModel {
     if (
       execResult && typeof execResult === "object" && "insertId" in execResult
     ) {
-      insertedId = (execResult as any).insertId ?? null;
+      insertedId = readInsertId(execResult);
     }
     if (
       !insertedId && execResult && typeof execResult === "object" &&
       "rows" in execResult
     ) {
-      const rows = (execResult as any).rows;
+      const rows = readResultRows(execResult);
       if (Array.isArray(rows) && rows.length > 0) {
         insertedId = rows[0]?.[this.primaryKey] ?? rows[0]?.id ?? null;
       }
@@ -3988,10 +2652,10 @@ export abstract class SQLModel {
 
     // 如果插入成功且有 ID，直接使用插入的数据构建实例
     // 不重新查询，避免软删除过滤导致的问题
-    const instance = new (this as any)();
-    Object.assign(instance, processedData);
+    const instance = this.createInstance();
+    assignData(instance, processedData);
     if (insertedId) {
-      (instance as any)[this.primaryKey] = insertedId;
+      setRecordValue(instance, this.primaryKey, insertedId);
     }
 
     // 应用虚拟字段（使用缓存的虚拟字段定义）
@@ -4032,7 +2696,7 @@ export abstract class SQLModel {
    */
   static async update<T extends typeof SQLModel>(
     this: T,
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
     data: Record<string, any>,
     returnLatest?: false,
     options?: {
@@ -4044,7 +2708,7 @@ export abstract class SQLModel {
   ): Promise<number>;
   static async update<T extends typeof SQLModel>(
     this: T,
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
     data: Record<string, any>,
     returnLatest: true,
     options?: {
@@ -4056,7 +2720,7 @@ export abstract class SQLModel {
   ): Promise<InstanceType<T>>;
   static async update<T extends typeof SQLModel>(
     this: T,
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
     data: Record<string, any>,
     returnLatest: boolean = false,
     options?: {
@@ -4114,7 +2778,8 @@ export abstract class SQLModel {
         false,
         false,
       );
-      const checkSql = `SELECT 1 FROM ${this.tableName} WHERE ${where} LIMIT 1`;
+      const checkSql =
+        `SELECT 1 FROM ${this.quotedTable()} WHERE ${where} LIMIT 1`;
       const checkResult = await this.adapter.query(checkSql, whereParams);
       if (
         !checkResult || (Array.isArray(checkResult) && checkResult.length === 0)
@@ -4130,63 +2795,43 @@ export abstract class SQLModel {
 
     // 自动时间戳
     if (this.timestamps) {
-      const updatedAtField = typeof this.timestamps === "object"
-        ? (this.timestamps.updatedAt || "updatedAt")
-        : "updatedAt";
-      processedData[updatedAtField] = new Date();
+      applyUpdateTimestamp(processedData, this.timestamps);
     }
 
     // 创建临时实例用于钩子（直接合并，避免额外的展开操作）
-    const tempInstance = new (this as any)();
+    const tempInstance = this.createInstance();
     if (existingInstance) {
-      Object.assign(tempInstance, existingInstance);
+      assignData(tempInstance, existingInstance);
     }
-    Object.assign(tempInstance, processedData);
+    assignData(tempInstance, processedData);
 
     // 钩子和验证处理（如果启用）
     // 注意：只有当 enableHooks 或 enableValidation 为 true 时才进入此块
     if (enableHooks || enableValidation) {
       // beforeValidate 钩子（只有启用钩子时才执行）
       if (enableHooks && this.beforeValidate) {
-        // 性能优化：检测钩子是否修改了数据，只在有变化时合并
-        const beforeSnapshot = { ...tempInstance };
-        await this.beforeValidate(tempInstance);
-        if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
-          // 合并钩子修改的字段，但排除非数据库字段（如 hookData）和主键字段
-          // 只合并被钩子修改的字段（通过比较 beforeSnapshot 和 tempInstance）
-          const primaryKey = (this as any).primaryKey || "id";
-          // 先合并 processedData 中已存在的字段
-          for (const key in processedData) {
-            if (
-              key in tempInstance && key !== "hookData" && key !== primaryKey
-            ) {
-              processedData[key] = tempInstance[key];
-            }
-          }
-          // 然后合并 existingInstance 中被钩子修改的字段（但不在 processedData 中）
-          if (existingInstance) {
-            for (const key in existingInstance) {
-              // 只合并被修改的字段（在 tempInstance 中但不在 beforeSnapshot 中，或者值不同）
-              if (
-                key !== "hookData" &&
-                key !== primaryKey &&
-                !(key in processedData) &&
-                key in tempInstance &&
-                tempInstance[key] !== beforeSnapshot[key]
-              ) {
-                processedData[key] = tempInstance[key];
-              }
-            }
-          }
-        }
+        const primaryKey = this.primaryKey || "id";
+        await runHookAndMergeIfChanged(
+          this.beforeValidate,
+          tempInstance,
+          (beforeSnapshot) => {
+            mergeUpdateHookFields(
+              processedData,
+              tempInstance,
+              beforeSnapshot,
+              existingInstance,
+              primaryKey,
+            );
+          },
+        );
       }
 
       // 验证数据（包括跨字段验证和数据库查询验证）
       // 传递当前记录的 ID，用于唯一性验证时排除当前记录
       if (enableValidation) {
-        const primaryKey = (this as any).primaryKey || "id";
+        const primaryKey = this.primaryKey || "id";
         const instanceId = existingInstance
-          ? (existingInstance as any)[primaryKey]
+          ? getRecordValue(existingInstance, primaryKey)
           : undefined;
         // 如果跳过预查询，instanceId 为 undefined，唯一性验证可能不准确
         // 因此建议在跳过预查询时确保没有唯一性验证
@@ -4195,107 +2840,56 @@ export abstract class SQLModel {
 
       // afterValidate 钩子
       if (enableHooks && this.afterValidate) {
-        // 性能优化：检测钩子是否修改了数据，只在有变化时合并
-        const beforeSnapshot = { ...tempInstance };
-        await this.afterValidate(tempInstance);
-        if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
-          // 合并钩子修改的字段，但排除非数据库字段（如 hookData）和主键字段
-          // 只合并被钩子修改的字段（通过比较 beforeSnapshot 和 tempInstance）
-          const primaryKey = (this as any).primaryKey || "id";
-          // 先合并 processedData 中已存在的字段
-          for (const key in processedData) {
-            if (
-              key in tempInstance && key !== "hookData" && key !== primaryKey
-            ) {
-              processedData[key] = tempInstance[key];
-            }
-          }
-          // 然后合并 existingInstance 中被钩子修改的字段（但不在 processedData 中）
-          if (existingInstance) {
-            for (const key in existingInstance) {
-              // 只合并被修改的字段（在 tempInstance 中但不在 beforeSnapshot 中，或者值不同）
-              if (
-                key !== "hookData" &&
-                key !== primaryKey &&
-                !(key in processedData) &&
-                key in tempInstance &&
-                tempInstance[key] !== beforeSnapshot[key]
-              ) {
-                processedData[key] = tempInstance[key];
-              }
-            }
-          }
-        }
+        const primaryKey = this.primaryKey || "id";
+        await runHookAndMergeIfChanged(
+          this.afterValidate,
+          tempInstance,
+          (beforeSnapshot) => {
+            mergeUpdateHookFields(
+              processedData,
+              tempInstance,
+              beforeSnapshot,
+              existingInstance,
+              primaryKey,
+            );
+          },
+        );
       }
 
       // beforeUpdate 钩子
       if (enableHooks && this.beforeUpdate) {
-        // 性能优化：检测钩子是否修改了数据，只在有变化时合并
-        const beforeSnapshot = { ...tempInstance };
-        await this.beforeUpdate(tempInstance);
-        if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
-          // 合并钩子修改的字段，但排除非数据库字段（如 hookData）和主键字段
-          // 只合并被钩子修改的字段（通过比较 beforeSnapshot 和 tempInstance）
-          const primaryKey = (this as any).primaryKey || "id";
-          // 先合并 processedData 中已存在的字段
-          for (const key in processedData) {
-            if (
-              key in tempInstance && key !== "hookData" && key !== primaryKey
-            ) {
-              processedData[key] = tempInstance[key];
-            }
-          }
-          // 然后合并 existingInstance 中被钩子修改的字段（但不在 processedData 中）
-          if (existingInstance) {
-            for (const key in existingInstance) {
-              // 只合并被修改的字段（在 tempInstance 中但不在 beforeSnapshot 中，或者值不同）
-              if (
-                key !== "hookData" &&
-                key !== primaryKey &&
-                !(key in processedData) &&
-                key in tempInstance &&
-                tempInstance[key] !== beforeSnapshot[key]
-              ) {
-                processedData[key] = tempInstance[key];
-              }
-            }
-          }
-        }
+        const primaryKey = this.primaryKey || "id";
+        await runHookAndMergeIfChanged(
+          this.beforeUpdate,
+          tempInstance,
+          (beforeSnapshot) => {
+            mergeUpdateHookFields(
+              processedData,
+              tempInstance,
+              beforeSnapshot,
+              existingInstance,
+              primaryKey,
+            );
+          },
+        );
       }
 
       // beforeSave 钩子
       if (enableHooks && this.beforeSave) {
-        // 性能优化：检测钩子是否修改了数据，只在有变化时合并
-        const beforeSnapshot = { ...tempInstance };
-        await this.beforeSave(tempInstance);
-        if (this.hasObjectChanged(beforeSnapshot, tempInstance)) {
-          // 合并钩子修改的字段，但排除非数据库字段（如 hookData）和主键字段
-          // 只合并被钩子修改的字段（通过比较 beforeSnapshot 和 tempInstance）
-          const primaryKey = (this as any).primaryKey || "id";
-          // 先合并 processedData 中已存在的字段
-          for (const key in processedData) {
-            if (
-              key in tempInstance && key !== "hookData" && key !== primaryKey
-            ) {
-              processedData[key] = tempInstance[key];
-            }
-          }
-          // 然后合并 existingInstance 中被钩子修改的字段（但不在 processedData 中）
-          if (existingInstance) {
-            for (const key in existingInstance) {
-              // 只合并被修改的字段（在 tempInstance 中但不在 beforeSnapshot 中，或者值不同）
-              if (
-                key !== "hookData" &&
-                key !== primaryKey &&
-                !(key in processedData) &&
-                key in tempInstance &&
-                tempInstance[key] !== beforeSnapshot[key]
-              ) {
-                processedData[key] = tempInstance[key];
-              }
-            }
-          }
-        }
+        const primaryKey = this.primaryKey || "id";
+        await runHookAndMergeIfChanged(
+          this.beforeSave,
+          tempInstance,
+          (beforeSnapshot) => {
+            mergeUpdateHookFields(
+              processedData,
+              tempInstance,
+              beforeSnapshot,
+              existingInstance,
+              primaryKey,
+            );
+          },
+        );
       }
     }
 
@@ -4319,19 +2913,11 @@ export abstract class SQLModel {
       `${SQLModel.escapeFieldName.call(this, key, this.adapter)} = ?`
     ).join(", ");
 
-    let sql = `UPDATE ${this.tableName} SET ${setClause} WHERE ${where}`;
-    const dbAdapter = (this.adapter as any)?.config?.adapter;
-    const isPostgres = dbAdapter === "postgresql";
-    const isMySQL = dbAdapter === "mysql";
-    const isSQLite = dbAdapter === "sqlite";
-
-    // 如果 returnLatest 为 true，尝试使用 RETURNING 子句获取更新后的值
-    if (returnLatest && (isPostgres || isMySQL || isSQLite)) {
-      sql = `${sql} RETURNING *`;
-    } else if (isPostgres) {
-      // PostgreSQL 默认使用 RETURNING *（即使不返回实例，也用于钩子）
-      sql = `${sql} RETURNING *`;
-    }
+    let sql = `UPDATE ${this.quotedTable()} SET ${setClause} WHERE ${where}`;
+    const sqlAdapter = this.asSqlAdapter(this.adapter);
+    sql = this.applyReturning(sql, this.adapter, "update", "*", {
+      returnLatest,
+    });
     // ensureAdapter() 已确保 adapter 不为 null
     let result: any;
     try {
@@ -4341,8 +2927,8 @@ export abstract class SQLModel {
       ]);
     } catch (error) {
       // 如果 RETURNING 不支持（旧版本 MySQL/SQLite），回退到不使用 RETURNING
-      if (returnLatest && (isMySQL || isSQLite)) {
-        sql = `UPDATE ${this.tableName} SET ${setClause} WHERE ${where}`;
+      if (sqlAdapter?.shouldRetryWithoutReturning("update")) {
+        sql = `UPDATE ${this.quotedTable()} SET ${setClause} WHERE ${where}`;
         result = await this.adapter.execute(sql, [
           ...values,
           ...whereParams,
@@ -4356,20 +2942,20 @@ export abstract class SQLModel {
     const affectedRows = (typeof result === "number")
       ? result
       : ((result && typeof result === "object" && "affectedRows" in result)
-        ? ((result as any).affectedRows || 0)
+        ? readAffectedRows(result)
         : 0);
 
     if (affectedRows > 0) {
       let updatedInstance: any | null = null;
       if (
-        isPostgres &&
+        sqlAdapter?.sqlDialect === "postgresql" &&
         result && typeof result === "object" && "rows" in result
       ) {
         // PostgreSQL 使用 RETURNING 返回的行
-        const rows = (result as any).rows as any[];
+        const rows = readResultRows(result);
         if (Array.isArray(rows) && rows.length > 0) {
-          const instance = new (this as any)();
-          Object.assign(instance, rows[0]);
+          const instance = this.createInstance();
+          assignData(instance, rows[0]);
           // 应用虚拟字段
           this.applyVirtuals(instance);
           updatedInstance = instance;
@@ -4377,12 +2963,12 @@ export abstract class SQLModel {
       } else if (returnLatest) {
         // MySQL/SQLite 可能不支持 RETURNING 或返回格式不同，需要重新查询
         // 从条件中获取主键值
-        const primaryKey = (this as any).primaryKey || "id";
+        const primaryKey = this.primaryKey || "id";
         let primaryKeyValue: any;
         if (typeof condition === "number" || typeof condition === "string") {
           primaryKeyValue = condition;
         } else if (condition && typeof condition === "object") {
-          primaryKeyValue = (condition as any)[primaryKey];
+          primaryKeyValue = getRecordValue(condition as object, primaryKey);
         }
 
         if (primaryKeyValue) {
@@ -4392,11 +2978,11 @@ export abstract class SQLModel {
             updatedInstance = latest;
           } else {
             // 如果查询失败，使用合并后的数据
-            const instance = new (this as any)();
+            const instance = this.createInstance();
             if (existingInstance) {
-              Object.assign(instance, existingInstance, processedData);
+              assignData(instance, existingInstance, processedData);
             } else {
-              Object.assign(instance, processedData);
+              assignData(instance, processedData);
             }
             // 应用虚拟字段
             this.applyVirtuals(instance);
@@ -4404,11 +2990,11 @@ export abstract class SQLModel {
           }
         } else {
           // 无法获取主键值，使用合并后的数据
-          const instance = new (this as any)();
+          const instance = this.createInstance();
           if (existingInstance) {
-            Object.assign(instance, existingInstance, processedData);
+            assignData(instance, existingInstance, processedData);
           } else {
-            Object.assign(instance, processedData);
+            assignData(instance, processedData);
           }
           // 应用虚拟字段
           this.applyVirtuals(instance);
@@ -4416,11 +3002,11 @@ export abstract class SQLModel {
         }
       } else {
         // 不需要返回实例，但需要创建实例用于钩子
-        const instance = new (this as any)();
+        const instance = this.createInstance();
         if (existingInstance) {
-          Object.assign(instance, existingInstance, processedData);
+          assignData(instance, existingInstance, processedData);
         } else {
-          Object.assign(instance, processedData);
+          assignData(instance, processedData);
         }
         // 应用虚拟字段
         this.applyVirtuals(instance);
@@ -4459,7 +3045,7 @@ export abstract class SQLModel {
    * await User.delete({ email: 'user@example.com' });
    */
   static async delete(
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
   ): Promise<number> {
     // 自动初始化（如果未初始化）
     await this.ensureAdapter();
@@ -4501,7 +3087,7 @@ export abstract class SQLModel {
         this.adapter,
       );
       const sql =
-        `UPDATE ${this.tableName} SET ${escapedDeletedAtField} = ? WHERE ${where}`;
+        `UPDATE ${this.quotedTable()} SET ${escapedDeletedAtField} = ? WHERE ${where}`;
       // ensureAdapter() 已确保 adapter 不为 null
       const result = await this.adapter.execute(sql, [
         deletedAtValue,
@@ -4510,7 +3096,7 @@ export abstract class SQLModel {
       const affectedRows = (typeof result === "number")
         ? result
         : ((result && typeof result === "object" && "affectedRows" in result)
-          ? ((result as any).affectedRows || 0)
+          ? readAffectedRows(result)
           : 0);
 
       if (affectedRows > 0 && this.afterDelete) {
@@ -4524,7 +3110,7 @@ export abstract class SQLModel {
 
     // 硬删除：真正删除记录（包含已软删除的记录）
     const { where, params } = this.buildWhereClause(condition, true, false);
-    const sql = `DELETE FROM ${this.tableName} WHERE ${where}`;
+    const sql = `DELETE FROM ${this.quotedTable()} WHERE ${where}`;
     // ensureAdapter() 已确保 adapter 不为 null
     const result = await this.adapter.execute(sql, params);
 
@@ -4532,7 +3118,7 @@ export abstract class SQLModel {
     const affectedRows = (typeof result === "number")
       ? result
       : ((result && typeof result === "object" && "affectedRows" in result)
-        ? ((result as any).affectedRows || 0)
+        ? readAffectedRows(result)
         : 0);
 
     if (affectedRows > 0) {
@@ -4559,8 +3145,8 @@ export abstract class SQLModel {
     // 自动初始化（如果未初始化）
     await Model.ensureAdapter();
 
-    const primaryKey = (Model.constructor as any).primaryKey || "id";
-    const id = (this as any)[primaryKey];
+    const primaryKey = Model.primaryKey || "id";
+    const id = asModelId(getRecordValue(this, primaryKey));
 
     if (id) {
       // 更新现有记录
@@ -4570,7 +3156,7 @@ export abstract class SQLModel {
       const keys = Object.keys(this);
       for (const key of keys) {
         if (key !== primaryKey) {
-          const value = (this as any)[key];
+          const value = getRecordValue(this, key);
           // 只包含数据属性，排除方法
           if (typeof value !== "function") {
             data[key] = value;
@@ -4589,12 +3175,12 @@ export abstract class SQLModel {
           ),
         );
       }
-      Object.assign(this, updated);
+      assignData(this, updated);
       return this;
     } else {
       // 插入新记录
       const instance = await Model.create(this);
-      Object.assign(this, instance);
+      assignData(this, instance);
       return this;
     }
   }
@@ -4616,8 +3202,8 @@ export abstract class SQLModel {
     // 自动初始化（如果未初始化）
     await Model.ensureAdapter();
 
-    const primaryKey = (Model.constructor as any).primaryKey || "id";
-    const id = (this as any)[primaryKey];
+    const primaryKey = Model.primaryKey || "id";
+    const id = asModelId(getRecordValue(this, primaryKey));
 
     if (!id) {
       throw new Error(
@@ -4635,7 +3221,7 @@ export abstract class SQLModel {
         ),
       );
     }
-    Object.assign(this, updated);
+    assignData(this, updated);
     return this;
   }
 
@@ -4648,8 +3234,8 @@ export abstract class SQLModel {
     // 自动初始化（如果未初始化）
     await Model.ensureAdapter();
 
-    const primaryKey = (Model.constructor as any).primaryKey || "id";
-    const id = (this as any)[primaryKey];
+    const primaryKey = Model.primaryKey || "id";
+    const id = asModelId(getRecordValue(this, primaryKey));
 
     if (!id) {
       throw new Error(
@@ -4673,7 +3259,7 @@ export abstract class SQLModel {
    */
   static async findOne<T extends typeof SQLModel>(
     this: T,
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
     fields?: string[],
     includeTrashed: boolean = false,
     onlyTrashed: boolean = false,
@@ -4755,7 +3341,7 @@ export abstract class SQLModel {
    * await User.updateMany({ status: 'active' }, { lastLogin: new Date() }, { enableHooks: true, enableValidation: true });
    */
   static async updateMany(
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
     data: Record<string, any>,
     options?: { enableHooks?: boolean; enableValidation?: boolean },
   ): Promise<number> {
@@ -4782,7 +3368,7 @@ export abstract class SQLModel {
    * await User.deleteMany({ age: { $lt: 18 } });
    */
   static async deleteMany(
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
     options?: { returnIds?: boolean },
   ): Promise<number | { count: number; ids: any[] }> {
     // 如果需要返回 ID，先查询符合条件的记录
@@ -4792,8 +3378,8 @@ export abstract class SQLModel {
           ? { [this.primaryKey]: condition }
           : condition;
       const records = await this.findAll(conditionObj);
-      const primaryKey = (this as any).primaryKey || "id";
-      const ids = records.map((record) => (record as any)[primaryKey]);
+      const primaryKey = this.primaryKey || "id";
+      const ids = records.map((record) => getRecordValue(record, primaryKey));
       // 执行删除
       const count = await this.delete(condition);
       return { count, ids };
@@ -4813,7 +3399,7 @@ export abstract class SQLModel {
    * const adults = await User.count({ age: { $gte: 18 } });
    */
   static async count(
-    condition: WhereCondition = {},
+    condition: FindCondition = {},
     includeTrashed: boolean = false,
     onlyTrashed: boolean = false,
   ): Promise<number> {
@@ -4826,7 +3412,7 @@ export abstract class SQLModel {
       onlyTrashed,
     );
     const sql =
-      `SELECT COUNT(*) as count FROM ${this.tableName} WHERE ${where}`;
+      `SELECT COUNT(*) as count FROM ${this.quotedTable()} WHERE ${where}`;
     // ensureAdapter() 已确保 adapter 不为 null
     const results = await this.adapter.query(sql, params);
 
@@ -4846,7 +3432,7 @@ export abstract class SQLModel {
    * const exists = await User.exists({ email: 'user@example.com' });
    */
   static async exists(
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
     includeTrashed: boolean = false,
     onlyTrashed: boolean = false,
   ): Promise<boolean> {
@@ -4860,7 +3446,7 @@ export abstract class SQLModel {
     );
     // SQLite 中 'exists' 是保留字，使用其他别名
     const sql =
-      `SELECT EXISTS(SELECT 1 FROM ${this.tableName} WHERE ${where}) as result`;
+      `SELECT EXISTS(SELECT 1 FROM ${this.quotedTable()} WHERE ${where}) as result`;
     // ensureAdapter() 已确保 adapter 不为 null
     const results = await this.adapter.query(sql, params);
 
@@ -4916,104 +3502,31 @@ export abstract class SQLModel {
 
         // 自动时间戳
         if (this.timestamps) {
-          const createdAtField = typeof this.timestamps === "object"
-            ? (this.timestamps.createdAt || "createdAt")
-            : "createdAt";
-          const updatedAtField = typeof this.timestamps === "object"
-            ? (this.timestamps.updatedAt || "updatedAt")
-            : "updatedAt";
-          if (!processedData[createdAtField]) {
-            processedData[createdAtField] = new Date();
-          }
-          if (!processedData[updatedAtField]) {
-            processedData[updatedAtField] = new Date();
-          }
+          applyCreateTimestamps(processedData, this.timestamps);
         }
 
         // 钩子处理（如果启用）
         if (enableHooks) {
-          const tempInstance = new (this as any)();
-          Object.assign(tempInstance, processedData);
-          // 保存原始数据的键，用于过滤钩子添加的非数据库字段
+          const tempInstance = this.createInstance();
+          assignData(tempInstance, processedData);
           const originalKeys = new Set(Object.keys(processedData));
-          if (this.beforeValidate) {
-            await this.beforeValidate(tempInstance);
-            // 只合并钩子修改的、在原始数据中存在的字段（避免钩子添加的非数据库字段）
-            const schema = (this as any).schema;
-            if (schema) {
-              const schemaKeys = this.getSchemaKeys();
-              for (const key of schemaKeys) {
-                if (key in tempInstance && originalKeys.has(key)) {
-                  processedData[key] = tempInstance[key];
-                }
-              }
-            } else {
-              // 即使没有 schema，也只合并原始数据中存在的字段
-              for (const key of originalKeys) {
-                if (key in tempInstance) {
-                  processedData[key] = tempInstance[key];
-                }
-              }
-            }
-          }
-          if (this.afterValidate) {
-            await this.afterValidate(tempInstance);
-            // 只合并钩子修改的、在原始数据中存在的字段（避免钩子添加的非数据库字段）
-            const schema = (this as any).schema;
-            if (schema) {
-              const schemaKeys = this.getSchemaKeys();
-              for (const key of schemaKeys) {
-                if (key in tempInstance && originalKeys.has(key)) {
-                  processedData[key] = tempInstance[key];
-                }
-              }
-            } else {
-              // 即使没有 schema，也只合并原始数据中存在的字段
-              for (const key of originalKeys) {
-                if (key in tempInstance) {
-                  processedData[key] = tempInstance[key];
-                }
-              }
-            }
-          }
-          if (this.beforeCreate) {
-            await this.beforeCreate(tempInstance);
-            // 只合并钩子修改的、在原始数据中存在的字段（避免钩子添加的非数据库字段）
-            const schema = (this as any).schema;
-            if (schema) {
-              const schemaKeys = this.getSchemaKeys();
-              for (const key of schemaKeys) {
-                if (key in tempInstance && originalKeys.has(key)) {
-                  processedData[key] = tempInstance[key];
-                }
-              }
-            } else {
-              // 即使没有 schema，也只合并原始数据中存在的字段
-              for (const key of originalKeys) {
-                if (key in tempInstance) {
-                  processedData[key] = tempInstance[key];
-                }
-              }
-            }
-          }
-          if (this.beforeSave) {
-            await this.beforeSave(tempInstance);
-            // 只合并钩子修改的、在原始数据中存在的字段（避免钩子添加的非数据库字段）
-            const schema = (this as any).schema;
-            if (schema) {
-              const schemaKeys = this.getSchemaKeys();
-              for (const key of schemaKeys) {
-                if (key in tempInstance && originalKeys.has(key)) {
-                  processedData[key] = tempInstance[key];
-                }
-              }
-            } else {
-              // 即使没有 schema，也只合并原始数据中存在的字段
-              for (const key of originalKeys) {
-                if (key in tempInstance) {
-                  processedData[key] = tempInstance[key];
-                }
-              }
+          const schemaKeys = this.schema ? this.getSchemaKeys() : undefined;
+          for (
+            const hook of [
+              this.beforeValidate,
+              this.afterValidate,
+              this.beforeCreate,
+              this.beforeSave,
+            ]
+          ) {
+            if (hook) {
+              await hook(tempInstance);
+              mergeCreateManyHookFields(
+                processedData,
+                tempInstance,
+                originalKeys,
+                schemaKeys,
+              );
             }
           }
         }
@@ -5052,27 +3565,25 @@ export abstract class SQLModel {
       this.adapter,
     );
 
-    let sql = `INSERT INTO ${this.tableName} (${
+    let sql = `INSERT INTO ${this.quotedTable()} (${
       escapedKeys.join(", ")
     }) VALUES ${valuesList}`;
-    const dbAdapter = (this.adapter as any)?.config?.adapter;
-    const isPostgres = dbAdapter === "postgresql";
-    const isMySQL = dbAdapter === "mysql";
-    const isSQLite = dbAdapter === "sqlite";
-
+    const sqlAdapter = this.asSqlAdapter(this.adapter);
     // 尝试使用 RETURNING 子句获取插入的 ID（MySQL 8.0+ 和 SQLite 3.35.0+ 支持）
-    // 注意：这里假设数据库版本支持 RETURNING，如果失败会回退到其他方式
-    if (isPostgres || isMySQL || isSQLite) {
-      sql = `${sql} RETURNING ${escapedPrimaryKey}`;
-    }
+    sql = this.applyReturning(
+      sql,
+      this.adapter,
+      "insertMany",
+      escapedPrimaryKey,
+    );
     // ensureAdapter() 已确保 adapter 不为 null
     let execResult: any;
     try {
       execResult = await this.adapter.execute(sql, allValues);
     } catch (error) {
       // 如果 RETURNING 不支持（旧版本 MySQL/SQLite），回退到不使用 RETURNING
-      if (isMySQL || isSQLite) {
-        sql = `INSERT INTO ${this.tableName} (${
+      if (sqlAdapter?.shouldRetryWithoutReturning("insertMany")) {
+        sql = `INSERT INTO ${this.quotedTable()} (${
           escapedKeys.join(", ")
         }) VALUES ${valuesList}`;
         execResult = await this.adapter.execute(sql, allValues);
@@ -5087,14 +3598,14 @@ export abstract class SQLModel {
       execResult && typeof execResult === "object" && "rows" in execResult
     ) {
       // PostgreSQL/MySQL/SQLite 使用 RETURNING 返回的行
-      const rows = (execResult as any).rows;
+      const rows = readResultRows(execResult);
       if (Array.isArray(rows) && rows.length === processedArray.length) {
         for (let idx = 0; idx < processedArray.length; idx++) {
-          const instance = new (this as any)();
-          Object.assign(instance, processedArray[idx]);
+          const instance = this.createInstance();
+          assignData(instance, processedArray[idx]);
           const idVal = rows[idx]?.[this.primaryKey] ?? rows[idx]?.id ?? null;
           if (idVal != null) {
-            (instance as any)[this.primaryKey] = idVal;
+            setRecordValue(instance, this.primaryKey, idVal);
           }
           // 应用虚拟字段
           this.applyVirtuals(instance);
@@ -5106,12 +3617,16 @@ export abstract class SQLModel {
     ) {
       // MySQL 批量插入时只返回第一个 insertId，需要计算后续的 ID
       // 注意：这假设主键是自增的，且批量插入是连续的
-      const firstInsertId = (execResult as any).insertId ?? null;
+      const firstInsertId = readInsertId(execResult);
       if (firstInsertId != null) {
         for (let idx = 0; idx < processedArray.length; idx++) {
-          const instance = new (this as any)();
-          Object.assign(instance, processedArray[idx]);
-          (instance as any)[this.primaryKey] = firstInsertId + idx;
+          const instance = this.createInstance();
+          assignData(instance, processedArray[idx]);
+          setRecordValue(
+            instance,
+            this.primaryKey,
+            Number(firstInsertId) + idx,
+          );
           // 应用虚拟字段
           this.applyVirtuals(instance);
           instances.push(instance as InstanceType<T>);
@@ -5123,13 +3638,17 @@ export abstract class SQLModel {
     ) {
       // SQLite 批量插入时只返回最后一个 lastInsertRowid，需要计算前面的 ID
       // 注意：这假设主键是自增的，且批量插入是连续的
-      const lastInsertRowid = (execResult as any).lastInsertRowid ?? null;
+      const lastInsertRowid = readInsertId(execResult);
       if (lastInsertRowid != null) {
         for (let idx = 0; idx < processedArray.length; idx++) {
-          const instance = new (this as any)();
-          Object.assign(instance, processedArray[idx]);
-          (instance as any)[this.primaryKey] = lastInsertRowid -
-            (processedArray.length - 1 - idx);
+          const instance = this.createInstance();
+          assignData(instance, processedArray[idx]);
+          setRecordValue(
+            instance,
+            this.primaryKey,
+            Number(lastInsertRowid) -
+              (processedArray.length - 1 - idx),
+          );
           // 应用虚拟字段
           this.applyVirtuals(instance);
           instances.push(instance as InstanceType<T>);
@@ -5140,8 +3659,8 @@ export abstract class SQLModel {
     // 如果无法获取 ID，直接使用处理后的数据创建实例
     if (instances.length === 0) {
       for (const data of processedArray) {
-        const instance = new (this as any)();
-        Object.assign(instance, data);
+        const instance = this.createInstance();
+        assignData(instance, data);
         // 应用虚拟字段
         this.applyVirtuals(instance);
         instances.push(instance as InstanceType<T>);
@@ -5188,7 +3707,7 @@ export abstract class SQLModel {
    */
   static async paginate<T extends typeof SQLModel>(
     this: T,
-    condition: WhereCondition = {},
+    condition: FindCondition = {},
     page: number = 1,
     pageSize: number = 10,
     sort?: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc",
@@ -5231,7 +3750,7 @@ export abstract class SQLModel {
     // 构建排序子句
     const orderBy = this.buildOrderByClause(sort);
 
-    let sql = `SELECT ${columns} FROM ${this.tableName} WHERE ${where}`;
+    let sql = `SELECT ${columns} FROM ${this.quotedTable()} WHERE ${where}`;
     if (orderBy) {
       sql = `${sql} ORDER BY ${orderBy}`;
     }
@@ -5245,8 +3764,8 @@ export abstract class SQLModel {
     ]);
 
     const data = results.map((row: any) => {
-      const instance = new (this as any)();
-      Object.assign(instance, row);
+      const instance = this.createInstance();
+      assignData(instance, row);
       return instance as InstanceType<T>;
     });
 
@@ -5279,7 +3798,7 @@ export abstract class SQLModel {
    */
   static async increment<T extends typeof SQLModel>(
     this: T,
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
     fieldOrMap: string | Record<string, number>,
     amountOrReturnLatest?: number | boolean,
     returnLatest?: boolean,
@@ -5326,26 +3845,23 @@ export abstract class SQLModel {
     }
     const setClause = setParts.join(", ");
 
-    let sql = `UPDATE ${this.tableName} SET ${setClause} WHERE ${where}`;
-    const dbAdapter = (this.adapter as any)?.config?.adapter;
-    const isPostgres = dbAdapter === "postgresql";
-    const isSQLite = dbAdapter === "sqlite";
-
-    // 尝试使用 RETURNING 子句获取更新后的值
-    // PostgreSQL 完全支持 RETURNING
-    // MySQL 8.0.19+ 支持 RETURNING，但适配器需要特殊处理，所以这里不使用
-    // SQLite 3.35.0+ 支持 RETURNING
-    if (shouldReturnLatest && (isPostgres || isSQLite)) {
-      sql = `${sql} RETURNING *`;
-    }
+    let sql = `UPDATE ${this.quotedTable()} SET ${setClause} WHERE ${where}`;
+    const sqlAdapter = this.asSqlAdapter(this.adapter);
+    // MySQL 8.0.19+ 支持 RETURNING，但适配器需要特殊处理，所以 increment 路径不使用
+    sql = this.applyReturning(sql, this.adapter, "increment", "*", {
+      returnLatest: shouldReturnLatest,
+    });
     // ensureAdapter() 已确保 adapter 不为 null
     let result: any;
     try {
       result = await this.adapter.execute(sql, [...setParams, ...params]);
     } catch (error) {
       // 如果 RETURNING 不支持（旧版本 SQLite），回退到不使用 RETURNING
-      if (shouldReturnLatest && isSQLite) {
-        sql = `UPDATE ${this.tableName} SET ${setClause} WHERE ${where}`;
+      if (
+        shouldReturnLatest &&
+        sqlAdapter?.shouldRetryWithoutReturning("increment")
+      ) {
+        sql = `UPDATE ${this.quotedTable()} SET ${setClause} WHERE ${where}`;
         result = await this.adapter.execute(sql, [...setParams, ...params]);
       } else {
         throw error;
@@ -5357,7 +3873,7 @@ export abstract class SQLModel {
         return result;
       }
       if (result && typeof result === "object" && "affectedRows" in result) {
-        return (result as any).affectedRows || 0;
+        return readAffectedRows(result);
       }
       return 0;
     }
@@ -5365,24 +3881,24 @@ export abstract class SQLModel {
     let instance: any | null = null;
     // 检查是否有 RETURNING 返回的数据
     const rows = result && typeof result === "object" && "rows" in result
-      ? (result as any).rows as any[]
+      ? readResultRows(result)
       : null;
 
     if (rows && Array.isArray(rows) && rows.length > 0) {
       // PostgreSQL/SQLite 使用 RETURNING 返回的行
-      instance = new (this as any)();
-      Object.assign(instance, rows[0]);
+      instance = this.createInstance();
+      assignData(instance, rows[0]);
       // 应用虚拟字段
       this.applyVirtuals(instance);
     } else {
       // 不支持 RETURNING 或 RETURNING 失败（如 MySQL），使用 SELECT 查询获取更新后的值
       // 查询完整的记录以确保包含所有字段
       const selectSql =
-        `SELECT * FROM ${this.tableName} WHERE ${where} LIMIT 1`;
+        `SELECT * FROM ${this.quotedTable()} WHERE ${where} LIMIT 1`;
       const selectResult = await this.adapter.query(selectSql, params);
       if (selectResult && selectResult.length > 0) {
-        instance = new (this as any)();
-        Object.assign(instance, selectResult[0]);
+        instance = this.createInstance();
+        assignData(instance, selectResult[0]);
         // 应用虚拟字段
         this.applyVirtuals(instance);
       }
@@ -5415,7 +3931,7 @@ export abstract class SQLModel {
    */
   static async decrement<T extends typeof SQLModel>(
     this: T,
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
     fieldOrMap: string | Record<string, number>,
     amountOrReturnLatest?: number | boolean,
     returnLatest?: boolean,
@@ -5430,7 +3946,7 @@ export abstract class SQLModel {
       const shouldReturnLatest = typeof amountOrReturnLatest === "boolean"
         ? amountOrReturnLatest
         : (returnLatest === true);
-      return await (this as any).increment(
+      return await this.increment(
         condition,
         negatedMap,
         shouldReturnLatest,
@@ -5443,7 +3959,7 @@ export abstract class SQLModel {
       const shouldReturnLatest = typeof amountOrReturnLatest === "boolean"
         ? amountOrReturnLatest
         : (returnLatest === true);
-      return await (this as any).increment(
+      return await this.increment(
         condition,
         fieldOrMap,
         amount,
@@ -5464,7 +3980,7 @@ export abstract class SQLModel {
    * await User.incrementMany({ status: 'active' }, { views: 1, likes: 2 });
    */
   static async incrementMany(
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
     fieldOrMap: string | Record<string, number>,
     amount: number = 1,
   ): Promise<number> {
@@ -5506,7 +4022,7 @@ export abstract class SQLModel {
       setValues.push(new Date());
     }
 
-    const sql = `UPDATE ${this.tableName} SET ${
+    const sql = `UPDATE ${this.quotedTable()} SET ${
       setClauses.join(", ")
     } WHERE ${where}`;
     // ensureAdapter() 已确保 adapter 不为 null
@@ -5516,11 +4032,11 @@ export abstract class SQLModel {
     let affectedRows = 0;
     if (result && typeof result === "object") {
       if ("affectedRows" in result) {
-        affectedRows = (result as any).affectedRows || 0;
+        affectedRows = readAffectedRows(result);
       } else if ("rowCount" in result) {
-        affectedRows = (result as any).rowCount || 0;
+        affectedRows = readAffectedRows(result);
       } else if ("changes" in result) {
-        affectedRows = (result as any).changes || 0;
+        affectedRows = readAffectedRows(result);
       }
     } else if (typeof result === "number") {
       affectedRows = result;
@@ -5546,7 +4062,7 @@ export abstract class SQLModel {
    * await User.decrementMany({ status: 'active' }, { views: 1, likes: 2 });
    */
   static async decrementMany(
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
     fieldOrMap: string | Record<string, number>,
     amount: number = 1,
   ): Promise<number> {
@@ -5579,7 +4095,7 @@ export abstract class SQLModel {
    */
   static async upsert<T extends typeof SQLModel>(
     this: T,
-    condition: WhereCondition,
+    condition: FindCondition,
     data: Record<string, any>,
     returnLatest: boolean = true, // 统一接口：与 MongoModel 保持一致
     resurrect: boolean = false, // 统一接口：与 MongoModel 保持一致（SQL 中此选项通常无效，但保留以统一接口）
@@ -5589,23 +4105,26 @@ export abstract class SQLModel {
     await this.ensureAdapter();
 
     const useDialect = options?.useDialectUpsert ??
-      ((this as any).useDialectUpsert === true);
-    const dbAdapter = (this.adapter as any)?.config?.adapter;
+      (this.useDialectUpsert === true);
+    const sqlAdapter = this.asSqlAdapter(this.adapter);
     const conflictKeys = options?.conflictKeys ??
-      (this as any).upsertConflictKeys ??
+      this.upsertConflictKeys ??
       (typeof condition === "object" && !Array.isArray(condition)
         ? Object.keys(condition)
         : []);
 
-    if (useDialect && dbAdapter === "postgresql" && conflictKeys.length > 0) {
+    if (
+      useDialect && sqlAdapter?.sqlDialect === "postgresql" &&
+      sqlAdapter.supportsDialectUpsert(conflictKeys)
+    ) {
       try {
         // 如果 resurrect 为 true，先检查并恢复已软删除的记录
         if (resurrect && this.softDelete) {
           const existing = await this.withTrashed().find(condition);
           if (existing) {
-            const id = (existing as any)[this.primaryKey];
+            const id = asModelId(getRecordValue(existing, this.primaryKey));
             const deletedAtField = this.deletedAtField || "deletedAt";
-            if (id && (existing as any)[deletedAtField]) {
+            if (id && getRecordValue(existing, deletedAtField)) {
               await this.restore(id);
             }
           }
@@ -5613,18 +4132,15 @@ export abstract class SQLModel {
         // 方言 upsert：同一 payload 参与 INSERT 与 DO UPDATE，沿用插入语义（applyDefaults: true）
         const processedData = this.processFields(data, { applyDefaults: true });
         if (this.timestamps) {
-          const updatedAtField = typeof this.timestamps === "object"
-            ? (this.timestamps.updatedAt || "updatedAt")
-            : "updatedAt";
-          processedData[updatedAtField] = new Date();
+          applyUpdateTimestamp(processedData, this.timestamps);
         }
         if (typeof condition === "object" && condition) {
           for (const k of conflictKeys) {
             if (
               processedData[k] === undefined &&
-              (condition as any)[k] !== undefined
+              getRecordValue(condition as object, k) !== undefined
             ) {
-              const v = (condition as any)[k];
+              const v = getRecordValue(condition as object, k);
               processedData[k] = (v && typeof v === "object") ? undefined : v;
             }
           }
@@ -5638,20 +4154,18 @@ export abstract class SQLModel {
           k !== this.primaryKey
         );
         const values = keys.map((k) => serializedData[k]);
-        const placeholders = keys.map(() => "?").join(", ");
-        const updateSet = keys.map((k) => `${k} = EXCLUDED.${k}`).join(", ");
-        const sql = `INSERT INTO ${this.tableName} (${
-          keys.join(", ")
-        }) VALUES (${placeholders}) ON CONFLICT (${
-          conflictKeys.join(", ")
-        }) DO UPDATE SET ${updateSet} RETURNING *`;
+        const sql = sqlAdapter.buildUpsertSql(
+          this.tableName,
+          keys,
+          conflictKeys,
+        );
         // ensureAdapter() 已确保 adapter 不为 null
         const result = await this.adapter.execute(sql, values);
         if (result && typeof result === "object" && "rows" in result) {
-          const rows = (result as any).rows as any[];
+          const rows = readResultRows(result);
           if (Array.isArray(rows) && rows.length > 0) {
-            const instance = new (this as any)();
-            Object.assign(instance, rows[0]);
+            const instance = this.createInstance();
+            assignData(instance, rows[0]);
             // 应用虚拟字段
             this.applyVirtuals(instance);
             return instance as InstanceType<T>;
@@ -5666,24 +4180,21 @@ export abstract class SQLModel {
       }
     }
 
-    if (useDialect && dbAdapter === "mysql") {
+    if (useDialect && sqlAdapter?.sqlDialect === "mysql") {
       // 如果 resurrect 为 true，先检查并恢复已软删除的记录
       if (resurrect && this.softDelete) {
         const existing = await this.withTrashed().find(condition);
         if (existing) {
-          const id = (existing as any)[this.primaryKey];
+          const id = asModelId(getRecordValue(existing, this.primaryKey));
           const deletedAtField = this.deletedAtField || "deletedAt";
-          if (id && (existing as any)[deletedAtField]) {
+          if (id && getRecordValue(existing, deletedAtField)) {
             await this.restore(id);
           }
         }
       }
       const processedData = this.processFields(data, { applyDefaults: true });
       if (this.timestamps) {
-        const updatedAtField = typeof this.timestamps === "object"
-          ? (this.timestamps.updatedAt || "updatedAt")
-          : "updatedAt";
-        processedData[updatedAtField] = new Date();
+        applyUpdateTimestamp(processedData, this.timestamps);
       }
       // 序列化数组和对象字段
       const serializedData = SQLModel.serializeFields.call(
@@ -5694,19 +4205,19 @@ export abstract class SQLModel {
         k !== this.primaryKey
       );
       const values = keys.map((k) => serializedData[k]);
-      const placeholders = keys.map(() => "?").join(", ");
-      const updateSet = keys.map((k) => `${k} = VALUES(${k})`).join(", ");
-      const sql = `INSERT INTO ${this.tableName} (${
-        keys.join(", ")
-      }) VALUES (${placeholders}) ON DUPLICATE KEY UPDATE ${updateSet}`;
+      const sql = sqlAdapter.buildUpsertSql(
+        this.tableName,
+        keys,
+        conflictKeys,
+      );
       // ensureAdapter() 已确保 adapter 不为 null
       const result = await this.adapter.execute(sql, values);
-      const instance = new (this as any)();
-      Object.assign(instance, processedData);
+      const instance = this.createInstance();
+      assignData(instance, processedData);
       if (result && typeof result === "object" && "insertId" in result) {
-        const insertedId = (result as any).insertId ?? null;
+        const insertedId = readInsertId(result);
         if (insertedId != null) {
-          (instance as any)[this.primaryKey] = insertedId;
+          setRecordValue(instance, this.primaryKey, insertedId);
         }
       }
       return instance as InstanceType<T>;
@@ -5719,10 +4230,10 @@ export abstract class SQLModel {
     if (existing) {
       // 如果 resurrect 为 true 且记录已被软删除，先恢复它
       if (resurrect && this.softDelete) {
-        const id = (existing as any)[this.primaryKey];
+        const id = asModelId(getRecordValue(existing, this.primaryKey));
         if (id) {
           const deletedAtField = this.deletedAtField || "deletedAt";
-          if ((existing as any)[deletedAtField]) {
+          if (getRecordValue(existing, deletedAtField)) {
             await this.restore(id);
           }
         }
@@ -5763,7 +4274,7 @@ export abstract class SQLModel {
    */
   static async distinct(
     field: string,
-    condition: WhereCondition = {},
+    condition: FindCondition = {},
     includeTrashed: boolean = false,
     onlyTrashed: boolean = false,
   ): Promise<any[]> {
@@ -5776,7 +4287,7 @@ export abstract class SQLModel {
       onlyTrashed,
     );
     const sql =
-      `SELECT DISTINCT ${field} FROM ${this.tableName} WHERE ${where}`;
+      `SELECT DISTINCT ${field} FROM ${this.quotedTable()} WHERE ${where}`;
     // ensureAdapter() 已确保 adapter 不为 null
     const results = await this.adapter.query(sql, params);
 
@@ -5811,7 +4322,7 @@ export abstract class SQLModel {
   } {
     return {
       findAll: async (
-        condition: WhereCondition = {},
+        condition: FindCondition = {},
         fields?: string[],
         options?: {
           sort?: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc";
@@ -5825,7 +4336,7 @@ export abstract class SQLModel {
         const orderBy = this.buildOrderByClause(options?.sort);
         const useLimit = typeof options?.limit === "number";
         const useSkip = typeof options?.skip === "number";
-        let sql = `SELECT ${columns} FROM ${this.tableName} WHERE ${where}`;
+        let sql = `SELECT ${columns} FROM ${this.quotedTable()} WHERE ${where}`;
         if (orderBy) {
           sql = `${sql} ORDER BY ${orderBy}`;
         }
@@ -5848,8 +4359,8 @@ export abstract class SQLModel {
           ...extraParams,
         ]);
         return results.map((row: any) => {
-          const instance = new (this as any)();
-          Object.assign(instance, row);
+          const instance = this.createInstance();
+          assignData(instance, row);
           return instance as InstanceType<T>;
         });
       },
@@ -5861,25 +4372,24 @@ export abstract class SQLModel {
         const { where, params } = this.buildWhereClause(condition, true, false);
         const columns = fields && fields.length > 0 ? fields.join(", ") : "*";
         const sql =
-          `SELECT ${columns} FROM ${this.tableName} WHERE ${where} LIMIT 1`;
+          `SELECT ${columns} FROM ${this.quotedTable()} WHERE ${where} LIMIT 1`;
         // ensureAdapter() 已确保 adapter 不为 null
         const results = await this.adapter.query(sql, params);
         if (results.length === 0) {
           return null;
         }
-        const instance = new (this as any)();
-        Object.assign(instance, results[0]);
+        const instance = this.createInstance();
+        assignData(instance, results[0]);
         return instance as InstanceType<T>;
       },
       count: async (condition: WhereCondition = {}): Promise<number> => {
         await this.ensureAdapter();
         const { where, params } = this.buildWhereClause(condition, true, false);
         const sql =
-          `SELECT COUNT(*) as count FROM ${this.tableName} WHERE ${where}`;
-        // ensureAdapter() 已确保 adapter 不为 null
+          `SELECT COUNT(*) as count FROM ${this.quotedTable()} WHERE ${where}`;
         const results = await this.adapter.query(sql, params);
         if (results.length > 0) {
-          return parseInt(results[0].count) || 0;
+          return parseInt(String(results[0].count), 10) || 0;
         }
         return 0;
       },
@@ -5912,7 +4422,7 @@ export abstract class SQLModel {
   } {
     return {
       findAll: async (
-        condition: WhereCondition = {},
+        condition: FindCondition = {},
         fields?: string[],
         options?: {
           sort?: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc";
@@ -5926,7 +4436,7 @@ export abstract class SQLModel {
         const orderBy = this.buildOrderByClause(options?.sort);
         const useLimit = typeof options?.limit === "number";
         const useSkip = typeof options?.skip === "number";
-        let sql = `SELECT ${columns} FROM ${this.tableName} WHERE ${where}`;
+        let sql = `SELECT ${columns} FROM ${this.quotedTable()} WHERE ${where}`;
         if (orderBy) {
           sql = `${sql} ORDER BY ${orderBy}`;
         }
@@ -5949,8 +4459,8 @@ export abstract class SQLModel {
           ...extraParams,
         ]);
         return results.map((row: any) => {
-          const instance = new (this as any)();
-          Object.assign(instance, row);
+          const instance = this.createInstance();
+          assignData(instance, row);
           return instance as InstanceType<T>;
         });
       },
@@ -5962,25 +4472,24 @@ export abstract class SQLModel {
         const { where, params } = this.buildWhereClause(condition, false, true);
         const columns = fields && fields.length > 0 ? fields.join(", ") : "*";
         const sql =
-          `SELECT ${columns} FROM ${this.tableName} WHERE ${where} LIMIT 1`;
+          `SELECT ${columns} FROM ${this.quotedTable()} WHERE ${where} LIMIT 1`;
         // ensureAdapter() 已确保 adapter 不为 null
         const results = await this.adapter.query(sql, params);
         if (results.length === 0) {
           return null;
         }
-        const instance = new (this as any)();
-        Object.assign(instance, results[0]);
+        const instance = this.createInstance();
+        assignData(instance, results[0]);
         return instance as InstanceType<T>;
       },
       count: async (condition: WhereCondition = {}): Promise<number> => {
         await this.ensureAdapter();
         const { where, params } = this.buildWhereClause(condition, false, true);
         const sql =
-          `SELECT COUNT(*) as count FROM ${this.tableName} WHERE ${where}`;
-        // ensureAdapter() 已确保 adapter 不为 null
+          `SELECT COUNT(*) as count FROM ${this.quotedTable()} WHERE ${where}`;
         const results = await this.adapter.query(sql, params);
         if (results.length > 0) {
-          return parseInt(results[0].count) || 0;
+          return parseInt(String(results[0].count), 10) || 0;
         }
         return 0;
       },
@@ -6008,7 +4517,14 @@ export abstract class SQLModel {
       _limit: undefined as number | undefined,
       _includeTrashed: false,
       _onlyTrashed: false,
+      _with: undefined as PreloadRelations | undefined,
+      _groupBy: undefined as string[] | undefined,
+      _having: undefined as SqlHaving | undefined,
+      _aggregates: undefined as SqlAggregates | undefined,
     };
+
+    const resolveFields = (): string[] | undefined =>
+      mergePreloadFields(state._fields, this.primaryKey, state._with);
 
     /**
      * 构建最终的查询条件
@@ -6033,7 +4549,7 @@ export abstract class SQLModel {
           type: item.type,
           condition: item.condition,
         })),
-      } as any;
+      };
     };
 
     /**
@@ -6092,31 +4608,35 @@ export abstract class SQLModel {
       await this.ensureAdapter();
       const finalCondition = buildFinalCondition();
       const { where, params } = this.buildWhereClause(
-        finalCondition as any,
+        finalCondition,
         state._includeTrashed,
         state._onlyTrashed,
       );
-      const columns = state._fields && state._fields.length > 0
-        ? state._fields.join(", ")
-        : "*";
+      const columns = this.buildSelectColumnList(state);
       const orderBy = this.buildOrderByClause(state._sort);
-      let sql = `SELECT ${columns} FROM ${this.tableName} WHERE ${where}`;
+      let sql = `SELECT ${columns} FROM ${this.quotedTable()} WHERE ${where}`;
+      const grouped = this.applyGroupHaving(sql, params, state);
+      sql = grouped.sql;
+      const queryParams = grouped.params;
       if (orderBy) {
         sql = `${sql} ORDER BY ${orderBy}`;
       }
       sql = `${sql} LIMIT 1`;
       // ensureAdapter() 已确保 adapter 不为 null
-      const results = await this.adapter.query(sql, params);
+      const results = await this.adapter.query(sql, queryParams);
       if (results.length === 0) {
         return null;
       }
-      const instance = new (this as any)();
-      Object.assign(instance, results[0]);
+      const instance = this.createInstance();
+      assignData(instance, results[0]);
+      if (!this.isAggregateQuery(state)) {
+        await applyPreloads(instance, this.primaryKey, state._with);
+      }
       return instance as InstanceType<T>;
     };
 
-    // 创建 Promise（用于直接 await）
-    const queryPromise = executeFindOne();
+    // 仅在 then/catch/finally（如直接 await 构建器）时才执行 findOne
+    const queryPromise = lazyThenable(() => executeFindOne());
 
     const builder = {
       /**
@@ -6213,21 +4733,41 @@ export abstract class SQLModel {
         state._includeTrashed = false;
         return builder;
       },
+      with: (relations: PreloadRelations) => {
+        state._with = { ...(state._with || {}), ...relations };
+        return builder;
+      },
+      preload: (relations: PreloadRelations) => {
+        return builder.with(relations);
+      },
+      groupBy: (columns: string | string[]) => {
+        state._groupBy = normalizeGroupBy(columns);
+        return builder;
+      },
+      having: (condition: string, params?: unknown[]) => {
+        state._having = { sql: condition, params: params ?? [] };
+        return builder;
+      },
+      aggregate: (aggregates: SqlAggregates) => {
+        state._aggregates = aggregates;
+        return builder;
+      },
       findAll: async (): Promise<InstanceType<T>[]> => {
         await this.ensureAdapter();
         const finalCondition = buildFinalCondition();
         const { where, params } = this.buildWhereClause(
-          finalCondition as any,
+          finalCondition,
           state._includeTrashed,
           state._onlyTrashed,
         );
-        const columns = state._fields && state._fields.length > 0
-          ? state._fields.join(", ")
-          : "*";
+        const columns = this.buildSelectColumnList(state);
         const orderBy = this.buildOrderByClause(state._sort);
         const useLimit = typeof state._limit === "number";
         const useSkip = typeof state._skip === "number";
-        let sql = `SELECT ${columns} FROM ${this.tableName} WHERE ${where}`;
+        let sql = `SELECT ${columns} FROM ${this.quotedTable()} WHERE ${where}`;
+        const grouped = this.applyGroupHaving(sql, params, state);
+        sql = grouped.sql;
+        const queryParams = grouped.params;
         if (orderBy) {
           sql = `${sql} ORDER BY ${orderBy}`;
         }
@@ -6242,39 +4782,47 @@ export abstract class SQLModel {
         }
         // ensureAdapter() 已确保 adapter 不为 null
         const results = await this.adapter.query(sql, [
-          ...params,
+          ...queryParams,
           ...extraParams,
         ]);
-        return results.map((row: any) => {
-          const instance = new (this as any)();
-          Object.assign(instance, row);
+        const instances = results.map((row: any) => {
+          const instance = this.createInstance();
+          assignData(instance, row);
           return instance as InstanceType<T>;
         });
+        if (!this.isAggregateQuery(state)) {
+          await applyPreloads(instances, this.primaryKey, state._with);
+        }
+        return instances;
       },
       findOne: async (): Promise<InstanceType<T> | null> => {
         await this.ensureAdapter();
         const finalCondition = buildFinalCondition();
         const { where, params } = this.buildWhereClause(
-          finalCondition as any,
+          finalCondition,
           state._includeTrashed,
           state._onlyTrashed,
         );
-        const columns = state._fields && state._fields.length > 0
-          ? state._fields.join(", ")
-          : "*";
+        const columns = this.buildSelectColumnList(state);
         const orderBy = this.buildOrderByClause(state._sort);
-        let sql = `SELECT ${columns} FROM ${this.tableName} WHERE ${where}`;
+        let sql = `SELECT ${columns} FROM ${this.quotedTable()} WHERE ${where}`;
+        const grouped = this.applyGroupHaving(sql, params, state);
+        sql = grouped.sql;
+        const queryParams = grouped.params;
         if (orderBy) {
           sql = `${sql} ORDER BY ${orderBy}`;
         }
         sql = `${sql} LIMIT 1`;
         // ensureAdapter() 已确保 adapter 不为 null
-        const results = await this.adapter.query(sql, params);
+        const results = await this.adapter.query(sql, queryParams);
         if (results.length === 0) {
           return null;
         }
-        const instance = new (this as any)();
-        Object.assign(instance, results[0]);
+        const instance = this.createInstance();
+        assignData(instance, results[0]);
+        if (!this.isAggregateQuery(state)) {
+          await applyPreloads(instance, this.primaryKey, state._with);
+        }
         return instance as InstanceType<T>;
       },
       one: async (): Promise<InstanceType<T> | null> => {
@@ -6300,27 +4848,32 @@ export abstract class SQLModel {
         fields?: string[],
       ): Promise<InstanceType<T> | null> => {
         await this.ensureAdapter();
-        return await this.findById(id, fields);
+        const row = await this.findById(
+          id,
+          mergePreloadFields(
+            fields ?? state._fields,
+            this.primaryKey,
+            state._with,
+          ),
+        );
+        await applyPreloads(row, this.primaryKey, state._with);
+        return row;
       },
       count: async (): Promise<number> => {
         await this.ensureAdapter();
         const finalCondition = buildFinalCondition();
         const { where, params } = this.buildWhereClause(
-          finalCondition as any,
+          finalCondition,
           state._includeTrashed,
           state._onlyTrashed,
         );
-        const sql =
-          `SELECT COUNT(*) as count FROM ${this.tableName} WHERE ${where}`;
-        // ensureAdapter() 已确保 adapter 不为 null
-        const results = await this.adapter.query(sql, params);
-        return results.length > 0 ? (parseInt(results[0].count) || 0) : 0;
+        return await this.countFromState(state, where, params);
       },
       exists: async (): Promise<boolean> => {
         await this.ensureAdapter();
         const finalCondition = buildFinalCondition();
         return await this.exists(
-          finalCondition as any,
+          finalCondition,
           state._includeTrashed,
           state._onlyTrashed,
         );
@@ -6332,13 +4885,13 @@ export abstract class SQLModel {
         const finalCondition = buildFinalCondition();
         if (returnLatest) {
           return await this.update(
-            finalCondition as any,
+            finalCondition,
             data,
             true,
           ) as InstanceType<T>;
         }
         return await this.update(
-          finalCondition as any,
+          finalCondition,
           data,
           false,
         ) as number;
@@ -6352,7 +4905,7 @@ export abstract class SQLModel {
       },
       updateMany: async (data: Record<string, any>): Promise<number> => {
         const finalCondition = buildFinalCondition();
-        return await this.updateMany(finalCondition as any, data);
+        return await this.updateMany(finalCondition, data);
       },
       increment: async (
         field: string,
@@ -6361,7 +4914,7 @@ export abstract class SQLModel {
       ): Promise<number | InstanceType<T>> => {
         const finalCondition = buildFinalCondition();
         return await this.increment(
-          finalCondition as any,
+          finalCondition,
           field,
           amount,
           returnLatest,
@@ -6374,7 +4927,7 @@ export abstract class SQLModel {
       ): Promise<number | InstanceType<T>> => {
         const finalCondition = buildFinalCondition();
         return await this.decrement(
-          finalCondition as any,
+          finalCondition,
           field,
           amount,
           returnLatest,
@@ -6388,13 +4941,13 @@ export abstract class SQLModel {
         options?: { returnIds?: boolean },
       ): Promise<number | { count: number; ids: any[] }> => {
         const finalCondition = buildFinalCondition();
-        return await this.deleteMany(finalCondition as any, options);
+        return await this.deleteMany(finalCondition, options);
       },
       restore: async (
         options?: { returnIds?: boolean },
       ): Promise<number | { count: number; ids: any[] }> => {
         const finalCondition = buildFinalCondition();
-        return await this.restore(finalCondition as any, options);
+        return await this.restore(finalCondition, options);
       },
       restoreById: async (id: number | string): Promise<number> => {
         await this.ensureAdapter();
@@ -6404,7 +4957,7 @@ export abstract class SQLModel {
         options?: { returnIds?: boolean },
       ): Promise<number | { count: number; ids: any[] }> => {
         const finalCondition = buildFinalCondition();
-        return await this.forceDelete(finalCondition as any, options);
+        return await this.forceDelete(finalCondition, options);
       },
       forceDeleteById: async (id: number | string): Promise<number> => {
         await this.ensureAdapter();
@@ -6415,7 +4968,7 @@ export abstract class SQLModel {
         const cond = typeof finalCondition === "number" ||
             typeof finalCondition === "string"
           ? { [this.primaryKey]: finalCondition }
-          : (finalCondition as any);
+          : finalCondition;
         return await this.distinct(
           field,
           cond,
@@ -6430,7 +4983,7 @@ export abstract class SQLModel {
       ): Promise<InstanceType<T>> => {
         const finalCondition = buildFinalCondition();
         return await this.upsert(
-          finalCondition as any,
+          finalCondition,
           data,
           returnLatest,
           resurrect,
@@ -6444,7 +4997,7 @@ export abstract class SQLModel {
         const cond = typeof finalCondition === "number" ||
             typeof finalCondition === "string"
           ? { [this.primaryKey]: finalCondition }
-          : (finalCondition as any);
+          : finalCondition;
         return await this.findOrCreate(cond, data, resurrect);
       },
       findOneAndUpdate: async (
@@ -6453,7 +5006,7 @@ export abstract class SQLModel {
       ): Promise<InstanceType<T> | null> => {
         const finalCondition = buildFinalCondition();
         return await this.findOneAndUpdate(
-          finalCondition as any,
+          finalCondition,
           data,
           options ?? { returnDocument: "after" },
         );
@@ -6461,13 +5014,13 @@ export abstract class SQLModel {
       findOneAndDelete: async (): Promise<InstanceType<T> | null> => {
         const finalCondition = buildFinalCondition();
         const existing = await this.find(
-          finalCondition as any,
+          finalCondition,
           state._fields,
           state._includeTrashed,
           state._onlyTrashed,
         );
         if (!existing) return null;
-        const deleted = await this.delete(finalCondition as any);
+        const deleted = await this.delete(finalCondition);
         return deleted > 0 ? existing as InstanceType<T> : null;
       },
       findOneAndReplace: async (
@@ -6476,7 +5029,7 @@ export abstract class SQLModel {
       ): Promise<InstanceType<T> | null> => {
         const finalCondition = buildFinalCondition();
         return await (this as typeof SQLModel).findOneAndReplace(
-          finalCondition as any,
+          finalCondition,
           replacement,
           returnLatest,
         ) as InstanceType<T> | null;
@@ -6487,7 +5040,7 @@ export abstract class SQLModel {
       ): Promise<number> => {
         const finalCondition = buildFinalCondition();
         return await this.incrementMany(
-          finalCondition as any,
+          finalCondition,
           fieldOrMap,
           amount,
         );
@@ -6498,7 +5051,7 @@ export abstract class SQLModel {
       ): Promise<number> => {
         const finalCondition = buildFinalCondition();
         return await this.decrementMany(
-          finalCondition as any,
+          finalCondition,
           fieldOrMap,
           amount,
         );
@@ -6515,15 +5068,17 @@ export abstract class SQLModel {
       }> => {
         // 使用链式查询构建器中已有的条件、排序、字段等设置
         const finalCondition = buildFinalCondition();
-        return await this.paginate(
-          finalCondition as any,
+        const result = await this.paginate(
+          finalCondition,
           page,
           pageSize,
           state._sort || { [this.primaryKey]: -1 },
-          state._fields,
+          resolveFields(),
           state._includeTrashed,
           state._onlyTrashed,
         );
+        await applyPreloads(result.data, this.primaryKey, state._with);
+        return result;
       },
       // Promise 接口方法（用于直接 await）
       then: (
@@ -6535,7 +5090,7 @@ export abstract class SQLModel {
       finally: (onfinally?: () => void) => queryPromise.finally(onfinally),
     };
 
-    return builder as any;
+    return builder;
   }
 
   /**
@@ -6548,7 +5103,7 @@ export abstract class SQLModel {
    * await User.restore({ email: 'user@example.com' });
    */
   static async restore(
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
     options?: { returnIds?: boolean },
   ): Promise<number | { count: number; ids: any[] }> {
     if (!this.softDelete) {
@@ -6565,7 +5120,9 @@ export abstract class SQLModel {
     if (options?.returnIds) {
       // ensureAdapter() 已确保 adapter 不为 null
       const rows = await this.adapter.query(
-        `SELECT ${this.primaryKey} FROM ${this.tableName} WHERE ${where}`,
+        `SELECT ${
+          this.escapeFieldName(this.primaryKey, this._adapter)
+        } FROM ${this.quotedTable()} WHERE ${where}`,
         params,
       );
       ids = rows.map((r: any) => r[this.primaryKey]).filter((v: any) =>
@@ -6580,14 +5137,14 @@ export abstract class SQLModel {
       this.adapter,
     );
     const result = await this.adapter.execute(
-      `UPDATE ${this.tableName} SET ${escapedDeletedAtField} = NULL WHERE ${where}`,
+      `UPDATE ${this.quotedTable()} SET ${escapedDeletedAtField} = NULL WHERE ${where}`,
       params,
     );
 
     const affectedRows = (typeof result === "number")
       ? result
       : ((result && typeof result === "object" && "affectedRows" in result)
-        ? ((result as any).affectedRows || 0)
+        ? readAffectedRows(result)
         : 0);
 
     if (options?.returnIds) {
@@ -6606,7 +5163,7 @@ export abstract class SQLModel {
    * await User.forceDelete({ email: 'user@example.com' });
    */
   static async forceDelete(
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
     options?: { returnIds?: boolean },
   ): Promise<number | { count: number; ids: any[] }> {
     // 自动初始化（如果未初始化）
@@ -6618,7 +5175,9 @@ export abstract class SQLModel {
     if (options?.returnIds) {
       // ensureAdapter() 已确保 adapter 不为 null
       const rows = await this.adapter.query(
-        `SELECT ${this.primaryKey} FROM ${this.tableName} WHERE ${where}`,
+        `SELECT ${
+          this.escapeFieldName(this.primaryKey, this._adapter)
+        } FROM ${this.quotedTable()} WHERE ${where}`,
         params,
       );
       ids = rows.map((r: any) => r[this.primaryKey]).filter((v: any) =>
@@ -6628,14 +5187,14 @@ export abstract class SQLModel {
 
     // ensureAdapter() 已确保 adapter 不为 null
     const result = await this.adapter.execute(
-      `DELETE FROM ${this.tableName} WHERE ${where}`,
+      `DELETE FROM ${this.quotedTable()} WHERE ${where}`,
       params,
     );
 
     const affectedRows = (typeof result === "number")
       ? result
       : ((result && typeof result === "object" && "affectedRows" in result)
-        ? ((result as any).affectedRows || 0)
+        ? readAffectedRows(result)
         : 0);
 
     if (options?.returnIds) {
@@ -6699,7 +5258,7 @@ export abstract class SQLModel {
     const existing = await this.withTrashed().find(condition);
     if (existing) {
       if (resurrect && this.softDelete) {
-        const id = (existing as any)[this.primaryKey];
+        const id = asModelId(getRecordValue(existing, this.primaryKey));
         if (id) {
           await this.restore(id);
           const latest = await this.find(id);
@@ -6731,7 +5290,7 @@ export abstract class SQLModel {
    */
   static async findOneAndUpdate<T extends typeof SQLModel>(
     this: T,
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
     data: Record<string, any>,
     options: { returnDocument?: "before" | "after" } = {
       returnDocument: "after",
@@ -6773,7 +5332,7 @@ export abstract class SQLModel {
    */
   static async findOneAndDelete<T extends typeof SQLModel>(
     this: T,
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
   ): Promise<InstanceType<T> | null> {
     await this.ensureAdapter();
 
@@ -6800,7 +5359,7 @@ export abstract class SQLModel {
    */
   static async findOneAndReplace<T extends typeof SQLModel>(
     this: T,
-    condition: WhereCondition | number | string,
+    condition: FindCondition,
     replacement: Record<string, any>,
     returnLatest: boolean = true, // 统一接口：与 MongoModel 保持一致
   ): Promise<InstanceType<T> | null> {
@@ -6847,44 +5406,51 @@ export abstract class SQLModel {
     // 自动初始化（如果未初始化）
     await this.ensureAdapter();
 
-    // SQLite 不支持 TRUNCATE TABLE，需要使用 DELETE FROM
-    // 对于 SQLite，还需要重置自增计数器（如果表有自增主键）
-    // 通过适配器的 config.adapter 来判断数据库类型
-    const adapterConfig = (this.adapter as any).config;
-    const isSQLite = adapterConfig?.adapter === "sqlite";
-    let sql: string;
-
-    if (isSQLite) {
-      // SQLite 使用 DELETE FROM 清空表
-      sql = `DELETE FROM ${this.tableName}`;
-    } else {
-      // 其他数据库使用 TRUNCATE TABLE
-      sql = `TRUNCATE TABLE ${this.tableName}`;
-    }
+    const sqlAdapter = this.asSqlAdapter(this.adapter);
+    const statements = sqlAdapter
+      ? sqlAdapter.buildTruncateStatements(this.tableName)
+      : [{ sql: `TRUNCATE TABLE ${this.quotedTable()}` }];
 
     // ensureAdapter() 已确保 adapter 不为 null
-    const result = await this.adapter.execute(sql, []);
+    const primary = statements[0];
+    const result = await this.adapter.execute(
+      primary.sql,
+      primary.params ?? [],
+    );
 
-    // 如果是 SQLite 且有自增主键，重置自增计数器
-    if (isSQLite) {
+    for (const extra of statements.slice(1)) {
       try {
-        // 尝试重置自增计数器（sqlite_sequence 表存储自增序列）
-        await this.adapter.execute(
-          `DELETE FROM sqlite_sequence WHERE name = ?`,
-          [this.tableName],
-        );
+        await this.adapter.execute(extra.sql, extra.params ?? []);
       } catch {
-        // 如果表没有自增主键或 sqlite_sequence 表不存在，忽略错误
+        if (!extra.ignoreError) {
+          throw new Error("truncate follow-up statement failed");
+        }
       }
     }
 
     const affectedRows = (typeof result === "number")
       ? result
       : ((result && typeof result === "object" && "affectedRows" in result)
-        ? ((result as any).affectedRows || 0)
+        ? readAffectedRows(result)
         : 0);
 
     return affectedRows;
+  }
+
+  /**
+   * 对已查出的实例批量预加载关联，避免 N+1。
+   * 每条关联定义对应一次 findAll。
+   */
+  static async preload<T extends typeof SQLModel>(
+    this: T,
+    instances: InstanceType<T>[] | InstanceType<T> | null,
+    relations: PreloadRelations,
+  ): Promise<InstanceType<T>[] | InstanceType<T> | null> {
+    return await applyPreloads(
+      instances,
+      this.primaryKey,
+      relations,
+    );
   }
 
   /**
@@ -6914,18 +5480,12 @@ export abstract class SQLModel {
     onlyTrashed: boolean = false,
   ): Promise<InstanceType<T> | null> {
     const Model = this.constructor as typeof SQLModel;
-    // 自动初始化（如果未初始化）
     await Model.ensureAdapter();
-
-    const relatedKey = localKey || RelatedModel.primaryKey;
-    const foreignValue = (this as any)[foreignKey];
-
-    if (!foreignValue) {
-      return null;
-    }
-
-    return await RelatedModel.find(
-      { [relatedKey]: foreignValue },
+    return await belongsToRelated(
+      this,
+      RelatedModel,
+      foreignKey,
+      localKey,
       fields,
       includeTrashed,
       onlyTrashed,
@@ -6959,18 +5519,13 @@ export abstract class SQLModel {
     onlyTrashed: boolean = false,
   ): Promise<InstanceType<T> | null> {
     const Model = this.constructor as typeof SQLModel;
-    // 自动初始化（如果未初始化）
     await Model.ensureAdapter();
-
-    const localKeyValue = localKey || Model.primaryKey;
-    const localValue = (this as any)[localKeyValue];
-
-    if (!localValue) {
-      return null;
-    }
-
-    return await RelatedModel.find(
-      { [foreignKey]: localValue },
+    return await hasOneRelated(
+      this,
+      Model.primaryKey,
+      RelatedModel,
+      foreignKey,
+      localKey,
       fields,
       includeTrashed,
       onlyTrashed,
@@ -7009,22 +5564,61 @@ export abstract class SQLModel {
     onlyTrashed: boolean = false, // 统一接口：与 MongoModel 保持一致
   ): Promise<InstanceType<T>[]> {
     const Model = this.constructor as typeof SQLModel;
-    // 自动初始化（如果未初始化）
     await Model.ensureAdapter();
-
-    const localKeyValue = localKey || Model.primaryKey;
-    const localValue = (this as any)[localKeyValue];
-
-    if (!localValue) {
-      return [];
-    }
-
-    return await RelatedModel.findAll(
-      { [foreignKey]: localValue },
+    return await hasManyRelated(
+      this,
+      Model.primaryKey,
+      RelatedModel,
+      foreignKey,
+      localKey,
       fields,
       options,
       includeTrashed,
       onlyTrashed,
     );
+  }
+
+  /**
+   * 关联查询：多对多。
+   * 例如：User belongsToMany Role，中间表 UserRole（user_id / role_id）。
+   */
+  async belongsToMany<T extends typeof SQLModel, P extends typeof SQLModel>(
+    RelatedModel: T,
+    options: {
+      pivot: P;
+      foreignKey: string;
+      otherKey: string;
+      localKey?: string;
+      relatedKey?: string;
+      fields?: string[];
+      sort?: Record<string, 1 | -1 | "asc" | "desc"> | "asc" | "desc";
+      skip?: number;
+      limit?: number;
+      includeTrashed?: boolean;
+      onlyTrashed?: boolean;
+    },
+  ): Promise<InstanceType<T>[]> {
+    const Model = this.constructor as typeof SQLModel;
+    await Model.ensureAdapter();
+    await (RelatedModel as typeof SQLModel).ensureAdapter();
+    await (options.pivot as typeof SQLModel).ensureAdapter();
+    return await belongsToManyRelated(
+      this as unknown as Record<string, unknown>,
+      Model.primaryKey,
+      RelatedModel,
+      options.pivot,
+      options.foreignKey,
+      options.otherKey,
+      options.localKey,
+      options.relatedKey,
+      options.fields,
+      {
+        sort: options.sort,
+        skip: options.skip,
+        limit: options.limit,
+      },
+      options.includeTrashed ?? false,
+      options.onlyTrashed ?? false,
+    ) as InstanceType<T>[];
   }
 }

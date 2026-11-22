@@ -14,17 +14,34 @@ import {
   DatabaseErrorCode,
 } from "../errors.ts";
 import { $tr, setDatabaseLocale } from "../i18n.ts";
+import { redactSensitiveText } from "../logger/redact.ts";
 import type { DatabaseAdapter, DatabaseConfig, MySQLConfig } from "../types.ts";
 import {
   BaseAdapter,
   type HealthCheckResult,
   type PoolStatus,
 } from "./base.ts";
+import type {
+  ReturningOperation,
+  SqlAdapter,
+  SqlDialectName,
+} from "./sql-dialect.ts";
+import {
+  appendReturningClause,
+  buildMySqlUpsertSql,
+  formatSqlDateTime,
+  quoteMySqlIdentifier,
+} from "./sql-dialect.ts";
+import {
+  closePoolWithTimeout,
+  healthCheckWithPing,
+  waitForRetry,
+} from "./sql-pool.ts";
 
 /**
  * MySQL 适配器实现（兼容 MariaDB）
  */
-export class MySQLAdapter extends BaseAdapter {
+export class MySQLAdapter extends BaseAdapter implements SqlAdapter {
   private pool: Pool | null = null;
 
   private logger = createLogger({
@@ -32,6 +49,51 @@ export class MySQLAdapter extends BaseAdapter {
     format: "text",
     tags: ["database", "mysql"],
   });
+
+  readonly sqlDialect: SqlDialectName = "mysql";
+
+  quoteIdentifier(fieldName: string): string {
+    return quoteMySqlIdentifier(fieldName);
+  }
+
+  formatDateForDatabase(date: Date): string {
+    return formatSqlDateTime(date);
+  }
+
+  appendReturning(sql: string, returning: string): string {
+    return appendReturningClause(sql, returning);
+  }
+
+  shouldUseReturning(
+    operation: ReturningOperation,
+    options?: { returnLatest?: boolean },
+  ): boolean {
+    if (operation === "increment" || operation === "insert") return false;
+    if (operation === "insertMany") return true;
+    return options?.returnLatest === true;
+  }
+
+  shouldRetryWithoutReturning(operation: ReturningOperation): boolean {
+    return operation === "insertMany" || operation === "update";
+  }
+
+  supportsDialectUpsert(_conflictKeys: string[]): boolean {
+    return true;
+  }
+
+  buildUpsertSql(
+    tableName: string,
+    columns: string[],
+    _conflictKeys: string[],
+  ): string {
+    return buildMySqlUpsertSql(tableName, columns);
+  }
+
+  buildTruncateStatements(
+    tableName: string,
+  ): Array<{ sql: string; params?: any[]; ignoreError?: boolean }> {
+    return [{ sql: `TRUNCATE TABLE ${this.quoteIdentifier(tableName)}` }];
+  }
 
   /**
    * 连接 MySQL/MariaDB 数据库
@@ -98,12 +160,12 @@ export class MySQLAdapter extends BaseAdapter {
 
       // 自动重连机制
       if (retryCount < maxRetries) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, retryDelay * (retryCount + 1))
-        );
+        await waitForRetry(retryCount, retryDelay);
         return await this.connect(config, retryCount + 1);
       }
-      const message = error instanceof Error ? error.message : String(error);
+      const message = redactSensitiveText(
+        error instanceof Error ? error.message : String(error),
+      );
       throw createConnectionError(
         $tr("error.mysqlConnectionFailed", { message }),
         {
@@ -347,38 +409,13 @@ export class MySQLAdapter extends BaseAdapter {
    * 健康检查
    */
   async healthCheck(): Promise<HealthCheckResult> {
-    const startTime = Date.now();
     this.lastHealthCheck = new Date();
-
-    try {
-      if (!this.pool) {
-        return {
-          healthy: false,
-          error: $tr("error.databaseNotConnected"),
-          timestamp: new Date(),
-        };
-      }
-
-      // 执行简单查询
-      await (this.pool as any).query("SELECT 1");
-      const latency = Date.now() - startTime;
-
-      return {
-        healthy: true,
-        latency,
-        timestamp: new Date(),
-      };
-    } catch (error) {
-      const latency = Date.now() - startTime;
-      const message = error instanceof Error ? error.message : String(error);
-
-      return {
-        healthy: false,
-        latency,
-        error: message,
-        timestamp: new Date(),
-      };
-    }
+    const pool = this.pool;
+    return await healthCheckWithPing(
+      () => (pool as any).query("SELECT 1"),
+      !!pool,
+      $tr("error.databaseNotConnected"),
+    );
   }
 
   /**
@@ -393,19 +430,11 @@ export class MySQLAdapter extends BaseAdapter {
       this.connected = false;
 
       try {
-        // 添加超时保护（3秒）
-        const closePromise = pool.end();
-        const timeoutPromise = new Promise<void>((_, reject) => {
-          setTimeout(
-            () =>
-              reject(
-                new Error($tr("error.mysqlCloseTimeout", { seconds: 3 })),
-              ),
-            3000,
-          );
-        });
-
-        await Promise.race([closePromise, timeoutPromise]);
+        await closePoolWithTimeout(
+          () => pool.end(),
+          3000,
+          new Error($tr("error.mysqlCloseTimeout", { seconds: 3 })),
+        );
       } catch (error) {
         // 关闭失败或超时，忽略错误（状态已清理）
         const message = error instanceof Error ? error.message : String(error);

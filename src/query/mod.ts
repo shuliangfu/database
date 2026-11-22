@@ -1,10 +1,10 @@
 /**
- * 查询构建器模块导出
+ * 低层查询语句/过滤器构建器。
+ * Model.query() 的链式 API 类型在 ORM 中，请使用 SQLModelQueryBuilder / MongoModelQueryBuilder。
  */
 
-export { MongoQueryBuilder } from "./mongo-builder.ts";
-export { SQLQueryBuilder } from "./sql-builder.ts";
+export { SQLQueryBuilder, SQLStatementBuilder } from "./sql-builder.ts";
+export { MongoQueryBuilder, MongoStatementBuilder } from "./mongo-builder.ts";
 
-// 导出类型（从 ORM 模块导入，因为这些类型在 ORM 中定义）
 export type { MongoWhereCondition } from "../orm/mongo-model.ts";
 export type { WhereCondition } from "../orm/sql-model.ts";

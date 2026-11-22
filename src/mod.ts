@@ -22,8 +22,13 @@ export {
   SQLiteAdapter,
 } from "./adapters/mod.ts";
 
-// ==================== 查询构建器 ====================
-export { MongoQueryBuilder, SQLQueryBuilder } from "./query/mod.ts";
+// ==================== 低层查询语句构建器 ====================
+export {
+  MongoQueryBuilder,
+  MongoStatementBuilder,
+  SQLQueryBuilder,
+  SQLStatementBuilder,
+} from "./query/mod.ts";
 
 // ==================== ORM/ODM 模型 ====================
 export { MongoModel, SQLModel, ValidationError } from "./orm/mod.ts";
@@ -33,6 +38,9 @@ export type {
   LifecycleHook,
   ModelSchema,
   MongoWhereCondition,
+  PreloadRelations,
+  PreloadRelationType,
+  PreloadSpec,
   ValidationRule,
   WhereCondition,
 } from "./orm/mod.ts";
@@ -46,11 +54,13 @@ export type {
 } from "./migration/mod.ts";
 
 // ==================== 缓存 ====================
-export type { CacheAdapter } from "./cache/cache-adapter.ts";
-export { MemoryCacheAdapter } from "./cache/memory-cache.ts";
-// 导出 @dreamer/cache 的其他功能
-export { CacheManager, MemoryAdapter, MultiLevelCache } from "@dreamer/cache";
-export type { CacheStrategy } from "@dreamer/cache";
+export type { CacheAdapter, CacheStrategy } from "./cache/mod.ts";
+export {
+  CacheManager,
+  MemoryAdapter,
+  MemoryCacheAdapter,
+  MultiLevelCache,
+} from "./cache/mod.ts";
 
 // ==================== 查询日志 ====================
 export { QueryLogger } from "./logger/query-logger.ts";
@@ -69,7 +79,7 @@ export type {
   IndexType,
   SingleFieldIndex,
   TextIndex,
-} from "./types/index.ts";
+} from "./types/indexes.ts";
 
 // ==================== 错误处理 ====================
 export {

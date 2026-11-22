@@ -10,3 +10,10 @@ export { MongoDBAdapter } from "./mongodb.ts";
 export { MySQLAdapter } from "./mysql.ts";
 export { PostgreSQLAdapter } from "./postgresql.ts";
 export { SQLiteAdapter } from "./sqlite.ts";
+
+export type {
+  ReturningOperation,
+  SqlAdapter,
+  SqlDialectName,
+} from "./sql-dialect.ts";
+export { isSqlAdapter } from "./sql-dialect.ts";

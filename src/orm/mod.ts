@@ -16,3 +16,10 @@ export type {
 
 export { MongoModel } from "./mongo-model.ts";
 export type { MongoWhereCondition } from "./mongo-model.ts";
+export type {
+  PreloadRelations,
+  PreloadRelationType,
+  PreloadSpec,
+} from "./shared/mod.ts";
+export type { SQLQueryBuilder as SQLModelQueryBuilder } from "./sql-model.ts";
+export type { MongoQueryBuilder as MongoModelQueryBuilder } from "./mongo-model.ts";

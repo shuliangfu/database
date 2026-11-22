@@ -8,6 +8,7 @@ import type { QueryLogger } from "../logger/query-logger.ts";
 import type {
   DatabaseAdapter,
   DatabaseConfig,
+  DatabaseType,
   MongoConfig,
   MySQLConfig,
   PostgreSQLConfig,
@@ -176,6 +177,14 @@ export abstract class BaseAdapter implements DatabaseAdapter {
    */
   isConnected(): boolean {
     return this.connected;
+  }
+
+  getAdapterType(): DatabaseType | undefined {
+    return this.config?.adapter;
+  }
+
+  getConfig(): DatabaseConfig | null {
+    return this.config;
   }
 
   /**

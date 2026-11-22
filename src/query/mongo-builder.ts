@@ -11,7 +11,8 @@ import type { DatabaseAdapter } from "../types.ts";
  * MongoDB 查询构建器类
  * 提供链式调用的 MongoDB 查询构建 API
  */
-export class MongoQueryBuilder {
+/** 低层 Mongo 查询对象构建器（勿与 MongoModel.query() 返回的链式 API 混淆） */
+export class MongoStatementBuilder {
   private adapter: MongoDBAdapter;
   private collection: string = "";
   private filter: any = {};
@@ -369,3 +370,6 @@ class MongoExecutor {
     });
   }
 }
+
+/** @deprecated 请使用 MongoStatementBuilder，避免与 Model.query() 的类型名冲突 */
+export { MongoStatementBuilder as MongoQueryBuilder };

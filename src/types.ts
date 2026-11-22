@@ -648,4 +648,15 @@ export interface DatabaseAdapter {
    * @returns IANA 时区名（如 "Asia/Shanghai"、PRC），未配置则返回 undefined
    */
   getTimezone?(): string | undefined;
+
+  /**
+   * 当前适配器类型（sqlite / mysql / postgresql / mongodb）。
+   * 未连接或尚未写入配置时返回 undefined。
+   */
+  getAdapterType(): DatabaseType | undefined;
+
+  /**
+   * 当前连接配置（只读视图）。未连接时返回 null。
+   */
+  getConfig(): DatabaseConfig | null;
 }

@@ -25,6 +25,16 @@ import {
   type HealthCheckResult,
   type PoolStatus,
 } from "./base.ts";
+import type {
+  ReturningOperation,
+  SqlAdapter,
+  SqlDialectName,
+} from "./sql-dialect.ts";
+import {
+  appendReturningClause,
+  formatSqlDateTime,
+  quoteSqliteIdentifier,
+} from "./sql-dialect.ts";
 
 /**
  * SQLite 数据库接口（统一抽象）
@@ -53,7 +63,7 @@ interface SQLiteStatement {
  * - Bun: 使用 bun:sqlite 原生 API，不可用时直接抛错（不拉取 better-sqlite3，避免 prebuild-install 弃用警告）
  * - Node 等其它运行时: 抛错，请使用 Deno 2.2+ 或 Bun 以使用 SQLite
  */
-export class SQLiteAdapter extends BaseAdapter {
+export class SQLiteAdapter extends BaseAdapter implements SqlAdapter {
   protected db: SQLiteDatabase | null = null;
 
   private logger = createLogger({
@@ -61,6 +71,123 @@ export class SQLiteAdapter extends BaseAdapter {
     format: "text",
     tags: ["database", "sqlite"],
   });
+
+  readonly sqlDialect: SqlDialectName = "sqlite";
+  private preparedStatements = new Map<string, SQLiteStatement>();
+
+  quoteIdentifier(fieldName: string): string {
+    return quoteSqliteIdentifier(fieldName);
+  }
+
+  formatDateForDatabase(date: Date): string {
+    return formatSqlDateTime(date);
+  }
+
+  appendReturning(sql: string, returning: string): string {
+    return appendReturningClause(sql, returning);
+  }
+
+  shouldUseReturning(
+    operation: ReturningOperation,
+    options?: { returnLatest?: boolean },
+  ): boolean {
+    if (operation === "insertMany") return true;
+    if (operation === "insert") return false;
+    return options?.returnLatest === true;
+  }
+
+  shouldRetryWithoutReturning(_operation: ReturningOperation): boolean {
+    return true;
+  }
+
+  supportsDialectUpsert(_conflictKeys: string[]): boolean {
+    return false;
+  }
+
+  buildUpsertSql(
+    _tableName: string,
+    _columns: string[],
+    _conflictKeys: string[],
+  ): string {
+    throw new Error(
+      "SQLite dialect upsert is not used; fall back to find + update/create",
+    );
+  }
+
+  buildTruncateStatements(
+    tableName: string,
+  ): Array<{ sql: string; params?: any[]; ignoreError?: boolean }> {
+    const table = this.quoteIdentifier(tableName);
+    return [
+      { sql: `DELETE FROM ${table}` },
+      {
+        sql: `DELETE FROM sqlite_sequence WHERE name = ?`,
+        params: [tableName],
+        ignoreError: true,
+      },
+    ];
+  }
+
+  /** 预编译语句缓存上限，超出时按 LRU 淘汰并 finalize。 */
+  private static readonly MAX_PREPARED_STATEMENTS = 256;
+
+  private evictPrepared(sql: string, stmt: SQLiteStatement): void {
+    try {
+      const finalize = (stmt as any).finalize;
+      if (typeof finalize === "function") {
+        finalize.call(stmt);
+      }
+    } catch {
+      // 关闭前尽力释放
+    }
+    this.preparedStatements.delete(sql);
+  }
+
+  private prepareCached(sql: string): SQLiteStatement {
+    if (!this.db) {
+      throw new Error("SQLite database is not connected");
+    }
+    let stmt = this.preparedStatements.get(sql);
+    if (stmt) {
+      // 刷新 LRU：移到 Map 末尾
+      this.preparedStatements.delete(sql);
+      this.preparedStatements.set(sql, stmt);
+      return stmt;
+    }
+    while (
+      this.preparedStatements.size >= SQLiteAdapter.MAX_PREPARED_STATEMENTS
+    ) {
+      const oldest = this.preparedStatements.keys().next().value as
+        | string
+        | undefined;
+      if (oldest === undefined) break;
+      const oldStmt = this.preparedStatements.get(oldest);
+      if (oldStmt) this.evictPrepared(oldest, oldStmt);
+      else this.preparedStatements.delete(oldest);
+    }
+    stmt = this.db.prepare(sql);
+    this.preparedStatements.set(sql, stmt);
+    return stmt;
+  }
+
+  private releasePreparedStatements(): void {
+    for (const stmt of this.preparedStatements.values()) {
+      try {
+        const finalize = (stmt as any).finalize;
+        if (typeof finalize === "function") {
+          finalize.call(stmt);
+        }
+      } catch {
+        // 关闭前尽力释放；不同运行时的 Statement 可能没有 finalize
+      }
+    }
+    this.preparedStatements.clear();
+  }
+
+  /** @internal 供语句缓存测试读取 */
+  getPreparedStatementCount(): number {
+    return this.preparedStatements.size;
+  }
 
   /**
    * 创建 Bun 原生 SQLite API 的适配器包装
@@ -265,7 +392,7 @@ export class SQLiteAdapter extends BaseAdapter {
     try {
       // 使用 Promise 包装同步操作以保持接口一致性
       await Promise.resolve();
-      const stmt = this.db.prepare(sql);
+      const stmt = this.prepareCached(sql);
       const rows = stmt.all(...params);
       const duration = Date.now() - startTime;
 
@@ -318,7 +445,7 @@ export class SQLiteAdapter extends BaseAdapter {
     try {
       // 使用 Promise 包装同步操作以保持接口一致性
       await Promise.resolve();
-      const stmt = this.db.prepare(sql);
+      const stmt = this.prepareCached(sql);
       const result = stmt.run(...params);
       const duration = Date.now() - startTime;
 
@@ -491,6 +618,7 @@ export class SQLiteAdapter extends BaseAdapter {
     if (this.db) {
       try {
         // SQLite 的 close 是同步的，用 Promise 包装
+        this.releasePreparedStatements();
         await new Promise<void>((resolve, reject) => {
           try {
             this.db!.close();
@@ -505,6 +633,7 @@ export class SQLiteAdapter extends BaseAdapter {
         this.logger.warn(msg, { error: message });
       } finally {
         // 无论成功与否，都清理状态
+        this.releasePreparedStatements();
         this.db = null;
         this.connected = false;
       }

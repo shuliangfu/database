@@ -14,6 +14,7 @@ import {
   DatabaseErrorCode,
 } from "../errors.ts";
 import { $tr, setDatabaseLocale } from "../i18n.ts";
+import { redactSensitiveText } from "../logger/redact.ts";
 import type {
   DatabaseAdapter,
   DatabaseConfig,
@@ -24,11 +25,27 @@ import {
   type HealthCheckResult,
   type PoolStatus,
 } from "./base.ts";
+import type {
+  ReturningOperation,
+  SqlAdapter,
+  SqlDialectName,
+} from "./sql-dialect.ts";
+import {
+  appendReturningClause,
+  buildPostgresUpsertSql,
+  formatSqlDateTime,
+  quotePostgresIdentifier,
+} from "./sql-dialect.ts";
+import {
+  closePoolWithTimeout,
+  healthCheckWithPing,
+  waitForRetry,
+} from "./sql-pool.ts";
 
 /**
  * PostgreSQL 适配器实现
  */
-export class PostgreSQLAdapter extends BaseAdapter {
+export class PostgreSQLAdapter extends BaseAdapter implements SqlAdapter {
   protected pool: Pool | null = null;
 
   private logger = createLogger({
@@ -36,6 +53,56 @@ export class PostgreSQLAdapter extends BaseAdapter {
     format: "text",
     tags: ["database", "postgresql"],
   });
+
+  readonly sqlDialect: SqlDialectName = "postgresql";
+
+  quoteIdentifier(fieldName: string): string {
+    return quotePostgresIdentifier(fieldName);
+  }
+
+  formatDateForDatabase(date: Date): string {
+    return formatSqlDateTime(date);
+  }
+
+  appendReturning(sql: string, returning: string): string {
+    return appendReturningClause(sql, returning);
+  }
+
+  shouldUseReturning(
+    _operation: ReturningOperation,
+    options?: { returnLatest?: boolean },
+  ): boolean {
+    // update 即使不 returnLatest 也使用 RETURNING *（供钩子使用）
+    if (
+      _operation === "update" || _operation === "insert" ||
+      _operation === "insertMany"
+    ) {
+      return true;
+    }
+    return options?.returnLatest === true;
+  }
+
+  shouldRetryWithoutReturning(_operation: ReturningOperation): boolean {
+    return false;
+  }
+
+  supportsDialectUpsert(conflictKeys: string[]): boolean {
+    return conflictKeys.length > 0;
+  }
+
+  buildUpsertSql(
+    tableName: string,
+    columns: string[],
+    conflictKeys: string[],
+  ): string {
+    return buildPostgresUpsertSql(tableName, columns, conflictKeys);
+  }
+
+  buildTruncateStatements(
+    tableName: string,
+  ): Array<{ sql: string; params?: any[]; ignoreError?: boolean }> {
+    return [{ sql: `TRUNCATE TABLE ${this.quoteIdentifier(tableName)}` }];
+  }
 
   /**
    * 将 ? 占位符转换为 PostgreSQL 的 $1, $2... 格式
@@ -117,12 +184,12 @@ export class PostgreSQLAdapter extends BaseAdapter {
 
       // 自动重连机制
       if (retryCount < maxRetries) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, retryDelay * (retryCount + 1))
-        );
+        await waitForRetry(retryCount, retryDelay);
         return await this.connect(config, retryCount + 1);
       }
-      const message = error instanceof Error ? error.message : String(error);
+      const message = redactSensitiveText(
+        error instanceof Error ? error.message : String(error),
+      );
       throw createConnectionError(
         $tr("error.postgresConnectionFailed", { message }),
         {
@@ -407,38 +474,13 @@ export class PostgreSQLAdapter extends BaseAdapter {
    * 健康检查
    */
   async healthCheck(): Promise<HealthCheckResult> {
-    const startTime = Date.now();
     this.lastHealthCheck = new Date();
-
-    try {
-      if (!this.pool) {
-        return {
-          healthy: false,
-          error: $tr("error.databaseNotConnected"),
-          timestamp: new Date(),
-        };
-      }
-
-      // 执行简单查询
-      await this.pool.query("SELECT 1");
-      const latency = Date.now() - startTime;
-
-      return {
-        healthy: true,
-        latency,
-        timestamp: new Date(),
-      };
-    } catch (error) {
-      const latency = Date.now() - startTime;
-      const message = error instanceof Error ? error.message : String(error);
-
-      return {
-        healthy: false,
-        latency,
-        error: message,
-        timestamp: new Date(),
-      };
-    }
+    const pool = this.pool;
+    return await healthCheckWithPing(
+      () => pool!.query("SELECT 1"),
+      !!pool,
+      $tr("error.databaseNotConnected"),
+    );
   }
 
   /**
@@ -453,19 +495,11 @@ export class PostgreSQLAdapter extends BaseAdapter {
       this.connected = false;
 
       try {
-        // 添加超时保护（5秒）
-        const closePromise = pool.end();
-        const timeoutPromise = new Promise<void>((_, reject) => {
-          setTimeout(
-            () =>
-              reject(
-                new Error($tr("error.postgresCloseTimeout", { seconds: 5 })),
-              ),
-            5000,
-          );
-        });
-
-        await Promise.race([closePromise, timeoutPromise]);
+        await closePoolWithTimeout(
+          () => pool.end(),
+          5000,
+          new Error($tr("error.postgresCloseTimeout", { seconds: 5 })),
+        );
       } catch (error) {
         // 关闭失败或超时，忽略错误（状态已清理）
         const message = error instanceof Error ? error.message : String(error);

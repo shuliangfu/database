@@ -4,12 +4,17 @@
  */
 
 import type { DatabaseAdapter } from "../types.ts";
+import {
+  assertSafeSqlIdentifier,
+  isSqlAdapter,
+} from "../adapters/sql-dialect.ts";
 
 /**
  * SQL 查询构建器类
  * 提供链式调用的 SQL 查询构建 API
  */
-export class SQLQueryBuilder {
+/** 低层 SQL 拼语句构建器（勿与 SQLModel.query() 返回的链式 API 混淆） */
+export class SQLStatementBuilder {
   private adapter: DatabaseAdapter;
   private query: string = "";
   private params: any[] = [];
@@ -24,12 +29,29 @@ export class SQLQueryBuilder {
   }
 
   /**
+   * 引用并校验表名 / 列名。WHERE / JOIN ON 仍为用户提供的原始 SQL 片段（逃生舱），
+   * 应由调用方自行参数化。
+   */
+  private ident(name: string): string {
+    if (isSqlAdapter(this.adapter)) {
+      return this.adapter.quoteIdentifier(name);
+    }
+    return assertSafeSqlIdentifier(name);
+  }
+
+  private idents(names: string[]): string {
+    return names.map((name) => name === "*" ? "*" : this.ident(name)).join(
+      ", ",
+    );
+  }
+
+  /**
    * 选择字段
    * @param columns 要查询的字段数组
    * @returns 查询构建器实例（支持链式调用）
    */
   select(columns: string[]): this {
-    this.query = `SELECT ${columns.join(", ")}`;
+    this.query = `SELECT ${this.idents(columns)}`;
     return this;
   }
 
@@ -39,8 +61,9 @@ export class SQLQueryBuilder {
    * @returns 查询构建器实例（支持链式调用）
    */
   from(table: string): this {
-    this.table = table;
-    this.query += ` FROM ${table}`;
+    const ident = this.ident(table);
+    this.table = ident;
+    this.query += ` FROM ${ident}`;
     return this;
   }
 
@@ -88,7 +111,12 @@ export class SQLQueryBuilder {
    * @returns 查询构建器实例（支持链式调用）
    */
   join(table: string, condition: string, type: string = "INNER"): this {
-    this.query += ` ${type} JOIN ${table} ON ${condition}`;
+    const joinType = type.toUpperCase();
+    if (!["INNER", "LEFT", "RIGHT", "FULL", "CROSS"].includes(joinType)) {
+      throw new Error(`Invalid JOIN type: ${type}`);
+    }
+    // ON 条件是原始 SQL 逃生舱，表名仍须引用/校验
+    this.query += ` ${joinType} JOIN ${this.ident(table)} ON ${condition}`;
     return this;
   }
 
@@ -113,10 +141,15 @@ export class SQLQueryBuilder {
    * @returns 查询构建器实例（支持链式调用）
    */
   orderBy(column: string, direction: "ASC" | "DESC" = "ASC"): this {
+    const dir = direction.toUpperCase();
+    if (dir !== "ASC" && dir !== "DESC") {
+      throw new Error(`Invalid ORDER BY direction: ${direction}`);
+    }
+    const ident = this.ident(column);
     if (this.query.includes("ORDER BY")) {
-      this.query += `, ${column} ${direction}`;
+      this.query += `, ${ident} ${dir}`;
     } else {
-      this.query += ` ORDER BY ${column} ${direction}`;
+      this.query += ` ORDER BY ${ident} ${dir}`;
     }
     return this;
   }
@@ -127,7 +160,7 @@ export class SQLQueryBuilder {
    * @returns 查询构建器实例（支持链式调用）
    */
   limit(count: number): this {
-    this.query += ` LIMIT ${count}`;
+    this.query += ` LIMIT ${Math.max(0, Math.floor(Number(count)))}`;
     return this;
   }
 
@@ -137,7 +170,7 @@ export class SQLQueryBuilder {
    * @returns 查询构建器实例（支持链式调用）
    */
   offset(count: number): this {
-    this.query += ` OFFSET ${count}`;
+    this.query += ` OFFSET ${Math.max(0, Math.floor(Number(count)))}`;
     return this;
   }
 
@@ -151,11 +184,12 @@ export class SQLQueryBuilder {
     const columns = Object.keys(data);
     const values = Object.values(data);
     const placeholders = values.map(() => "?").join(", ");
-    this.query = `INSERT INTO ${table} (${
-      columns.join(", ")
+    const ident = this.ident(table);
+    this.query = `INSERT INTO ${ident} (${
+      this.idents(columns)
     }) VALUES (${placeholders})`;
     this.params = values;
-    this.table = table;
+    this.table = ident;
     return this;
   }
 
@@ -167,11 +201,12 @@ export class SQLQueryBuilder {
    */
   update(table: string, data: Record<string, any>): this {
     const setClause = Object.keys(data)
-      .map((key) => `${key} = ?`)
+      .map((key) => `${this.ident(key)} = ?`)
       .join(", ");
-    this.query = `UPDATE ${table} SET ${setClause}`;
+    const ident = this.ident(table);
+    this.query = `UPDATE ${ident} SET ${setClause}`;
     this.params = Object.values(data);
-    this.table = table;
+    this.table = ident;
     return this;
   }
 
@@ -181,8 +216,9 @@ export class SQLQueryBuilder {
    * @returns 查询构建器实例（支持链式调用）
    */
   delete(table: string): this {
-    this.query = `DELETE FROM ${table}`;
-    this.table = table;
+    const ident = this.ident(table);
+    this.query = `DELETE FROM ${ident}`;
+    this.table = ident;
     return this;
   }
 
@@ -227,3 +263,6 @@ export class SQLQueryBuilder {
     return this.params;
   }
 }
+
+/** @deprecated 请使用 SQLStatementBuilder，避免与 Model.query() 的类型名冲突 */
+export { SQLStatementBuilder as SQLQueryBuilder };

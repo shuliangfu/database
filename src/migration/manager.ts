@@ -15,6 +15,10 @@ import {
   writeTextFile,
 } from "@dreamer/runtime-adapter";
 import { $tr } from "../i18n.ts";
+import {
+  assertSafeSqlIdentifier,
+  isSqlAdapter,
+} from "../adapters/sql-dialect.ts";
 import type { DatabaseType } from "../types.ts";
 import type { Migration, MigrationConfig, MigrationStatus } from "./types.ts";
 import {
@@ -58,6 +62,19 @@ export class MigrationManager {
       error: (msg) => ext?.error?.(msg) ?? def.error(msg),
       debug: (msg) => ext?.debug?.(msg) ?? def.debug(msg),
     };
+    this.historyTableName = assertSafeSqlIdentifier(this.historyTableName);
+    this.historyCollectionName = assertSafeSqlIdentifier(
+      this.historyCollectionName,
+    );
+  }
+
+  /** 拼进 SQL 的历史表名（按方言引用） */
+  private quotedHistoryTable(): string {
+    const adapter = this.config.adapter;
+    if (isSqlAdapter(adapter)) {
+      return adapter.quoteIdentifier(this.historyTableName);
+    }
+    return assertSafeSqlIdentifier(this.historyTableName);
   }
 
   /**
@@ -65,7 +82,7 @@ export class MigrationManager {
    */
   private async ensureHistoryTable(): Promise<void> {
     const db = this.config.adapter;
-    const dbAdapter = (db as any).config?.adapter as DatabaseType | undefined;
+    const dbAdapter = db.getAdapterType();
 
     if (!dbAdapter) {
       throw new Error($tr("migration.cannotDetermineType"));
@@ -87,7 +104,7 @@ export class MigrationManager {
     } else {
       // SQL 数据库: 创建迁移历史表
       const createTableSQL = `
-        CREATE TABLE IF NOT EXISTS ${this.historyTableName} (
+        CREATE TABLE IF NOT EXISTS ${this.quotedHistoryTable()} (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL UNIQUE,
           batch INTEGER NOT NULL,
@@ -101,7 +118,7 @@ export class MigrationManager {
         // PostgreSQL/MySQL 使用不同的语法
         if (dbAdapter === "postgresql" || dbAdapter === "mysql") {
           const pgCreateTableSQL = `
-            CREATE TABLE IF NOT EXISTS ${this.historyTableName} (
+            CREATE TABLE IF NOT EXISTS ${this.quotedHistoryTable()} (
               id SERIAL PRIMARY KEY,
               name VARCHAR(255) NOT NULL UNIQUE,
               batch INTEGER NOT NULL,
@@ -122,7 +139,7 @@ export class MigrationManager {
   private async getExecutedMigrations(): Promise<string[]> {
     await this.ensureHistoryTable();
     const db = this.config.adapter;
-    const dbAdapter = (db as any).config?.adapter as DatabaseType | undefined;
+    const dbAdapter = db.getAdapterType();
 
     if (!dbAdapter) {
       throw new Error($tr("migration.cannotDetermineType"));
@@ -137,7 +154,7 @@ export class MigrationManager {
       return results.map((r: any) => r.name as string);
     } else {
       const results = await db.query(
-        `SELECT name FROM ${this.historyTableName} ORDER BY executed_at ASC`,
+        `SELECT name FROM ${this.quotedHistoryTable()} ORDER BY executed_at ASC`,
         [],
       );
       return results.map((r: any) => r.name as string);
@@ -150,7 +167,7 @@ export class MigrationManager {
   private async recordMigration(name: string, batch: number): Promise<void> {
     await this.ensureHistoryTable();
     const db = this.config.adapter;
-    const dbAdapter = (db as any).config?.adapter as DatabaseType | undefined;
+    const dbAdapter = db.getAdapterType();
 
     if (!dbAdapter) {
       throw new Error($tr("migration.cannotDetermineType"));
@@ -164,7 +181,7 @@ export class MigrationManager {
       });
     } else {
       await db.execute(
-        `INSERT INTO ${this.historyTableName} (name, batch) VALUES (?, ?)`,
+        `INSERT INTO ${this.quotedHistoryTable()} (name, batch) VALUES (?, ?)`,
         [name, batch],
       );
     }
@@ -176,7 +193,7 @@ export class MigrationManager {
   private async removeMigrationRecord(name: string): Promise<void> {
     await this.ensureHistoryTable();
     const db = this.config.adapter;
-    const dbAdapter = (db as any).config?.adapter as DatabaseType | undefined;
+    const dbAdapter = db.getAdapterType();
 
     if (!dbAdapter) {
       throw new Error($tr("migration.cannotDetermineType"));
@@ -187,9 +204,12 @@ export class MigrationManager {
         filter: { name },
       });
     } else {
-      await db.execute(`DELETE FROM ${this.historyTableName} WHERE name = ?`, [
-        name,
-      ]);
+      await db.execute(
+        `DELETE FROM ${this.quotedHistoryTable()} WHERE name = ?`,
+        [
+          name,
+        ],
+      );
     }
   }
 
@@ -199,7 +219,7 @@ export class MigrationManager {
   private async getNextBatch(): Promise<number> {
     await this.ensureHistoryTable();
     const db = this.config.adapter;
-    const dbAdapter = (db as any).config?.adapter as DatabaseType | undefined;
+    const dbAdapter = db.getAdapterType();
 
     if (!dbAdapter) {
       throw new Error($tr("migration.cannotDetermineType"));
@@ -217,7 +237,7 @@ export class MigrationManager {
       return ((results[0] as any).batch || 0) + 1;
     } else {
       const results = await db.query(
-        `SELECT MAX(batch) as max_batch FROM ${this.historyTableName}`,
+        `SELECT MAX(batch) as max_batch FROM ${this.quotedHistoryTable()}`,
         [],
       );
       if (results.length === 0 || !results[0].max_batch) {
@@ -245,9 +265,7 @@ export class MigrationManager {
 
     // 如果未指定数据库适配器，尝试从适配器配置获取
     if (!dbAdapter) {
-      dbAdapter = (this.config.adapter as any).config?.adapter as
-        | DatabaseType
-        | undefined;
+      dbAdapter = this.config.adapter.getAdapterType();
     }
 
     // 根据数据库适配器选择模板
@@ -508,7 +526,7 @@ export class MigrationManager {
     const executed = await this.getExecutedMigrations();
     const files = await this.getMigrationFiles();
     const db = this.config.adapter;
-    const dbAdapter = (db as any).config?.adapter as DatabaseType | undefined;
+    const dbAdapter = db.getAdapterType();
 
     if (!dbAdapter) {
       throw new Error($tr("migration.cannotDetermineType"));
@@ -536,7 +554,7 @@ export class MigrationManager {
       }
     } else {
       const results = await db.query(
-        `SELECT name, executed_at, batch FROM ${this.historyTableName}`,
+        `SELECT name, executed_at, batch FROM ${this.quotedHistoryTable()}`,
         [],
       );
       for (const record of results) {

@@ -1,5 +1,5 @@
 /**
- * @fileoverview MongoQueryBuilder 测试
+ * @fileoverview MongoStatementBuilder 测试
  */
 
 import {
@@ -12,14 +12,14 @@ import {
   it,
 } from "@dreamer/test";
 import { closeDatabase, getDatabase, initDatabase } from "../../src/access.ts";
-import { MongoQueryBuilder } from "../../src/query/mongo-builder.ts";
+import { MongoStatementBuilder } from "../../src/query/mongo-builder.ts";
 import type { DatabaseAdapter } from "../../src/types.ts";
 import { createMongoConfig } from "./mongo-test-utils.ts";
 
 // 定义集合名常量（使用目录名_文件名_作为前缀）
 const COLLECTION_NAME = "mongo_query_builder_users";
 
-describe("MongoQueryBuilder", () => {
+describe("MongoStatementBuilder", () => {
   let adapter: DatabaseAdapter;
 
   beforeAll(async () => {
@@ -87,7 +87,7 @@ describe("MongoQueryBuilder", () => {
         age: 25,
       });
 
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       const results = await builder.from(COLLECTION_NAME).query();
 
       expect(results.length).toBe(1);
@@ -107,7 +107,7 @@ describe("MongoQueryBuilder", () => {
         { name: "Bob", age: 30 },
       ]);
 
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       const results = await builder.from(COLLECTION_NAME).find({
         name: "Alice",
       })
@@ -129,7 +129,7 @@ describe("MongoQueryBuilder", () => {
         { name: "Bob", age: 30, status: "inactive" },
       ]);
 
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       const results = await builder.from(COLLECTION_NAME).eq("status", "active")
         .query();
 
@@ -150,7 +150,7 @@ describe("MongoQueryBuilder", () => {
         { name: "Charlie", age: 20 },
       ]);
 
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       const results = await builder.from(COLLECTION_NAME).gt("age", 20).query();
 
       expect(results.length).toBe(2);
@@ -170,7 +170,7 @@ describe("MongoQueryBuilder", () => {
         { name: "Charlie", age: 20 },
       ]);
 
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       const results = await builder.from(COLLECTION_NAME).gte("age", 25)
         .query();
 
@@ -191,7 +191,7 @@ describe("MongoQueryBuilder", () => {
         { name: "Charlie", age: 20 },
       ]);
 
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       const results = await builder.from(COLLECTION_NAME).lt("age", 30).query();
 
       expect(results.length).toBe(2);
@@ -211,7 +211,7 @@ describe("MongoQueryBuilder", () => {
         { name: "Charlie", age: 20 },
       ]);
 
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       const results = await builder.from(COLLECTION_NAME).lte("age", 25)
         .query();
 
@@ -234,7 +234,7 @@ describe("MongoQueryBuilder", () => {
         { name: "Charlie", status: "active" },
       ]);
 
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       const results = await builder.from(COLLECTION_NAME).ne(
         "status",
         "deleted",
@@ -260,7 +260,7 @@ describe("MongoQueryBuilder", () => {
         { name: "Charlie", status: "inactive" },
       ]);
 
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       const results = await builder.from(COLLECTION_NAME).in("status", [
         "active",
         "pending",
@@ -285,7 +285,7 @@ describe("MongoQueryBuilder", () => {
         { name: "Charlie", age: 20 },
       ]);
 
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       const results = await builder.from(COLLECTION_NAME).sort({ age: -1 })
         .query();
 
@@ -308,7 +308,7 @@ describe("MongoQueryBuilder", () => {
         { name: "Charlie" },
       ]);
 
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       const results = await builder.from(COLLECTION_NAME).limit(2).query();
 
       expect(results.length).toBe(2);
@@ -325,7 +325,7 @@ describe("MongoQueryBuilder", () => {
         { name: "Charlie", age: 20 },
       ]);
 
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       const results = await builder.from(COLLECTION_NAME).sort({ age: 1 }).skip(
         1,
       )
@@ -347,7 +347,7 @@ describe("MongoQueryBuilder", () => {
         { name: "Bob", age: 30 },
       ]);
 
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       const results = await builder.from(COLLECTION_NAME).query();
 
       expect(results.length).toBe(2);
@@ -358,7 +358,7 @@ describe("MongoQueryBuilder", () => {
     });
 
     it("应该在集合未设置时抛出错误", async () => {
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
 
       await assertRejects(() => builder.query(), Error);
     }, {
@@ -375,7 +375,7 @@ describe("MongoQueryBuilder", () => {
         { name: "Bob", age: 30 },
       ]);
 
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       const result = await builder.from(COLLECTION_NAME).queryOne();
 
       expect(result).toBeTruthy();
@@ -386,7 +386,7 @@ describe("MongoQueryBuilder", () => {
     });
 
     it("应该在无结果时返回 null", async () => {
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       const result = await builder.from(COLLECTION_NAME).queryOne();
 
       expect(result).toBeNull();
@@ -405,7 +405,7 @@ describe("MongoQueryBuilder", () => {
         { name: "Charlie" },
       ]);
 
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       const count = await builder.from(COLLECTION_NAME).count();
 
       expect(count).toBe(3);
@@ -415,7 +415,7 @@ describe("MongoQueryBuilder", () => {
     });
 
     it("应该在集合未设置时抛出错误", async () => {
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
 
       await assertRejects(() => builder.count(), Error);
     }, {
@@ -426,7 +426,7 @@ describe("MongoQueryBuilder", () => {
 
   describe("execute", () => {
     it("应该返回执行器对象", () => {
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       const executor = builder.from(COLLECTION_NAME).execute();
 
       expect(executor).toBeTruthy();
@@ -439,7 +439,7 @@ describe("MongoQueryBuilder", () => {
     });
 
     it("应该在集合未设置时抛出错误", () => {
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
 
       expect(() => {
         builder.execute();
@@ -452,7 +452,7 @@ describe("MongoQueryBuilder", () => {
 
   describe("execute().insert", () => {
     it("应该插入单个文档", async () => {
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       const result = await builder
         .from(COLLECTION_NAME)
         .execute()
@@ -473,7 +473,7 @@ describe("MongoQueryBuilder", () => {
     });
 
     it("应该插入多个文档", async () => {
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       const result = await builder
         .from(COLLECTION_NAME)
         .execute()
@@ -511,7 +511,7 @@ describe("MongoQueryBuilder", () => {
         age: 25,
       });
 
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       const result = await builder
         .from(COLLECTION_NAME)
         .find({ name: "Alice" })
@@ -538,7 +538,7 @@ describe("MongoQueryBuilder", () => {
         { name: "Bob", age: 30, status: "active" },
       ]);
 
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       const result = await builder
         .from(COLLECTION_NAME)
         .find({ status: "active" })
@@ -568,7 +568,7 @@ describe("MongoQueryBuilder", () => {
         age: 25,
       });
 
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       const result = await builder
         .from(COLLECTION_NAME)
         .find({ name: "Alice" })
@@ -596,7 +596,7 @@ describe("MongoQueryBuilder", () => {
         { name: "Charlie", status: "active" },
       ]);
 
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       const result = await builder
         .from(COLLECTION_NAME)
         .find({ status: "deleted" })
@@ -618,7 +618,7 @@ describe("MongoQueryBuilder", () => {
 
   describe("getFilter 和 getOptions", () => {
     it("应该返回查询过滤器", () => {
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       builder.from(COLLECTION_NAME).find({ name: "Alice" }).eq(
         "status",
         "active",
@@ -634,7 +634,7 @@ describe("MongoQueryBuilder", () => {
     });
 
     it("应该返回查询选项", () => {
-      const builder = new MongoQueryBuilder(adapter);
+      const builder = new MongoStatementBuilder(adapter);
       builder.from(COLLECTION_NAME).sort({ age: -1 }).limit(10).skip(5);
 
       const options = builder.getOptions();

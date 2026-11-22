@@ -6,6 +6,7 @@
 import { createLogger, type Logger } from "@dreamer/logger";
 import type { Locale } from "../i18n.ts";
 import { $tr, setDatabaseLocale } from "../i18n.ts";
+import { redactParams, redactSensitiveText } from "./redact.ts";
 
 /**
  * 查询日志条目
@@ -103,10 +104,12 @@ export class QueryLogger {
       return;
     }
 
+    const safeSql = redactSensitiveText(sql);
+    const safeParams = redactParams(params) as any[];
     const entry: QueryLogEntry = {
       type,
-      sql,
-      params,
+      sql: safeSql,
+      params: safeParams,
       duration,
       timestamp: new Date(),
       error,
@@ -122,8 +125,8 @@ export class QueryLogger {
     // 使用 logger 库记录日志
     const logData = {
       type,
-      sql,
-      params: params.length > 0 ? params : undefined,
+      sql: safeSql,
+      params: safeParams.length > 0 ? safeParams : undefined,
       duration: `${duration}ms`,
     };
 
@@ -132,12 +135,12 @@ export class QueryLogger {
       const errorKey = type === "query"
         ? "log.database.queryError"
         : "log.database.executeError";
-      const msg = $tr(errorKey, { sql });
+      const msg = $tr(errorKey, { sql: safeSql });
       this.logger.error(msg, logData, error);
     } else if (duration >= (this.config.slowQueryThreshold || 1000)) {
       // 慢查询警告
       const msg = $tr("log.database.slowQuery", {
-        sql,
+        sql: safeSql,
         duration: String(duration),
       });
       this.logger.warn(msg, logData);
@@ -146,7 +149,7 @@ export class QueryLogger {
       const infoKey = type === "query"
         ? "log.database.queryInfo"
         : "log.database.executeInfo";
-      const msg = $tr(infoKey, { sql });
+      const msg = $tr(infoKey, { sql: safeSql });
       if (this.config.debug) {
         this.logger.info(msg, logData);
       } else {
